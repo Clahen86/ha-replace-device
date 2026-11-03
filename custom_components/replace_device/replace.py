@@ -143,6 +143,20 @@ class Replacer:
             "undone": False,
         }
         old_domain, new_domain = _domain(hass, plan.old), _domain(hass, plan.new)
+        # What listens to the old device (ZHA events, Zigbee2MQTT topics), read before the old device is removed.
+        moved = triggers.Moved(
+            new_device_id=plan.new.id,
+            old_domain=old_domain,
+            new_domain=new_domain,
+            old_ieee=next((v for k, v in plan.old.connections if k == dr.CONNECTION_ZIGBEE), None),
+            old_z2m_name=plan.old.name if z2m_ieee(plan.old) else None,
+            old_z2m_ieee=z2m_ieee(plan.old),
+            old_base=z2m_base_topic(hass, plan.old, Z2M_BASE_TOPIC) if z2m_ieee(plan.old) else None,
+            new_z2m_name=(z2m_name(device_name(plan.old)) if rename_z2m else plan.new.name)
+            if z2m_ieee(plan.new)
+            else None,
+            new_base=z2m_base_topic(hass, plan.new, Z2M_BASE_TOPIC) if z2m_ieee(plan.new) else None,
+        )
         old_ids = [o.entity_id for o, _ in pairs]
         temp_ids = [n.entity_id for _, n in pairs]
 
@@ -191,7 +205,7 @@ class Replacer:
         before = await hass.async_add_executor_job(_read, path)
         translation = await _safely(
             "translating device triggers",
-            triggers.async_translate(hass, plan.new.id, old_domain, new_domain, self.ai_entity),
+            triggers.async_translate(hass, moved, self.ai_entity),
             {"translated": [], "unresolved": []},
         )
         if translation["translated"]:

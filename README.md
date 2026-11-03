@@ -66,7 +66,8 @@ The same is available without the panel: **Settings → Devices & services → R
 
 - The old device is removed, so its names are free. If its integration doesn't allow that (a device that is still connected), you're told to remove it there.
 - If the old device is still in your Zigbee network, remove it there too, so it doesn't come back.
-- Button triggers that can't be translated are listed when it's done, so you can fix them by hand.
+- Automations that listen to the integration itself are fixed too: **blueprints** with inputs for one integration (e.g. a "ZHA / Zigbee2MQTT" remote blueprint gets the Zigbee2MQTT name and base topic instead of the ZHA device), **`zha_event`** triggers and **Zigbee2MQTT MQTT topics** (`<base>/<name>/action`) become device triggers of the new device.
+- Button triggers that can't be translated are listed when it's done, so you can fix them by hand. Node-RED, AppDaemon and other things outside Home Assistant that listen to ZHA events or MQTT topics are not changed.
 - `automations.yaml`, `scripts.yaml`, `scenes.yaml` and everything in `packages/` are updated. Other YAML keeps working through the entity IDs.
 - **Undo all** undoes a whole "move many" in one go.
 - Before you replace, it shows what could still bite: entities only the old one had that are used somewhere, values the new one doesn't have (e.g. `On` vs `on` in a select), unit changes (Wh → kWh breaks energy statistics), and device actions of the old integration that can't be moved.
@@ -124,7 +125,8 @@ Det samme kan gøres uden panelet: **Indstillinger → Enheder og tjenester → 
 
 - Den gamle enhed bliver fjernet, så dens navne bliver ledige. Tillader dens integration ikke det, fx fordi enheden stadig er forbundet, får du besked om at fjerne den der.
 - Er den gamle enhed stadig i dit Zigbee-netværk, så fjern den også der, så den ikke kommer igen.
-- Knaptriggere, der ikke kan oversættes, bliver vist bagefter, så du kan rette dem selv.
+- Automatiseringer, der lytter direkte på integrationen, bliver også rettet. Det gælder **blueprints** med felter til én integration (fx får en "ZHA / Zigbee2MQTT"-fjernbetjeningsblueprint Zigbee2MQTT-navnet og base topic i stedet for ZHA-enheden), og **`zha_event`**-triggere og **Zigbee2MQTT-MQTT-emner** (`<base>/<navn>/action`), som bliver til enhedstriggere på den nye enhed.
+- Knaptriggere, der ikke kan oversættes, bliver vist bagefter, så du kan rette dem selv. Node-RED, AppDaemon og andet uden for Home Assistant, der lytter på ZHA-hændelser eller MQTT-emner, bliver ikke ændret.
 - `automations.yaml`, `scripts.yaml`, `scenes.yaml` og alt i `packages/` bliver opdateret. Anden YAML virker videre via entity-id'erne.
 - **Fortryd alle** fortryder en hel "flyt mange" på én gang.
 - Før du udskifter, viser den, hvad der stadig kan drille. Det gælder entiteter, som kun den gamle havde, og som bruges et sted, værdier den nye ikke har (fx `On` mod `on` i en select), skift af enhed (Wh → kWh ødelægger energistatistikken) og enhedshandlinger fra den gamle integration, som ikke kan flyttes.

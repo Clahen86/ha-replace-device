@@ -691,3 +691,90 @@ def test_z2m_base_topic(hass: HomeAssistant) -> None:
         assert z2m_base_topic(hass, device, "zigbee2mqtt") == "zigbee2mqtt_sensor"
     with patch("homeassistant.components.mqtt.debug_info.info_for_device", side_effect=KeyError):
         assert z2m_base_topic(hass, device, "zigbee2mqtt") == "zigbee2mqtt"
+
+
+async def test_blueprint_zha_event_and_mqtt_listeners(hass: HomeAssistant, tmp_path) -> None:
+    """A ZHA->Z2M move fixes a ZHA/Z2M blueprint and a zha_event trigger; a Z2M->ZHA move fixes an MQTT trigger."""
+    from pathlib import Path
+    from unittest.mock import patch
+
+    from homeassistant.util.yaml import load_yaml
+
+    from custom_components.replace_device.replace import async_plan
+
+    hass.config.config_dir = str(tmp_path)
+    blueprints = tmp_path / "blueprints" / "automation" / "damru"
+    blueprints.mkdir(parents=True)
+    (blueprints / "rodret.yaml").write_text((Path(__file__).parent / "fixtures" / "rodret.yaml").read_text())
+    zha_entry = MockConfigEntry(domain="zha", title="ZHA")
+    zha_entry.add_to_hass(hass)
+    mqtt_entry = MockConfigEntry(domain="mqtt", title="Mosquitto broker")
+    mqtt_entry.add_to_hass(hass)
+    devices = dr.async_get(hass)
+    ieee = "08:dd:eb:ff:fe:60:9e:76"
+    zha = devices.async_get_or_create(
+        config_entry_id=zha_entry.entry_id,
+        identifiers={("zha", ieee)},
+        connections={(dr.CONNECTION_ZIGBEE, ieee)},
+        name="Kontakt stue",
+    )
+    z2m = devices.async_get_or_create(
+        config_entry_id=mqtt_entry.entry_id,
+        identifiers={("mqtt", "zigbee2mqtt_0x08ddebfffe609e76")},
+        name="0x08ddebfffe609e76",
+    )
+    (tmp_path / "automations.yaml").write_text(
+        "- id: '1'\n  alias: Sofa lys\n  use_blueprint:\n    path: damru/rodret.yaml\n    input:\n"
+        f"      remote_device: {zha.id}\n      light: light.sofa_lys\n"
+        "- id: '2'\n  alias: Tænd med kontakt\n  triggers:\n  - trigger: event\n    event_type: zha_event\n"
+        f"    event_data:\n      device_ieee: '{ieee}'\n      command: 'on'\n  actions: []\n"
+    )
+    entry = await _setup(hass)
+    available = [
+        {
+            "platform": "device",
+            "domain": "mqtt",
+            "device_id": z2m.id,
+            "type": "action",
+            "subtype": s,
+            "discovery_id": f"0x08ddebfffe609e76 action_{s}",
+        }
+        for s in ("on", "off", "brightness_move_up", "brightness_move_down", "brightness_stop")
+    ]
+    with patch(
+        "custom_components.replace_device.triggers.async_get_device_automations", return_value={z2m.id: available}
+    ):
+        result = await entry.runtime_data.async_replace(async_plan(hass, zha.id, z2m.id), True, rename_z2m=True)
+    await hass.async_block_till_done()
+    assert result["triggers"]["unresolved"] == []
+    sofa, switch_on = load_yaml(str(tmp_path / "automations.yaml"))
+    assert sofa["use_blueprint"]["input"] == {
+        "light": "light.sofa_lys",
+        "remote_name": "Kontakt stue",
+        "base_topic": "zigbee2mqtt",
+    }
+    assert switch_on["triggers"][0]["type"] == "action" and switch_on["triggers"][0]["subtype"] == "on"
+
+    # And back: Zigbee2MQTT -> ZHA. The blueprint gets the ZHA device again; an MQTT trigger becomes a device trigger.
+    zha2 = devices.async_get_or_create(
+        config_entry_id=zha_entry.entry_id, identifiers={("zha", "08:dd:eb:ff:fe:60:9e:77")}, name="Ny kontakt"
+    )
+    devices.async_update_device(z2m.id, name="Kontakt stue")
+    (tmp_path / "automations.yaml").write_text(
+        "- id: '1'\n  alias: Sofa lys\n  use_blueprint:\n    path: damru/rodret.yaml\n    input:\n"
+        "      remote_name: Kontakt stue\n      base_topic: zigbee2mqtt\n      light: light.sofa_lys\n"
+        "- id: '3'\n  alias: Sluk\n  triggers:\n  - trigger: mqtt\n    topic: zigbee2mqtt/Kontakt stue/action\n"
+        "    payload: 'off'\n  actions: []\n"
+    )
+    zha_triggers = [
+        {"platform": "device", "domain": "zha", "device_id": zha2.id, "type": "remote_button_short_press", "subtype": s}
+        for s in ("turn_on", "turn_off")
+    ]
+    with patch(
+        "custom_components.replace_device.triggers.async_get_device_automations", return_value={zha2.id: zha_triggers}
+    ):
+        await entry.runtime_data.async_replace(async_plan(hass, z2m.id, zha2.id), True)
+    await hass.async_block_till_done()
+    sofa, off = load_yaml(str(tmp_path / "automations.yaml"))
+    assert sofa["use_blueprint"]["input"] == {"light": "light.sofa_lys", "remote_device": zha2.id}
+    assert off["triggers"][0]["domain"] == "zha" and off["triggers"][0]["subtype"] == "turn_off"
