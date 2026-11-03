@@ -16,7 +16,7 @@ from . import references
 from .checks import async_checks
 from .groups import match_groups
 from .hardware import hardware_keys, source, z2m_ieee
-from .replace import Plan, Replacer, async_plan, device_name
+from .replace import Plan, Replacer, async_plan, async_remove_device, device_name
 from .suggest import is_dead
 
 
@@ -25,6 +25,7 @@ def async_setup(hass: HomeAssistant) -> None:
     for command in (
         ws_devices,
         ws_hide,
+        ws_remove_device,
         ws_plan,
         ws_replace,
         ws_history,
@@ -106,8 +107,10 @@ async def ws_devices(hass: HomeAssistant, connection: websocket_api.ActiveConnec
         if d.entry_type is None and er.async_entries_for_device(er.async_get(hass), d.id)
     ]
     registry = dr.async_get(hass)
+    took_over = _took_over(hass)
     for item in devices:
         item["hidden"] = item["id"] in hidden
+        item["moved_to"] = _moved_to(hass, registry.async_get(item["id"]), took_over)
         if not item["dead"]:
             continue
         dead = registry.async_get(item["id"])
@@ -150,6 +153,17 @@ async def _last_battery(hass: HomeAssistant, device_id: str) -> float | None:
         except ValueError:
             continue
     return None
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/remove_device", vol.Required("device"): str})
+@websocket_api.async_response
+async def ws_remove_device(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Remove a leftover of a device that was already replaced, the way its integration does it."""
+    removed = await async_remove_device(hass, msg["device"])
+    connection.send_result(msg["id"], {"removed": removed})
 
 
 @websocket_api.require_admin
@@ -300,6 +314,27 @@ async def ws_undo(hass: HomeAssistant, connection: websocket_api.ActiveConnectio
     connection.send_result(msg["id"], {"undone": count})
 
 
+def _took_over(hass: HomeAssistant) -> dict[str, dr.DeviceEntry]:
+    """Hardware key -> new device of every replacement that is still in force."""
+    replacer = _replacer(hass)
+    registry = dr.async_get(hass)
+    keys: dict[str, dr.DeviceEntry] = {}
+    for record in replacer.history if replacer else []:
+        if record["undone"] or not (new := registry.async_get(record["new_device"].get("id") or "")):
+            continue
+        for key in hardware_keys(new):
+            keys[key] = new
+    return keys
+
+
+def _moved_to(hass: HomeAssistant, device: dr.DeviceEntry, took_over: dict[str, dr.DeviceEntry]) -> str | None:
+    """The name of the device this one was already replaced by, if it is the same hardware (a leftover)."""
+    for key in hardware_keys(device):
+        if (new := took_over.get(key)) is not None and new.id != device.id:
+            return device_name(new) + f" ({source(hass, new)[1]})"
+    return None
+
+
 def _by_key(devices: list[dr.DeviceEntry]) -> dict[str, list[dr.DeviceEntry]]:
     index: dict[str, list[dr.DeviceEntry]] = {}
     for device in devices:
@@ -331,8 +366,12 @@ async def ws_migrate_plan(hass: HomeAssistant, connection: websocket_api.ActiveC
     dashboards = await references.async_dashboards(hass)
     source_devices = _devices_from(hass, msg["source"])
     sources, targets = _by_key(source_devices), _by_key(_devices_from(hass, msg["target"]))
-    pairs, missing, used = [], [], set()
+    pairs, missing, used, leftovers = [], [], set(), []
+    took_over = _took_over(hass)
     for old in source_devices:
+        if moved := _moved_to(hass, old, took_over):
+            leftovers.append(_device(hass, old) | {"moved_to": moved})
+            continue
         # Only keys that point at exactly one device on each side: Shelly channels share their MAC, for one.
         keys = [k for k in sorted(hardware_keys(old)) if len(sources.get(k, [])) == 1 and len(targets.get(k, [])) == 1]
         new = next((targets[k][0] for k in keys if targets[k][0].id not in used), None)
@@ -356,7 +395,7 @@ async def ws_migrate_plan(hass: HomeAssistant, connection: websocket_api.ActiveC
         {"name": name, "old": old.entity_id, "new": new.entity_id}
         for name, old, new in match_groups(hass, msg["source"], msg["target"])
     ]
-    connection.send_result(msg["id"], {"pairs": pairs, "missing": missing, "groups": groups})
+    connection.send_result(msg["id"], {"pairs": pairs, "missing": missing, "groups": groups, "leftovers": leftovers})
 
 
 @websocket_api.require_admin

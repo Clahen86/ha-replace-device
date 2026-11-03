@@ -6,6 +6,11 @@ const TEXT = {
     heroTitle: "A device died?",
     heroText: "Pair the new one first. It then takes over the old one's name, entity IDs and history – your automations and dashboards keep working.",
     start: "Replace a device",
+    leftoversTitle: "Left behind after a move",
+    leftoversHint: "Already moved – but the old integration still knows the old device. Remove it, so it doesn't come back with new names.",
+    movedTo: "Moved to {name}",
+    removeLeftover: "Remove the old one",
+    removeFailed: "Couldn't remove it here – remove it in {integration}.",
     dead: "No contact",
     deadHint: "Not necessarily broken – often an empty battery, a bulb switched off at the wall, or out of range.",
     batteryLast: "Battery last: {n} %",
@@ -127,6 +132,11 @@ const TEXT = {
     heroTitle: "Er en enhed død?",
     heroText: "Par den nye først. Så overtager den den gamles navn, entity-id'er og historik – dine automatiseringer og dashboards virker videre.",
     start: "Udskift en enhed",
+    leftoversTitle: "Rester efter flytning",
+    leftoversHint: "Allerede flyttet – men den gamle integration kender stadig den gamle enhed. Fjern den, så den ikke kommer igen med nye navne.",
+    movedTo: "Flyttet til {name}",
+    removeLeftover: "Fjern den gamle",
+    removeFailed: "Kunne ikke fjernes her – fjern den i {integration}.",
     dead: "Uden kontakt",
     deadHint: "Ikke nødvendigvis i stykker – ofte fladt batteri, en pære slukket på kontakten eller for langt væk.",
     batteryLast: "Batteri sidst: {n} %",
@@ -394,7 +404,8 @@ class ReplaceDevicePanel extends HTMLElement {
   // ---------- views ----------
 
   homeView() {
-    const quiet = this.devices.filter((d) => d.dead).sort((a, b) => (b.twins?.length || 0) - (a.twins?.length || 0));
+    const leftovers = this.devices.filter((d) => d.moved_to);
+    const quiet = this.devices.filter((d) => d.dead && !d.moved_to).sort((a, b) => (b.twins?.length || 0) - (a.twins?.length || 0));
     const shown = quiet.filter((d) => !d.hidden);
     const hidden = quiet.filter((d) => d.hidden);
     const card = (d) => {
@@ -444,6 +455,9 @@ class ReplaceDevicePanel extends HTMLElement {
         <div class="btns"><button class="primary" data-act="pick">${this.t("start")}</button>
         <button class="ghost" data-act="migrate"><ha-icon icon="mdi:transfer"></ha-icon>${this.t("migrateStart")}</button></div></div>
       </div>
+      ${leftovers.length ? `<h3>${this.t("leftoversTitle")} <span class="count">${leftovers.length}</span></h3>
+        <p class="muted small section-hint">${this.t("leftoversHint")}</p>
+        <div class="grid">${leftovers.map((d) => this.leftoverCard(d)).join("")}</div>` : ""}
       <h3>${this.t("dead")} ${shown.length ? `<span class="count">${shown.length}</span>` : ""}</h3>
       <p class="muted small section-hint">${this.t("deadHint")}</p>
       <div class="grid">${deadCards}</div>
@@ -477,6 +491,28 @@ class ReplaceDevicePanel extends HTMLElement {
     const icon = { bad: "mdi:alert-octagon", warn: "mdi:alert", info: "mdi:information-outline" };
     return `<div class="card warn"><h3 class="in"><ha-icon icon="mdi:clipboard-check-outline"></ha-icon> ${this.t("checksTitle")}</h3>
       <div class="checks">${lines.map(([k, txt]) => `<div class="check-line c-${k}"><ha-icon icon="${icon[k]}"></ha-icon><span>${esc(txt)}</span></div>`).join("")}</div></div>`;
+  }
+
+  leftoverCard(d) {
+    return `
+      <div class="card leftover">
+        <div class="dev-head"><ha-icon icon="mdi:ghost-outline"></ha-icon>
+          <div class="grow"><div class="dev-name">${esc(d.name)}</div>
+            <div class="muted small">${esc([d.area, d.integration_title].filter(Boolean).join(" · "))}</div>
+            <div class="small ok-text">${esc(this.t("movedTo", { name: d.moved_to }))}</div></div></div>
+        <button class="ghost full" data-act="removeLeftover" data-id="${d.id}" data-integration="${esc(d.integration_title || "")}">${this.t("removeLeftover")}</button>
+      </div>`;
+  }
+
+  async removeLeftover(id, integration) {
+    try {
+      const r = await this.ws("remove_device", { device: id });
+      this.error = r.removed ? "" : this.t("removeFailed", { integration });
+    } catch (e) {
+      this.error = this.t("error", { e: e.message || e.code });
+    }
+    if (this.view === "migrate" && this.migratePlan) await this.findPairs();
+    this.load();
   }
 
   historyRow(h) {
@@ -599,6 +635,8 @@ class ReplaceDevicePanel extends HTMLElement {
           <div class="mrows">${rows}</div>
           ${plan.missing.length ? `<p class="muted small">${this.t("missing", { n: plan.missing.length, source: name(this.migrateSource), target: name(this.migrateTarget) })}</p>` : ""}
         </div>
+        ${plan.leftovers?.length ? `<div class="card"><h3 class="in"><ha-icon icon="mdi:ghost-outline"></ha-icon> ${this.t("leftoversTitle")}</h3>
+          <p class="muted small">${this.t("leftoversHint")}</p><div class="grid">${plan.leftovers.map((d) => this.leftoverCard(d)).join("")}</div></div>` : ""}
         ${this.groupsCard(plan)}
         ${plan.pairs.filter((p) => this.migrateSelected.has(p.old.id)).map((p) => this.checkLines(p.checks).length ? `<div class="card"><b>${esc(p.old.name)}</b>${this.checksCard(p.checks)}</div>` : "").join("")}
         <div class="card">
@@ -952,6 +990,8 @@ class ReplaceDevicePanel extends HTMLElement {
     } else if (data.act === "toggleHidden") {
       this.showHidden = !this.showHidden;
       this.render();
+    } else if (data.act === "removeLeftover") {
+      this.removeLeftover(data.id, data.integration);
     } else if (data.act === "edit") {
       this.openEdit(data.id);
     } else if (data.act === "saveEdit") {
@@ -1022,6 +1062,7 @@ input:checked+.switch{background:var(--rd-blue)}input:checked+.switch:after{left
 .check path{fill:none;stroke:var(--rd-green);stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
 @keyframes pop{from{transform:scale(.5)}}
 .warn-text{color:var(--rd-amber)}
+.leftover{border-left:4px solid var(--rd-amber)}.leftover .dev-head>ha-icon{color:var(--rd-amber)}
 .why{display:flex;gap:8px;align-items:center;margin-top:10px;font-size:14px;color:var(--secondary-text-color)}.why ha-icon{--mdc-icon-size:18px}.why.low{color:var(--rd-amber);font-weight:500}
 .card-links{display:flex;justify-content:space-between;gap:8px;margin-top:8px}.dot.grey{background:var(--disabled-text-color,#9aa3ad);box-shadow:none}.is-hidden{opacity:.7}.section-hint{margin:-4px 4px 12px}
 .batch-items{padding-left:22px;border-left:2px solid var(--divider-color,#e3e7ec);margin:0 0 6px 10px}.batch-head{border-bottom:0}

@@ -906,3 +906,63 @@ async def test_hide_device_without_contact(hass: HomeAssistant, hass_ws_client, 
     assert (await client.receive_json())["success"]
     suggest.async_suggest(hass, new.id)
     assert ir.async_get(hass).async_get_issue(DOMAIN, f"suggest_{new.id}") is not None
+
+
+async def test_zha_removal_and_leftovers(hass: HomeAssistant, hass_ws_client) -> None:
+    """ZHA devices are removed with zha.remove; one that comes back anyway is shown as a leftover, not paired again."""
+    from pytest_homeassistant_custom_component.common import async_mock_service
+
+    from homeassistant.config_entries import ConfigEntryState
+
+    from custom_components.replace_device.replace import async_plan
+
+    removed = async_mock_service(hass, "zha", "remove")
+    zha_entry = MockConfigEntry(domain="zha", title="ZHA")
+    zha_entry.add_to_hass(hass)
+    zha_entry.mock_state(hass, ConfigEntryState.LOADED)
+    mqtt_entry = MockConfigEntry(domain="mqtt", title="Mosquitto broker")
+    mqtt_entry.add_to_hass(hass)
+    devices, registry = dr.async_get(hass), er.async_get(hass)
+    ieee = "08:6b:d7:ff:fe:00:f8:ec"
+
+    def zha_device():
+        device = devices.async_get_or_create(
+            config_entry_id=zha_entry.entry_id,
+            identifiers={("zha", ieee)},
+            connections={(dr.CONNECTION_ZIGBEE, ieee)},
+            name="LED Holly værelse",
+        )
+        registry.async_get_or_create(
+            "switch", "zha", f"{ieee}-1", suggested_object_id="led_holly", device_id=device.id, config_entry=zha_entry
+        )
+        return device
+
+    old = zha_device()
+    new = devices.async_get_or_create(
+        config_entry_id=mqtt_entry.entry_id,
+        identifiers={("mqtt", "zigbee2mqtt_0x086bd7fffe00f8ec")},
+        name="0x086b",
+    )
+    registry.async_get_or_create(
+        "switch", "mqtt", "z1", suggested_object_id="z_switch", device_id=new.id, config_entry=mqtt_entry
+    )
+    entry = await _setup(hass)
+    result = await entry.runtime_data.async_replace(async_plan(hass, old.id, new.id), True)
+    await hass.async_block_till_done()
+    assert result["removed"] and removed[0].data == {"ieee": ieee}
+    assert devices.async_get(old.id) is None
+
+    # ZHA adds it again anyway: it is a leftover, never a new pair.
+    ghost = zha_device()
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": "replace_device/migrate_plan", "source": "zha", "target": "zigbee2mqtt"})
+    plan = (await client.receive_json())["result"]
+    assert plan["pairs"] == [] and [d["id"] for d in plan["leftovers"]] == [ghost.id]
+    assert plan["leftovers"][0]["moved_to"].startswith("LED Holly værelse")
+    await client.send_json_auto_id({"type": "replace_device/devices"})
+    devs = {d["id"]: d for d in (await client.receive_json())["result"]["devices"]}
+    assert devs[ghost.id]["moved_to"] and not devs[new.id]["moved_to"]
+    await client.send_json_auto_id({"type": "replace_device/remove_device", "device": ghost.id})
+    assert (await client.receive_json())["result"] == {"removed": True}
+    assert len(removed) == 2 and devices.async_get(ghost.id) is None
+    zha_entry.mock_state(hass, ConfigEntryState.NOT_LOADED)

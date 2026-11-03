@@ -71,7 +71,7 @@ The same is available without the panel: **Settings → Devices & services → R
 
 ### Good to know
 
-- The old device is removed, so its names are free. If its integration doesn't allow that (a device that is still connected), you're told to remove it there. If it is still in your Zigbee network, remove it there too.
+- The old device is removed, so its names are free – ZHA devices with ZHA's own *remove*, so ZHA doesn't add them again. If an integration doesn't allow it, you're told to remove it there. An old device that comes back anyway is shown under **Left behind after a move**, with a button to remove it, and is never paired again.
 - Dead devices are found by being unavailable for an hour. In Zigbee2MQTT that needs **availability** turned on (Settings → Availability); without it, a dead device keeps its last value.
 - If one step fails (a broken dashboard, a file it can't read), the rest still runs and the replacement can still be undone; the log says what was skipped.
 - A replacement can't move a device back to its old integration – that takes pairing it there again (and then a new replacement the other way). Under **Change** you can give the new device its own names back, but the old device doesn't return and automations using the old names stop working, so you're warned first. **Do again** redoes it.
@@ -137,7 +137,7 @@ Det samme kan gøres uden panelet: **Indstillinger → Enheder og tjenester → 
 
 ### Godt at vide
 
-- Den gamle enhed bliver fjernet, så dens navne bliver ledige. Tillader dens integration ikke det, fx fordi enheden stadig er forbundet, får du besked om at fjerne den der. Er den stadig i dit Zigbee-netværk, så fjern den også der.
+- Den gamle enhed bliver fjernet, så dens navne bliver ledige. ZHA-enheder fjernes med ZHA's egen *fjern*, så ZHA ikke laver dem igen. Tillader en integration det ikke, får du besked om at fjerne den der. En gammel enhed, der alligevel kommer igen, vises under **Rester efter flytning** med en knap til at fjerne den, og den bliver aldrig parret igen.
 - Døde enheder findes ved, at de har været utilgængelige i en time. I Zigbee2MQTT kræver det, at **availability** er slået til (Settings → Availability). Uden den beholder en død enhed sin sidste værdi.
 - Fejler ét trin, fx et ødelagt dashboard eller en fil den ikke kan læse, kører resten alligevel, og udskiftningen kan stadig fortrydes. Loggen viser, hvad der blev sprunget over.
 - En udskiftning kan ikke flytte en enhed tilbage til dens gamle integration. Det kræver, at den parres der igen, og derefter en ny udskiftning den anden vej. Under **Ret** kan du give den nye enhed dens egne navne tilbage, men den gamle enhed kommer ikke igen, og automatiseringer med de gamle navne holder op med at virke. Derfor bliver du advaret først. **Gentag** laver det igen.

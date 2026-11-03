@@ -681,6 +681,10 @@ def _read(path: str) -> str | None:
 async def _remove_device(hass: HomeAssistant, device: dr.DeviceEntry) -> bool:
     """Remove the old device the way the device page does, if its integration allows it."""
     entry = hass.config_entries.async_get_entry(device.config_entry_id) if device.config_entry_id else None
+    if entry is not None and entry.state is ConfigEntryState.LOADED and entry.domain == "zha":
+        # ZHA has its own way: zha.remove forgets the device for good. Removing it from the registry only would
+        # make ZHA add it again at the next start, with new entity ids.
+        return await _remove_from_zha(hass, device)
     if entry is not None and entry.state is ConfigEntryState.LOADED:
         if not entry.supports_remove_device:
             return False
@@ -695,6 +699,27 @@ async def _remove_device(hass: HomeAssistant, device: dr.DeviceEntry) -> bool:
     if registry.async_get(device.id):
         registry.async_remove_device(device.id)
     return True
+
+
+async def _remove_from_zha(hass: HomeAssistant, device: dr.DeviceEntry) -> bool:
+    ieee = next((value for kind, value in device.connections if kind == dr.CONNECTION_ZIGBEE), None)
+    if ieee is None or not hass.services.has_service("zha", "remove"):
+        return False
+    try:
+        await hass.services.async_call("zha", "remove", {"ieee": ieee}, blocking=True)
+    except Exception:  # noqa: BLE001 - ZHA said no
+        _LOGGER.warning("ZHA could not remove %s", device_name(device), exc_info=True)
+        return False
+    registry = dr.async_get(hass)
+    if registry.async_get(device.id):
+        registry.async_remove_device(device.id)
+    return True
+
+
+async def async_remove_device(hass: HomeAssistant, device_id: str) -> bool:
+    """Remove a device that was already replaced but came back (e.g. still known by its old integration)."""
+    device = dr.async_get(hass).async_get(device_id)
+    return device is not None and await _remove_device(hass, device)
 
 
 async def _wait_until_gone(hass: HomeAssistant, entity_ids: list[str]) -> None:
