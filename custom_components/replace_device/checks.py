@@ -60,6 +60,7 @@ async def async_checks(
     ids = {plan.old.id: plan.new.id} | {o.id: n.id for o, n in plan.pairs}
     skip = {d for d in (_domain(hass, plan.old), _domain(hass, plan.new)) if d}
     return {
+        "unsure": [{"entity_id": o, "new": plan.mapping.get(o)} for o in plan.unsure if plan.mapping.get(o)],
         "outside": await hass.async_add_executor_job(
             references.outside_users, hass.config.path(), _needles(hass, plan)
         ),

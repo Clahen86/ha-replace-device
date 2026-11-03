@@ -75,6 +75,8 @@ const TEXT = {
     groupsTitle: "Zigbee groups",
     groupsText: "Groups made again in the new integration with the same name take over the old group's entity ID and history.",
     noGroups: "No groups with the same name were found. Make the group again in the new integration – with the same name – and it shows up here.",
+    unsureTag: "check",
+    unsureLine: "Not sure: {name} → {new}. Check that it is the same thing.",
     aiTag: "AI",
     aiHint: "Some entities found no match. Connect an AI under Settings → Devices & services → Replace Device → Configure, and it will help.",
     triggersDone: "{n} button triggers were translated to the new integration.",
@@ -205,6 +207,8 @@ const TEXT = {
     groupsTitle: "Zigbee-grupper",
     groupsText: "Grupper, der er lavet igen i den nye integration med samme navn, overtager den gamle gruppes entity-id og historik.",
     noGroups: "Der blev ikke fundet grupper med samme navn. Lav gruppen igen i den nye integration – med samme navn – så dukker den op her.",
+    unsureTag: "tjek",
+    unsureLine: "Usikkert: {name} → {new}. Tjek at det er det samme.",
     aiTag: "AI",
     aiHint: "Nogle entiteter fandt ingen match. Tilslut AI under Indstillinger → Enheder og tjenester → Udskift enhed → Konfigurer, så hjælper den.",
     triggersDone: "{n} knaptriggere er oversat til den nye integration.",
@@ -478,6 +482,7 @@ class ReplaceDevicePanel extends HTMLElement {
     if (!c) return [];
     const name = (id) => id;
     const lines = [];
+    for (const u of c.unsure || []) lines.push(["warn", this.t("unsureLine", { name: name(u.entity_id), new: u.new })]);
     for (const d of c.dropped_used || []) lines.push(["warn", this.t("droppedUsed", { name: name(d.entity_id), where: d.used_in.join(", ") })]);
     for (const e of c.differences || []) {
       for (const d of e.differences) {
@@ -750,7 +755,7 @@ class ReplaceDevicePanel extends HTMLElement {
         <div class="row ${choice ? "ok" : "gone"}">
           <div class="side">
             <ha-icon icon="${this.icon(o)}"></ha-icon>
-            <div class="grow"><div class="ename">${esc(o.name || o.entity_id)}${(p.ai || []).includes(o.entity_id) && choice === p.mapping[o.entity_id] ? ` <span class="tag ai">${this.t("aiTag")}</span>` : ""}</div><code>${esc(o.entity_id)}</code></div>
+            <div class="grow"><div class="ename">${esc(o.name || o.entity_id)}${(p.ai || []).includes(o.entity_id) && choice === p.mapping[o.entity_id] ? ` <span class="tag ai">${this.t("aiTag")}</span>` : ""}${(p.unsure || []).includes(o.entity_id) && choice === p.mapping[o.entity_id] ? ` <span class="tag unsure">${this.t("unsureTag")}</span>` : ""}</div><code>${esc(o.entity_id)}</code></div>
           </div>
           <div class="mid"><ha-icon icon="${choice ? "mdi:arrow-left-bold" : "mdi:close"}"></ha-icon></div>
           <div class="side">
@@ -1086,6 +1091,7 @@ input:checked+.switch{background:var(--rd-blue)}input:checked+.switch:after{left
 .check path{fill:none;stroke:var(--rd-green);stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
 @keyframes pop{from{transform:scale(.5)}}
 .warn-text{color:var(--rd-amber)}
+.tag.unsure{background:rgba(255,166,0,.18);color:#b36b00;font-size:11px;padding:1px 7px}
 .left-hint{text-align:left}
 .leftover{border-left:4px solid var(--rd-amber)}.leftover .dev-head>ha-icon{color:var(--rd-amber)}
 .why{display:flex;gap:8px;align-items:center;margin-top:10px;font-size:14px;color:var(--secondary-text-color)}.why ha-icon{--mdc-icon-size:18px}.why.low{color:var(--rd-amber);font-weight:500}

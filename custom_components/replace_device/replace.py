@@ -29,7 +29,7 @@ from homeassistant.util.file import write_utf8_file_atomic
 from . import ai, references, triggers
 from .const import AUTOMATIONS_FILE, CHECK_AFTER, DOMAIN, SCENES_FILE, SCRIPTS_FILE, TEXTS, Z2M_BASE_TOPIC
 from .hardware import z2m_base_topic, z2m_ieee, z2m_name
-from .matching import match
+from .matching import match, unsure
 
 _LOGGER = logging.getLogger(__name__)
 _KEEP_DAYS = 30
@@ -46,6 +46,8 @@ class Plan:
     mapping: dict[str, str | None]
     # Names of automations and scripts that point at the old device itself (not only its entities).
     uses_device: list[str] = field(default_factory=list)
+    # Old entities whose match was a close call: shown with "check", and asked to the AI if there is one.
+    unsure: list[str] = field(default_factory=list)
 
     @property
     def pairs(self) -> list[tuple[er.RegistryEntry, er.RegistryEntry]]:
@@ -70,6 +72,7 @@ def async_plan(
         old, new, old_entities, new_entities, mapping if mapping is not None else match(old_entities, new_entities)
     )
     plan.uses_device = _users_of_device(hass, old_id)
+    plan.unsure = unsure(old_entities, new_entities, plan.mapping) if mapping is None else []
     return plan
 
 
@@ -520,8 +523,9 @@ class Replacer:
             return []
         key = (plan.old.id, plan.new.id)
         if key not in self._ai_cache:
-            taken = {v for v in plan.mapping.values() if v}
-            old = [o for o in plan.old_entities if not plan.mapping.get(o.entity_id)]
+            doubtful = set(plan.unsure)
+            taken = {v for k, v in plan.mapping.items() if v and k not in doubtful}
+            old = [o for o in plan.old_entities if not plan.mapping.get(o.entity_id) or o.entity_id in doubtful]
             new = [n for n in plan.new_entities if n.entity_id not in taken and any(n.domain == o.domain for o in old)]
             picks = (
                 await ai.async_pick_entities(
@@ -534,12 +538,18 @@ class Replacer:
                 old[i].entity_id: new[j].entity_id for i, j in picks.items() if old[i].domain == new[j].domain
             }
         filled = []
+        answer = self._ai_cache[key]
+        # The AI's answer for a close call wins; whatever it gives up becomes free for others.
+        for old_id in plan.unsure:
+            if old_id in answer:
+                plan.mapping[old_id] = None
         taken = {v for v in plan.mapping.values() if v}
-        for old_id, new_id in self._ai_cache[key].items():
+        for old_id, new_id in answer.items():
             if not plan.mapping.get(old_id) and new_id not in taken:
                 plan.mapping[old_id] = new_id
                 taken.add(new_id)
                 filled.append(old_id)
+        plan.unsure = [u for u in plan.unsure if u not in filled]
         return filled
 
     @callback

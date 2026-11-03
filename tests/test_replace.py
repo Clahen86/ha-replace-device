@@ -1054,3 +1054,67 @@ async def test_buttons_never_pressed_in_z2m(hass: HomeAssistant, tmp_path) -> No
     got = {t["id"]: t.get("subtype") for t in load_yaml(str(tmp_path / "automations.yaml"))[0]["triggers"]}
     assert got["TÆND"] == "button_1" and got["SLUK"] == "2_short_release"
     assert got["WIZ_SLUK"] == "button_2" and "Holly LED: remote_button_double_press / button_2" in guess["unresolved"]
+
+
+async def test_match_across_languages(hass: HomeAssistant) -> None:
+    """The TRVZB moved ZHA (Danish names) -> Zigbee2MQTT (English names): four °C numbers must not be shuffled."""
+    from custom_components.replace_device.matching import match, unsure
+
+    zha_entry = MockConfigEntry(domain="zha")
+    zha_entry.add_to_hass(hass)
+    mqtt_entry = MockConfigEntry(domain="mqtt")
+    mqtt_entry.add_to_hass(hass)
+    devices, registry = dr.async_get(hass), er.async_get(hass)
+    old = devices.async_get_or_create(config_entry_id=zha_entry.entry_id, identifiers={("zha", "o")}, name="T")
+    new = devices.async_get_or_create(config_entry_id=mqtt_entry.entry_id, identifiers={("mqtt", "n")}, name="N")
+    zha = [
+        ("external_temperature_sensor_value", "External temperature sensor value", "external_temperature_sensor_value"),
+        ("frost_protection_temperature", "Frost protection temperature", "frost_protection_temperature"),
+        ("lokal_temperaturforskydning", "Lokal temperaturforskydning", "local_temperature_calibration"),
+        ("temperature_control_accuracy", "Temperature control accuracy", "temperature_control_accuracy"),
+    ]
+    for object_id, name, key in zha:
+        registry.async_get_or_create(
+            "number",
+            "zha",
+            f"0c:ef:f6:ff:fe:a4:0f:19-1-{key}",
+            suggested_object_id=f"termostat_traeningsrum_{object_id}",
+            device_id=old.id,
+            config_entry=zha_entry,
+            original_name=name,
+            translation_key=key,
+            unit_of_measurement="°C",
+        )
+    z2m = [
+        ("external_temperature_input", "External temperature input"),
+        ("frost_protection_temperature", "Frost protection temperature"),
+        ("local_temperature_calibration", "Local temperature calibration"),
+        ("temperature_accuracy", "Temperature accuracy"),
+    ]
+    for feature, name in z2m:
+        registry.async_get_or_create(
+            "number",
+            "mqtt",
+            f"0x0ceff6fffea40f19_{feature}_zigbee2mqtt_sensor",
+            suggested_object_id=f"0x0ceff6fffea40f19_{feature}",
+            device_id=new.id,
+            config_entry=mqtt_entry,
+            original_name=name,
+            unit_of_measurement="°C",
+        )
+    old_entities = er.async_entries_for_device(registry, old.id)
+    new_entities = er.async_entries_for_device(registry, new.id)
+    result = match(old_entities, new_entities)
+    assert result == {
+        "number.termostat_traeningsrum_external_temperature_sensor_value": (
+            "number.0x0ceff6fffea40f19_external_temperature_input"
+        ),
+        "number.termostat_traeningsrum_frost_protection_temperature": (
+            "number.0x0ceff6fffea40f19_frost_protection_temperature"
+        ),
+        "number.termostat_traeningsrum_lokal_temperaturforskydning": (
+            "number.0x0ceff6fffea40f19_local_temperature_calibration"
+        ),
+        "number.termostat_traeningsrum_temperature_control_accuracy": "number.0x0ceff6fffea40f19_temperature_accuracy",
+    }
+    assert isinstance(unsure(old_entities, new_entities, result), list)

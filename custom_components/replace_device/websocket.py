@@ -92,6 +92,7 @@ def _plan(hass: HomeAssistant, plan: Plan) -> dict[str, Any]:
         "new_entities": [_entity(hass, e) for e in plan.new_entities],
         "mapping": plan.mapping,
         "uses_device": plan.uses_device,
+        "unsure": plan.unsure,
     }
 
 
