@@ -20,6 +20,7 @@ from homeassistant.util.yaml import dump, load_yaml
 
 from . import ai
 from .const import AUTOMATIONS_FILE
+from .hardware import async_z2m_actions
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -77,9 +78,17 @@ def label(trigger: dict[str, Any]) -> str:
     return " / ".join(str(trigger[k]) for k in ("type", "subtype") if trigger.get(k))
 
 
+def same_button(old: dict[str, Any], candidate: dict[str, Any]) -> bool:
+    """Numbers name buttons ("button_1", "2_short_release"): button 1 is never button 2."""
+    old_digits = {w for w in words(old.get("type"), old.get("subtype")) if w.isdigit()}
+    new_digits = {w for w in words(candidate.get("type"), candidate.get("subtype")) if w.isdigit()}
+    return not old_digits or not new_digits or old_digits == new_digits
+
+
 def best(old: dict[str, Any], candidates: list[dict[str, Any]]) -> dict[str, Any] | None:
     """The candidate that means the same, if one clearly does."""
     want = words(old.get("type"), old.get("subtype"))
+    candidates = [c for c in candidates if same_button(old, c)]
     if not want:
         return None
     scored = sorted(
@@ -108,6 +117,7 @@ class Moved:
     old_base: str | None = None
     new_z2m_name: str | None = None
     new_base: str | None = None
+    new_z2m_ieee: str | None = None
 
 
 async def async_translate(hass: HomeAssistant, moved: Moved, ai_entity: str | None) -> dict[str, list[str]]:
@@ -148,6 +158,13 @@ async def async_translate(hass: HomeAssistant, moved: Moved, ai_entity: str | No
             moved.new_device_id, []
         )
         candidates = [dict(t) for t in available if t.get("domain") == moved.new_domain]
+        if moved.new_z2m_ieee and moved.new_base:
+            known = {c.get("subtype") for c in candidates}
+            candidates += [
+                {"domain": "mqtt", "device_id": moved.new_device_id, "type": "action", "subtype": action}
+                for action in await async_z2m_actions(hass, moved.new_base, moved.new_z2m_ieee)
+                if action not in known
+            ]
         choices: dict[int, dict[str, Any] | None] = {i: best(m, candidates) for i, (_, _, m) in enumerate(found)}
         open_items = [i for i, choice in choices.items() if choice is None]
         if open_items and candidates and ai_entity:
@@ -155,8 +172,16 @@ async def async_translate(hass: HomeAssistant, moved: Moved, ai_entity: str | No
                 hass, ai_entity, [label(found[i][2]) for i in open_items], [label(c) for c in candidates]
             )
             for n, i in enumerate(open_items):
-                if (pick := answer.get(n)) is not None:
+                if (pick := answer.get(n)) is not None and same_button(found[i][2], candidates[pick]):
                     choices[i] = candidates[pick]
+        # Two different presses never become the same one: that was a guess, so ask the user instead.
+        taken: dict[tuple[str, str], set[str]] = {}
+        for i, (name, _, meaning) in enumerate(found):
+            if choices[i] is not None:
+                taken.setdefault((name, label(choices[i])), set()).add(label(meaning))
+        for i, (name, _, _) in enumerate(found):
+            if choices[i] is not None and len(taken[(name, label(choices[i]))]) > 1:
+                choices[i] = None
         for i, (name, trigger, meaning) in enumerate(found):
             if (choice := choices[i]) is None:
                 unresolved.append(f"{name}: {label(meaning)}")

@@ -167,6 +167,7 @@ class Replacer:
             if z2m_ieee(plan.new)
             else None,
             new_base=z2m_base_topic(hass, plan.new, Z2M_BASE_TOPIC) if z2m_ieee(plan.new) else None,
+            new_z2m_ieee=z2m_ieee(plan.new),
         )
         old_ids = [o.entity_id for o, _ in pairs]
         temp_ids = [n.entity_id for _, n in pairs]
@@ -436,6 +437,24 @@ class Replacer:
             item.update(own[uuid], uuid=uuid, old=settings)
         self._save()
         return True
+
+    async def async_retranslate(self, record_id: str) -> dict[str, list[str]] | None:
+        """Translate button triggers again that still point at the old integration (e.g. after an older version)."""
+        record = next((r for r in self.history if r["id"] == record_id and not r["undone"]), None)
+        if record is None or not record.get("moved"):
+            return None
+        moved = triggers.Moved(**record["moved"])
+        if (device := dr.async_get(self.hass).async_get(moved.new_device_id)) is not None:
+            moved.new_z2m_ieee = moved.new_z2m_ieee or z2m_ieee(device)
+            moved.new_base = moved.new_base or (
+                z2m_base_topic(self.hass, device, Z2M_BASE_TOPIC) if z2m_ieee(device) else None
+            )
+        translation = await triggers.async_translate(self.hass, moved, self.ai_entity)
+        if translation["translated"]:
+            await self.async_reload({"automation"})
+        record["triggers"] = translation
+        self._save()
+        return translation
 
     async def async_redo(self, record_id: str, reload: bool = True) -> bool:
         """Do an undone replacement again: the new entities take the old ids back, also when the old device is gone."""

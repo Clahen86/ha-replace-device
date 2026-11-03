@@ -966,3 +966,91 @@ async def test_zha_removal_and_leftovers(hass: HomeAssistant, hass_ws_client) ->
     assert (await client.receive_json())["result"] == {"removed": True}
     assert len(removed) == 2 and devices.async_get(ghost.id) is None
     zha_entry.mock_state(hass, ConfigEntryState.NOT_LOADED)
+
+
+async def test_buttons_never_pressed_in_z2m(hass: HomeAssistant, tmp_path) -> None:
+    """A SOMRIG moved ZHA -> Z2M where only two presses were known yet: the full action list gives the right ones,
+    and button 1 never becomes button 2. "Check buttons again" fixes what an older version left behind."""
+    from unittest.mock import AsyncMock, patch
+
+    from homeassistant.util.yaml import load_yaml
+
+    from custom_components.replace_device.replace import async_plan
+
+    hass.config.config_dir = str(tmp_path)
+    zha_entry = MockConfigEntry(domain="zha", title="ZHA")
+    zha_entry.add_to_hass(hass)
+    mqtt_entry = MockConfigEntry(domain="mqtt", title="Mosquitto broker")
+    mqtt_entry.add_to_hass(hass)
+    devices = dr.async_get(hass)
+    ieee = "5c:c7:c1:ff:fe:84:8e:5c"
+    old = devices.async_get_or_create(
+        config_entry_id=zha_entry.entry_id,
+        identifiers={("zha", ieee)},
+        connections={(dr.CONNECTION_ZIGBEE, ieee)},
+        name="Holly Led Tænd/Sluk",
+    )
+    new = devices.async_get_or_create(
+        config_entry_id=mqtt_entry.entry_id,
+        identifiers={("mqtt", "zigbee2mqtt_0x5cc7c1fffe848e5c")},
+        name="0x5cc7",
+    )
+    presses = [
+        ("TÆND", "remote_button_short_press", "button_1"),
+        ("SLUK", "remote_button_short_press", "button_2"),
+        ("WIZ_TÆND", "remote_button_double_press", "button_1"),
+        ("WIZ_SLUK", "remote_button_double_press", "button_2"),
+        ("WIZ_FARVE", "remote_button_long_press", "button_1"),
+        ("ALT_SLUK", "remote_button_long_press", "button_2"),
+    ]
+    automation = "- id: '1'\n  alias: Holly LED\n  triggers:\n" + "".join(
+        f"  - trigger: device\n    device_id: {old.id}\n    domain: zha\n    type: {t}\n    subtype: {s}\n    id: {i}\n"
+        for i, t, s in presses
+    )
+    (tmp_path / "automations.yaml").write_text(automation)
+    entry = await _setup(hass)
+    known = [
+        {"platform": "device", "domain": "mqtt", "device_id": new.id, "type": "action", "subtype": s}
+        for s in ("2_short_release", "2_initial_press")
+    ]
+    actions = [
+        f"{b}_{p}"
+        for b in (1, 2)
+        for p in ("initial_press", "long_press", "short_release", "long_release", "double_press")
+    ]
+    with (
+        patch("custom_components.replace_device.triggers.async_get_device_automations", return_value={new.id: known}),
+        patch("custom_components.replace_device.triggers.async_z2m_actions", AsyncMock(return_value=actions)),
+    ):
+        result = await entry.runtime_data.async_replace(async_plan(hass, old.id, new.id), True)
+    await hass.async_block_till_done()
+    assert result["triggers"]["unresolved"] == []
+    got = {t["id"]: t["subtype"] for t in load_yaml(str(tmp_path / "automations.yaml"))[0]["triggers"]}
+    assert got == {
+        "TÆND": "1_short_release",
+        "SLUK": "2_short_release",
+        "WIZ_TÆND": "1_double_press",
+        "WIZ_SLUK": "2_double_press",
+        "WIZ_FARVE": "1_long_press",
+        "ALT_SLUK": "2_long_press",
+    }
+
+    # Left behind by an older version: still ZHA on the new device. "Check buttons again" translates them.
+    (tmp_path / "automations.yaml").write_text(automation.replace(old.id, new.id))
+    with (
+        patch("custom_components.replace_device.triggers.async_get_device_automations", return_value={new.id: known}),
+        patch("custom_components.replace_device.triggers.async_z2m_actions", AsyncMock(return_value=actions)),
+    ):
+        again = await entry.runtime_data.async_retranslate(result["id"])
+    assert len(again["translated"]) == 6 and again["unresolved"] == []
+
+    # Without the full list, button 1 is left for the user instead of guessed as button 2.
+    (tmp_path / "automations.yaml").write_text(automation.replace(old.id, new.id))
+    with (
+        patch("custom_components.replace_device.triggers.async_get_device_automations", return_value={new.id: known}),
+        patch("custom_components.replace_device.triggers.async_z2m_actions", AsyncMock(return_value=[])),
+    ):
+        guess = await entry.runtime_data.async_retranslate(result["id"])
+    got = {t["id"]: t.get("subtype") for t in load_yaml(str(tmp_path / "automations.yaml"))[0]["triggers"]}
+    assert got["TÆND"] == "button_1" and got["SLUK"] == "2_short_release"
+    assert got["WIZ_SLUK"] == "button_2" and "Holly LED: remote_button_double_press / button_2" in guess["unresolved"]

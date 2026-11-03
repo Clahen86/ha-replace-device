@@ -79,6 +79,10 @@ const TEXT = {
     aiHint: "Some entities found no match. Connect an AI under Settings → Devices & services → Replace Device → Configure, and it will help.",
     triggersDone: "{n} button triggers were translated to the new integration.",
     triggersOpen: "Check these button triggers – no match was found:",
+    recheck: "Check buttons again",
+    recheckDone: "{n} button triggers translated. Still to check: {open}",
+    recheckNone: "No button triggers left to translate.",
+    pressOnce: "Press each button once, so Zigbee2MQTT tells Home Assistant about it.",
     edit: "Change",
     editTitle: "Change names",
     editIntro: "Change which entity of the new device has each name. The device itself is not moved – it stays in {integration}.",
@@ -205,6 +209,10 @@ const TEXT = {
     aiHint: "Nogle entiteter fandt ingen match. Tilslut AI under Indstillinger → Enheder og tjenester → Udskift enhed → Konfigurer, så hjælper den.",
     triggersDone: "{n} knaptriggere er oversat til den nye integration.",
     triggersOpen: "Tjek disse knaptriggere – der blev ikke fundet et match:",
+    recheck: "Tjek knapper igen",
+    recheckDone: "{n} knaptriggere oversat. Skal stadig tjekkes: {open}",
+    recheckNone: "Der er ingen knaptriggere tilbage at oversætte.",
+    pressOnce: "Tryk på hver knap én gang, så Zigbee2MQTT melder den til Home Assistant.",
     edit: "Ret",
     editTitle: "Ret navne",
     editIntro: "Ret hvilken entitet på den nye enhed der har hvert navn. Selve enheden flyttes ikke – den bliver i {integration}.",
@@ -678,6 +686,7 @@ class ReplaceDevicePanel extends HTMLElement {
         <h2>${this.t("migrateDone", { d: r.devices })}</h2>
         <p class="muted">${this.t("migrateDoneText", { n: r.moved })}</p>
         ${r.triggers?.translated?.length ? `<p class="ok-text">${this.t("triggersDone", { n: r.triggers.translated.length })}</p>` : ""}
+        ${r.triggers?.translated?.length || r.translated ? `<p class="hint left-hint"><ha-icon icon="mdi:gesture-tap-button"></ha-icon><span>${this.t("pressOnce")}</span></p>` : ""}
         ${r.integrations?.length ? `<p class="ok-text">${esc(this.t("otherIntegrations", { list: r.integrations.join(", ") }))}</p>` : ""}
         ${r.dashboards?.length ? `<p class="ok-text">${esc(this.t("dashboardsUpdated", { list: r.dashboards.join(", ") }))}</p>` : ""}
         ${(r.triggers?.unresolved || r.unresolved || []).length ? `<div class="card warn left"><b>${this.t("triggersOpen")}</b><ul>${(r.triggers?.unresolved || r.unresolved).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
@@ -800,6 +809,8 @@ class ReplaceDevicePanel extends HTMLElement {
         <p class="hint"><ha-icon icon="mdi:information-outline"></ha-icon><span>${esc(this.t("editIntro", { integration: dev.integration_title || dev.integration || "" }))}</span></p>
         <div class="rows">${rows}</div>
       </div>
+      <div class="card"><button class="ghost full" data-act="recheck"><ha-icon icon="mdi:gesture-tap-button"></ha-icon>${this.t("recheck")}</button>
+        ${this.recheckResult ? `<p class="small ${this.recheckResult.unresolved.length ? "warn-text" : "ok-text"}">${esc(this.recheckResult.translated.length || this.recheckResult.unresolved.length ? this.t("recheckDone", { n: this.recheckResult.translated.length, open: this.recheckResult.unresolved.join(", ") || "–" }) : this.t("recheckNone"))}</p>` : ""}</div>
       <div class="actions"><button class="ghost" data-act="home">${this.t("back")}</button><button class="primary big" data-act="saveEdit">${this.t("save")}</button></div>
       ${this.confirmGiveBack ? `
         <div class="card warn give-back"><p>${this.t("giveBackWarn")}</p>
@@ -812,7 +823,17 @@ class ReplaceDevicePanel extends HTMLElement {
       this.editPlan = await this.ws("edit_plan", { record: id });
       this.editMapping = Object.fromEntries(this.editPlan.slots.map((slot) => [slot.entity_id, slot.holder]));
       this.confirmGiveBack = false;
+      this.recheckResult = null;
       this.view = "edit";
+    } catch (e) {
+      this.error = this.t("error", { e: e.message || e.code });
+    }
+    this.render();
+  }
+
+  async recheck() {
+    try {
+      this.recheckResult = await this.ws("retranslate", { record: this.editPlan.id });
     } catch (e) {
       this.error = this.t("error", { e: e.message || e.code });
     }
@@ -848,6 +869,7 @@ class ReplaceDevicePanel extends HTMLElement {
         ${this.removeOld && !r.removed ? `<p class="warn-text">${this.t("keptOld")}</p>` : ""}
         ${r.failed?.length ? `<p class="warn-text">${esc(this.t("notMoved", { list: r.failed.join(", ") }))}</p>` : ""}
         ${r.triggers?.translated?.length ? `<p class="ok-text">${this.t("triggersDone", { n: r.triggers.translated.length })}</p>` : ""}
+        ${r.triggers?.translated?.length || r.translated ? `<p class="hint left-hint"><ha-icon icon="mdi:gesture-tap-button"></ha-icon><span>${this.t("pressOnce")}</span></p>` : ""}
         ${r.integrations?.length ? `<p class="ok-text">${esc(this.t("otherIntegrations", { list: r.integrations.join(", ") }))}</p>` : ""}
         ${r.dashboards?.length ? `<p class="ok-text">${esc(this.t("dashboardsUpdated", { list: r.dashboards.join(", ") }))}</p>` : ""}
         ${(r.triggers?.unresolved || r.unresolved || []).length ? `<div class="card warn left"><b>${this.t("triggersOpen")}</b><ul>${(r.triggers?.unresolved || r.unresolved).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
@@ -994,6 +1016,8 @@ class ReplaceDevicePanel extends HTMLElement {
       this.removeLeftover(data.id, data.integration);
     } else if (data.act === "edit") {
       this.openEdit(data.id);
+    } else if (data.act === "recheck") {
+      this.recheck();
     } else if (data.act === "saveEdit") {
       this.saveEdit();
     } else if (data.act === "askGiveBack" || data.act === "cancelGiveBack") {
@@ -1062,6 +1086,7 @@ input:checked+.switch{background:var(--rd-blue)}input:checked+.switch:after{left
 .check path{fill:none;stroke:var(--rd-green);stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
 @keyframes pop{from{transform:scale(.5)}}
 .warn-text{color:var(--rd-amber)}
+.left-hint{text-align:left}
 .leftover{border-left:4px solid var(--rd-amber)}.leftover .dev-head>ha-icon{color:var(--rd-amber)}
 .why{display:flex;gap:8px;align-items:center;margin-top:10px;font-size:14px;color:var(--secondary-text-color)}.why ha-icon{--mdc-icon-size:18px}.why.low{color:var(--rd-amber);font-weight:500}
 .card-links{display:flex;justify-content:space-between;gap:8px;margin-top:8px}.dot.grey{background:var(--disabled-text-color,#9aa3ad);box-shadow:none}.is-hidden{opacity:.7}.section-hint{margin:-4px 4px 12px}

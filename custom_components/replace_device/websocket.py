@@ -33,6 +33,7 @@ def async_setup(hass: HomeAssistant) -> None:
         ws_redo,
         ws_edit_plan,
         ws_edit,
+        ws_retranslate,
         ws_migrate_plan,
         ws_migrate,
     ):
@@ -246,6 +247,18 @@ def ws_history(hass: HomeAssistant, connection: websocket_api.ActiveConnection, 
 
 
 @websocket_api.require_admin
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/retranslate", vol.Required("record"): str})
+@websocket_api.async_response
+async def ws_retranslate(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    replacer = _replacer(hass)
+    result = await replacer.async_retranslate(msg["record"]) if replacer else None
+    if result is None:
+        connection.send_error(msg["id"], "not_found", "Nothing to check")
+        return
+    connection.send_result(msg["id"], result)
+
+
+@websocket_api.require_admin
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/edit_plan", vol.Required("record"): str})
 @callback
 def ws_edit_plan(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
@@ -418,7 +431,7 @@ async def ws_migrate(hass: HomeAssistant, connection: websocket_api.ActiveConnec
         connection.send_error(msg["id"], "not_loaded", "Replace Device is not set up")
         return
     batch = str(int(time.time() * 1000))
-    done, failed, moved, reload, unresolved = [], [], 0, set(), []
+    done, failed, moved, reload, unresolved, translated = [], [], 0, set(), [], 0
     for pair in msg["pairs"]:
         plan = async_plan(hass, pair["old"], pair["new"])
         if plan is None:
@@ -430,6 +443,7 @@ async def ws_migrate(hass: HomeAssistant, connection: websocket_api.ActiveConnec
         moved += result["moved"]
         reload.update(result["changed"])
         unresolved += result["triggers"]["unresolved"]
+        translated += len(result["triggers"]["translated"])
     entities = er.async_get(hass)
     for group in msg["groups"]:
         old, new = entities.async_get(group["old"]), entities.async_get(group["new"])
@@ -443,5 +457,12 @@ async def ws_migrate(hass: HomeAssistant, connection: websocket_api.ActiveConnec
     await replacer.async_reload(reload)
     connection.send_result(
         msg["id"],
-        {"devices": len(done), "moved": moved, "failed": failed, "batch": batch, "unresolved": unresolved},
+        {
+            "devices": len(done),
+            "moved": moved,
+            "failed": failed,
+            "batch": batch,
+            "unresolved": unresolved,
+            "translated": translated,
+        },
     )

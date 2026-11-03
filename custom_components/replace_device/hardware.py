@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.loader import async_get_loaded_integration
 
@@ -84,3 +85,48 @@ def z2m_base_topic(hass: HomeAssistant, device: dr.DeviceEntry, default: str) ->
         return default
     match = re.search(r'([^"\\\s]+)/bridge/state', text)
     return match[1] if match else default
+
+
+async def async_z2m_actions(hass: HomeAssistant, base: str, ieee: str) -> list[str]:
+    """Every action a Zigbee2MQTT device can send ("1_short_release", "single" …), also ones never pressed yet.
+
+    Home Assistant only learns a Zigbee2MQTT button trigger after its first press, so the full list comes from
+    Zigbee2MQTT's own device list (the retained "<base>/bridge/devices" message)."""
+    if "mqtt" not in hass.config.components:
+        return []
+    from homeassistant.components import mqtt
+
+    received: asyncio.Future[str] = hass.loop.create_future()
+
+    @callback
+    def _message(msg) -> None:
+        if not received.done():
+            received.set_result(msg.payload)
+
+    try:
+        unsubscribe = await mqtt.async_subscribe(hass, f"{base}/bridge/devices", _message)
+    except Exception:  # noqa: BLE001 - MQTT not ready
+        return []
+    try:
+        async with asyncio.timeout(5):
+            payload = await received
+        devices = json.loads(payload)
+    except (TimeoutError, ValueError):
+        return []
+    finally:
+        unsubscribe()
+    for device in devices if isinstance(devices, list) else []:
+        if str(device.get("ieee_address", "")).lower() == ieee.lower():
+            return _action_values((device.get("definition") or {}).get("exposes") or [])
+    return []
+
+
+def _action_values(exposes: list) -> list[str]:
+    for expose in exposes:
+        if not isinstance(expose, dict):
+            continue
+        if expose.get("name") == "action" and isinstance(expose.get("values"), list):
+            return [str(v) for v in expose["values"]]
+        if found := _action_values(expose.get("features") or []):
+            return found
+    return []

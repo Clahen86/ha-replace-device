@@ -52,7 +52,8 @@ async def async_pick_triggers(hass: HomeAssistant, entity_id: str, old: list[str
     prompt = (
         "A Zigbee/smart home device moved from one Home Assistant integration to another. Its device triggers have "
         "other names now. For each old trigger, pick the new trigger that fires on the same physical action "
-        "(same button, same press type). Use 0 if none matches.\n\n"
+        "(same button number, same press type: short, double, long, release). Use 0 if none is exactly the same – "
+        "a wrong guess breaks the user's automation, an empty answer only asks them to check.\n\n"
         "Old triggers:\n" + "\n".join(f"{i}. {t}" for i, t in enumerate(old, 1)) + "\n\n"
         "New triggers:\n" + "\n".join(f"{i}. {t}" for i, t in enumerate(new, 1)) + "\n\n"
         'Answer only with JSON: {"answers": [{"n": 1, "pick": 2}]}'
