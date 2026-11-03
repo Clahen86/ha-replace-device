@@ -674,3 +674,20 @@ async def test_robust_and_unambiguous(hass: HomeAssistant, hass_ws_client, tmp_p
     hass.states.async_set("sensor.kitchen_temperature", "21.5")
     await hass.async_block_till_done()
     assert ir.async_get(hass).async_get_issue(DOMAIN, f"silent_{new.id}") is None
+
+
+def test_z2m_base_topic(hass: HomeAssistant) -> None:
+    """Zigbee2MQTT can run under another base topic; it is read from the device's discovery data."""
+    from types import SimpleNamespace
+    from unittest.mock import patch
+
+    from custom_components.replace_device.hardware import z2m_base_topic
+
+    device = SimpleNamespace(id="x")
+    info = {
+        "entities": [{"discovery_data": {"payload": {"availability": [{"topic": "zigbee2mqtt_sensor/bridge/state"}]}}}]
+    }
+    with patch("homeassistant.components.mqtt.debug_info.info_for_device", return_value=info):
+        assert z2m_base_topic(hass, device, "zigbee2mqtt") == "zigbee2mqtt_sensor"
+    with patch("homeassistant.components.mqtt.debug_info.info_for_device", side_effect=KeyError):
+        assert z2m_base_topic(hass, device, "zigbee2mqtt") == "zigbee2mqtt"

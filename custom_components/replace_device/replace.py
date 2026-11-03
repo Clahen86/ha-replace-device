@@ -28,7 +28,7 @@ from homeassistant.util.file import write_utf8_file_atomic
 
 from . import ai, references, triggers
 from .const import AUTOMATIONS_FILE, CHECK_AFTER, DOMAIN, SCENES_FILE, SCRIPTS_FILE, TEXTS, Z2M_BASE_TOPIC
-from .hardware import z2m_ieee, z2m_name
+from .hardware import z2m_base_topic, z2m_ieee, z2m_name
 from .matching import match
 
 _LOGGER = logging.getLogger(__name__)
@@ -418,7 +418,9 @@ async def _rename_in_z2m(hass: HomeAssistant, device: dr.DeviceEntry, name: str)
         return False
     payload = json.dumps({"from": ieee, "to": z2m_name(name), "homeassistant_rename": False})
     await hass.services.async_call(
-        "mqtt", "publish", {"topic": f"{Z2M_BASE_TOPIC}/bridge/request/device/rename", "payload": payload}
+        "mqtt",
+        "publish",
+        {"topic": f"{z2m_base_topic(hass, device, Z2M_BASE_TOPIC)}/bridge/request/device/rename", "payload": payload},
     )
     return True
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 
 from homeassistant.core import HomeAssistant
@@ -68,3 +69,18 @@ def source(hass: HomeAssistant, device: dr.DeviceEntry) -> tuple[str | None, str
 def z2m_name(name: str) -> str:
     """A friendly name Zigbee2MQTT accepts: no MQTT wildcards, no topic levels."""
     return re.sub(r"[#+]", "", name).replace("/", "-").strip()
+
+
+def z2m_base_topic(hass: HomeAssistant, device: dr.DeviceEntry, default: str) -> str:
+    """The MQTT base topic of the Zigbee2MQTT instance a device belongs to (it can be changed, and several can run).
+
+    Every Zigbee2MQTT entity is available only while "<base>/bridge/state" is online, so the topic is in its
+    discovery data."""
+    try:
+        from homeassistant.components.mqtt import debug_info
+
+        text = json.dumps(debug_info.info_for_device(hass, device.id), default=str)
+    except Exception:  # noqa: BLE001 - MQTT not loaded, or its debug info changed
+        return default
+    match = re.search(r'([^"\\\s]+)/bridge/state', text)
+    return match[1] if match else default
