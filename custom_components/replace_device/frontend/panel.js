@@ -68,6 +68,7 @@ const TEXT = {
     unitDiffers: "{name}: unit changes from {old} to {new}.",
     unitEnergy: "{name}: unit changes from {old} to {new} – this breaks the energy statistics. Fix it under Developer tools → Statistics afterwards.",
     stateClassDiffers: "{name}: changes from {old} to {new} – long-term statistics may restart.",
+    statisticsGone: "{name}: the new one keeps no long-term statistics. Afterwards Home Assistant asks what to do with the old ones (Developer tools → Statistics).",
     deviceActions: "Device actions of the old integration can't be moved: {list}",
     otherIntegrations: "Also updated: {list}",
     dashboardsUpdated: "Dashboards updated: {list}",
@@ -202,6 +203,7 @@ const TEXT = {
     unitDiffers: "{name}: enheden skifter fra {old} til {new}.",
     unitEnergy: "{name}: enheden skifter fra {old} til {new} – det ødelægger energistatistikken. Ret det under Udviklerværktøjer → Statistik bagefter.",
     stateClassDiffers: "{name}: skifter fra {old} til {new} – langtidsstatistikken kan starte forfra.",
+    statisticsGone: "{name}: den nye gemmer ingen langtidsstatistik. Bagefter spørger Home Assistant, hvad der skal ske med den gamle (Udviklerværktøjer → Statistik).",
     deviceActions: "Enhedshandlinger fra den gamle integration kan ikke flyttes: {list}",
     otherIntegrations: "Bliver også opdateret: {list}",
     dashboardsUpdated: "Dashboards, der opdateres: {list}",
@@ -493,6 +495,7 @@ class ReplaceDevicePanel extends HTMLElement {
         if (d.kind === "values" && e.entity_id.startsWith("event.")) lines.push(["warn", this.t("eventTypesDiffer", { name: name(e.entity_id), missing: d.missing.join(", "), new: d.new.join(", ") })]);
         else if (d.kind === "values") lines.push(["warn", this.t("valuesDiffer", { name: name(e.entity_id), missing: d.missing.join(", "), new: d.new.join(", ") })]);
         else if (d.kind === "unit") lines.push([e.energy ? "bad" : "warn", this.t(e.energy ? "unitEnergy" : "unitDiffers", { name: name(e.entity_id), old: d.old, new: d.new })]);
+        else if (d.kind === "statistics_gone") lines.push(["info", this.t("statisticsGone", { name: name(e.entity_id) })]);
         else lines.push(["warn", this.t("stateClassDiffers", { name: name(e.entity_id), old: d.old, new: d.new })]);
       }
     }

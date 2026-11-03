@@ -1221,3 +1221,14 @@ def test_press_names_differ() -> None:
 
     found = differences(entity(["single_press", "long_press"]), entity(["multi_press_1", "long_press"]))
     assert found == [{"kind": "values", "missing": ["single_press"], "new": ["multi_press_1", "long_press"]}]
+
+
+def test_statistics_gone() -> None:
+    """The ZHA smoke density kept statistics, the Zigbee2MQTT one doesn't: say so before."""
+    from types import SimpleNamespace
+
+    from custom_components.replace_device.checks import differences
+
+    old = SimpleNamespace(domain="sensor", capabilities={"state_class": "measurement"}, unit_of_measurement=None)
+    new = SimpleNamespace(domain="sensor", capabilities=None, unit_of_measurement=None)
+    assert differences(old, new) == [{"kind": "statistics_gone", "old": "measurement"}]

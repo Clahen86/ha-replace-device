@@ -44,6 +44,9 @@ def differences(old: er.RegistryEntry, new: er.RegistryEntry) -> list[dict[str, 
     old_class, new_class = old_caps.get("state_class"), new_caps.get("state_class")
     if old_class and new_class and old_class != new_class:
         found.append({"kind": "state_class", "old": old_class, "new": new_class})
+    elif old_class and not new_class and old.capabilities is not None:
+        # The new one keeps no long-term statistics: Home Assistant will ask what to do with the old ones.
+        found.append({"kind": "statistics_gone", "old": old_class})
     return found
 
 
