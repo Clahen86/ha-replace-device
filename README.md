@@ -72,7 +72,7 @@ The same is available without the panel: **Settings → Devices & services → R
 - The old device is removed, so its names are free. If its integration doesn't allow that (a device that is still connected), you're told to remove it there. If it is still in your Zigbee network, remove it there too.
 - Dead devices are found by being unavailable for an hour. In Zigbee2MQTT that needs **availability** turned on (Settings → Availability); without it, a dead device keeps its last value.
 - If one step fails (a broken dashboard, a file it can't read), the rest still runs and the replacement can still be undone; the log says what was skipped.
-- Undo puts everything back, also things you changed after the replacement – so use it soon after.
+- Undo puts everything back, also things you changed after the replacement – so use it soon after. The old device doesn't come back by itself, so after an undo there is a **Do again** button that redoes the replacement exactly as before.
 - Not moved: Zigbee bindings (a remote bound directly to a bulb) and calibration set in ZHA or Zigbee2MQTT. Code outside Home Assistant is only reported, not changed.
 - Everything runs locally. Only with the AI help turned on are names and types of the entities and triggers sent to the AI you picked.
 
@@ -136,7 +136,7 @@ Det samme kan gøres uden panelet: **Indstillinger → Enheder og tjenester → 
 - Den gamle enhed bliver fjernet, så dens navne bliver ledige. Tillader dens integration ikke det, fx fordi enheden stadig er forbundet, får du besked om at fjerne den der. Er den stadig i dit Zigbee-netværk, så fjern den også der.
 - Døde enheder findes ved, at de har været utilgængelige i en time. I Zigbee2MQTT kræver det, at **availability** er slået til (Settings → Availability). Uden den beholder en død enhed sin sidste værdi.
 - Fejler ét trin, fx et ødelagt dashboard eller en fil den ikke kan læse, kører resten alligevel, og udskiftningen kan stadig fortrydes. Loggen viser, hvad der blev sprunget over.
-- Fortryd sætter alt tilbage, også ting du har ændret efter udskiftningen. Brug det derfor kort tid efter.
+- Fortryd sætter alt tilbage, også ting du har ændret efter udskiftningen. Brug det derfor kort tid efter. Den gamle enhed kommer ikke tilbage af sig selv, så efter en fortrydelse er der en **Gentag**-knap, der laver udskiftningen igen præcis som før.
 - Det flyttes ikke: Zigbee-bindinger (en fjernbetjening bundet direkte til en pære) og kalibrering sat i ZHA eller Zigbee2MQTT. Kode uden for Home Assistant bliver kun vist, ikke ændret.
 - Alt kører lokalt. Kun hvis AI-hjælpen er slået til, sendes navne og typer på entiteter og triggere til den AI, du har valgt.
 

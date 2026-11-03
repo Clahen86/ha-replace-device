@@ -22,7 +22,7 @@ from .suggest import is_dead
 
 @callback
 def async_setup(hass: HomeAssistant) -> None:
-    for command in (ws_devices, ws_plan, ws_replace, ws_history, ws_undo, ws_migrate_plan, ws_migrate):
+    for command in (ws_devices, ws_plan, ws_replace, ws_history, ws_undo, ws_redo, ws_migrate_plan, ws_migrate):
         websocket_api.async_register_command(hass, command)
 
 
@@ -174,6 +174,26 @@ def ws_history(hass: HomeAssistant, connection: websocket_api.ActiveConnection, 
         for r in (replacer.history if replacer else [])
     ]
     connection.send_result(msg["id"], {"history": list(reversed(history))})
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {vol.Required("type"): f"{DOMAIN}/redo", vol.Exclusive("record", "what"): str, vol.Exclusive("batch", "what"): str}
+)
+@websocket_api.async_response
+async def ws_redo(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    replacer = _replacer(hass)
+    if replacer is None:
+        connection.send_error(msg["id"], "not_found", "Nothing to do again")
+        return
+    if "batch" in msg:
+        count = await replacer.async_redo_batch(msg["batch"])
+    else:
+        count = int(await replacer.async_redo(msg.get("record", "")))
+    if not count:
+        connection.send_error(msg["id"], "not_found", "Nothing to do again")
+        return
+    connection.send_result(msg["id"], {"redone": count})
 
 
 @websocket_api.require_admin

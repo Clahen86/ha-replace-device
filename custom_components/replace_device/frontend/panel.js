@@ -67,6 +67,8 @@ const TEXT = {
     triggersDone: "{n} button triggers were translated to the new integration.",
     triggersOpen: "Check these button triggers – no match was found:",
     undoAll: "Undo all",
+    redo: "Do again",
+    redoAll: "Do all again",
     notMoved: "Could not be moved (see the log): {list}",
     batchRow: "{n} devices moved",
     pickOld: "Which device is replaced?",
@@ -168,6 +170,8 @@ const TEXT = {
     triggersDone: "{n} knaptriggere er oversat til den nye integration.",
     triggersOpen: "Tjek disse knaptriggere – der blev ikke fundet et match:",
     undoAll: "Fortryd alle",
+    redo: "Gentag",
+    redoAll: "Gentag alle",
     notMoved: "Kunne ikke flyttes (se loggen): {list}",
     batchRow: "{n} enheder flyttet",
     pickOld: "Hvilken enhed skal udskiftes?",
@@ -328,6 +332,15 @@ class ReplaceDevicePanel extends HTMLElement {
     this.load();
   }
 
+  async redo(id, batch) {
+    try {
+      await this.ws("redo", batch ? { batch } : { record: id });
+    } catch (e) {
+      this.error = this.t("error", { e: e.message || e.code });
+    }
+    this.load();
+  }
+
   async undo(id, batch) {
     try {
       await this.ws("undo", batch ? { batch } : { record: id });
@@ -419,7 +432,7 @@ class ReplaceDevicePanel extends HTMLElement {
         <ha-icon icon="mdi:swap-horizontal"></ha-icon>
         <div class="grow"><b>${esc(h.old_device.name)}</b> → ${esc(h.new_device.model || h.new_device.name)}
           <div class="muted small">${new Date(h.at * 1000).toLocaleString(this._hass.language)} · ${this.t("moved", { n: h.moved })}</div></div>
-        ${h.undone ? `<span class="tag">${this.t("undone")}</span>` : `<button class="ghost small-btn" data-act="undo" data-id="${h.id}">${this.t("undo")}</button>`}
+        ${h.undone ? `<span class="tag">${this.t("undone")}</span><button class="ghost small-btn" data-act="redo" data-id="${h.id}">${this.t("redo")}</button>` : `<button class="ghost small-btn" data-act="undo" data-id="${h.id}">${this.t("undo")}</button>`}
       </div>`;
   }
 
@@ -431,7 +444,7 @@ class ReplaceDevicePanel extends HTMLElement {
         <ha-icon icon="mdi:transfer"></ha-icon>
         <div class="grow"><b>${this.t("batchRow", { n: g.items.length })}</b>
           <div class="muted small">${new Date(g.items[0].at * 1000).toLocaleString(this._hass.language)} · ${esc(names)}</div></div>
-        ${g.items.every((h) => h.undone) ? `<span class="tag">${this.t("undone")}</span>` : `<button class="ghost small-btn" data-act="undoBatch" data-batch="${g.batch}">${this.t("undoAll")}</button>`}
+        ${g.items.every((h) => h.undone) ? `<span class="tag">${this.t("undone")}</span><button class="ghost small-btn" data-act="redoBatch" data-batch="${g.batch}">${this.t("redoAll")}</button>` : `<button class="ghost small-btn" data-act="undoBatch" data-batch="${g.batch}">${this.t("undoAll")}</button>`}
       </div>`;
   }
 
@@ -820,6 +833,8 @@ class ReplaceDevicePanel extends HTMLElement {
       this.undo(data.id);
     } else if (data.act === "undoBatch") {
       this.undo(null, data.batch);
+    } else if (data.act === "redo" || data.act === "redoBatch") {
+      this.redo(data.id, data.batch);
     }
   }
 }

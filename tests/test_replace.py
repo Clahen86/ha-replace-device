@@ -805,3 +805,34 @@ async def test_code_outside_home_assistant(hass: HomeAssistant, tmp_path) -> Non
     (tmp_path / "node-red").mkdir()
     (tmp_path / "node-red" / "flows.json").write_text('[{"topic": "zigbee2mqtt/0x08ddebfffe609e76/action"}]')
     assert (await async_checks(hass, plan))["outside"] == ["appdaemon/apps/knap.py", "node-red/flows.json"]
+
+
+async def test_undo_then_do_again(hass: HomeAssistant, tmp_path) -> None:
+    """After undo the old device is gone; "do again" gives the old entity ids, settings and references back."""
+    from custom_components.replace_device.replace import async_plan
+
+    hass.config.config_dir = str(tmp_path)
+    old = _device(hass, "zha", "old", "Kitchen", OLD_SENSORS)
+    new = _device(hass, "mqtt", "new", "0x00158d0001", NEW_SENSORS)
+    registry = er.async_get(hass)
+    registry.async_update_entity("sensor.kitchen_temperature", name="Køkken temp", icon="mdi:thermometer")
+    (tmp_path / "automations.yaml").write_text(f"- id: '1'\n  alias: A\n  triggers:\n  - device_id: {old.id}\n")
+    entry = await _setup(hass)
+    replacer = entry.runtime_data
+    result = await replacer.async_replace(async_plan(hass, old.id, new.id), True)
+    await hass.async_block_till_done()
+    assert dr.async_get(hass).async_get(old.id) is None
+
+    assert await replacer.async_undo(result["id"])
+    await hass.async_block_till_done()
+    assert registry.async_get("sensor.kitchen_temperature") is None
+    assert registry.async_get("sensor.0x00158d0001_temperature").name is None
+    assert old.id in (tmp_path / "automations.yaml").read_text()
+
+    assert await replacer.async_redo(result["id"])
+    await hass.async_block_till_done()
+    temp = registry.async_get("sensor.kitchen_temperature")
+    assert temp.platform == "mqtt" and temp.name == "Køkken temp" and temp.icon == "mdi:thermometer"
+    assert dr.async_get(hass).async_get(new.id).name_by_user == "Kitchen"
+    assert new.id in (tmp_path / "automations.yaml").read_text()
+    assert not await replacer.async_redo(result["id"])

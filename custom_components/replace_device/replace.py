@@ -8,7 +8,7 @@ at 0 is seen as a reset.
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 import json
 import logging
 import os
@@ -124,7 +124,13 @@ class Replacer:
         record: dict[str, Any] = {
             "id": uuid.uuid4().hex,
             "at": now,
-            "old_device": {"id": plan.old.id, "name": device_name(plan.old), "model": plan.old.model},
+            "old_device": {
+                "id": plan.old.id,
+                "name": device_name(plan.old),
+                "model": plan.old.model,
+                "area_id": plan.old.area_id,
+                "labels": sorted(plan.old.labels),
+            },
             # How the new device looked before, so it can be given back.
             "new_device": {
                 "id": plan.new.id,
@@ -135,7 +141,8 @@ class Replacer:
                 "labels": sorted(plan.new.labels),
             },
             "entities": [
-                {"entity_id": o.entity_id, "was": n.entity_id, "uuid": n.id, **_settings(n)} for o, n in pairs
+                {"entity_id": o.entity_id, "was": n.entity_id, "uuid": n.id, **_settings(n), "old": _settings(o)}
+                for o, n in pairs
             ],
             "ids": {plan.old.id: plan.new.id} | {o.id: n.id for o, n in pairs},
             "files": [],
@@ -213,6 +220,7 @@ class Replacer:
             record["automations_after"] = await hass.async_add_executor_job(_read, path)
             changed = sorted(set(changed) | {"automation"})
         record["triggers"] = translation
+        record["moved"] = asdict(moved)
         record["files"] = changed
         # Dashboards made in the UI and other integrations (Battery Notes, Powercalc …) that store the device id.
         skip = {d for d in (old_domain, new_domain) if d}
@@ -258,7 +266,15 @@ class Replacer:
             "at": now,
             "old_device": {"id": None, "name": name, "model": "Group"},
             "new_device": {"id": None, "name": new.entity_id, "model": "Group"},
-            "entities": [{"entity_id": old.entity_id, "was": new.entity_id, "uuid": new.id, **_settings(new)}],
+            "entities": [
+                {
+                    "entity_id": old.entity_id,
+                    "was": new.entity_id,
+                    "uuid": new.id,
+                    **_settings(new),
+                    "old": _settings(old),
+                }
+            ],
             "ids": {old.id: new.id},
             "files": [],
             "batch": batch,
@@ -289,12 +305,16 @@ class Replacer:
             entry = entities.async_get(item["uuid"])
             if entry is None:
                 continue
+            # What the entity has now (the old one's settings, and any changes since), so "do again" gives it back.
+            item["old"] = _settings(entry)
             new_id = item["was"] if not entities.async_get(item["was"]) else entry.entity_id
             entities.async_update_entity(entry.entity_id, new_entity_id=new_id, **_restore(item))
             for domain in set(entry.options) | set(item["options"]):
                 entities.async_update_entity_options(new_id, domain, item["options"].get(domain, {}))
         device = record["new_device"]
-        if device.get("id") and devices.async_get(device["id"]):
+        if device.get("id") and (current := devices.async_get(device["id"])):
+            record["old_device"]["area_id"] = current.area_id
+            record["old_device"]["labels"] = sorted(current.labels)
             devices.async_update_device(
                 device["id"],
                 name_by_user=device["name_by_user"],
@@ -315,6 +335,66 @@ class Replacer:
         record["undone"] = True
         self._save()
         return True
+
+    async def async_redo(self, record_id: str, reload: bool = True) -> bool:
+        """Do an undone replacement again: the new entities take the old ids back, also when the old device is gone."""
+        record = next((r for r in self.history if r["id"] == record_id and r["undone"]), None)
+        if record is None:
+            return False
+        hass = self.hass
+        devices, entities = dr.async_get(hass), er.async_get(hass)
+        for item in record["entities"]:
+            entry = entities.async_get(item["uuid"])
+            if entry is None or entities.async_get(item["entity_id"]):
+                continue
+            hass.states.async_remove(item["entity_id"])
+            old = item.get("old") or {
+                "name": None,
+                "icon": None,
+                "area_id": None,
+                "labels": [],
+                "aliases": [],
+                "categories": {},
+                "device_class": None,
+                "hidden_by": None,
+                "options": {},
+            }
+            entities.async_update_entity(entry.entity_id, new_entity_id=item["entity_id"], **_restore(old))
+            for domain, options in old["options"].items():
+                entities.async_update_entity_options(
+                    item["entity_id"], domain, dict(entry.options.get(domain, {})) | dict(options)
+                )
+        device, old_device = record["new_device"], record["old_device"]
+        if device.get("id") and (current := devices.async_get(device["id"])):
+            devices.async_update_device(
+                device["id"],
+                name_by_user=old_device["name"],
+                area_id=old_device.get("area_id") or current.area_id,
+                labels=set(old_device.get("labels", [])) | set(current.labels),
+            )
+        changed = set(await _safely("updating automations and scripts", self._rewrite(record["ids"], False), []))
+        if record.get("moved"):
+            translation = await _safely(
+                "translating device triggers",
+                triggers.async_translate(hass, triggers.Moved(**record["moved"]), self.ai_entity),
+                {"translated": [], "unresolved": []},
+            )
+            if translation["translated"]:
+                changed.add("automation")
+        await _safely("updating dashboards", references.async_rewrite_dashboards(hass, record["ids"]), [])
+        await _safely("updating other integrations", references.async_rewrite_entries(hass, record["ids"], set()), [])
+        if reload:
+            await self.async_reload(changed)
+        record["undone"] = False
+        self._save()
+        return True
+
+    async def async_redo_batch(self, batch: str) -> int:
+        records = [r for r in self.history if r.get("batch") == batch and r["undone"]]
+        for record in records:
+            await self.async_redo(record["id"], reload=False)
+        await self.async_reload({"automation", "script", "scene"})
+        return len(records)
 
     async def async_undo_batch(self, batch: str) -> int:
         """Undo every replacement of one "move many", newest first; reload once."""
