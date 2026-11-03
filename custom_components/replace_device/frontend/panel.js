@@ -76,6 +76,8 @@ const TEXT = {
     groupsText: "Groups made again in the new integration with the same name take over the old group's entity ID and history.",
     noGroups: "No groups with the same name were found. Make the group again in the new integration – with the same name – and it shows up here.",
     unsureTag: "check",
+    rememberedTag: "{n} names remembered",
+    eventTypesDiffer: "{name}: the presses are called differently now ({missing} → {new}). Automations that check the press type must be changed.",
     unsureLine: "Not sure: {name} → {new}. Check that it is the same thing.",
     aiTag: "AI",
     aiHint: "Some entities found no match. Connect an AI under Settings → Devices & services → Replace Device → Configure, and it will help.",
@@ -208,6 +210,8 @@ const TEXT = {
     groupsText: "Grupper, der er lavet igen i den nye integration med samme navn, overtager den gamle gruppes entity-id og historik.",
     noGroups: "Der blev ikke fundet grupper med samme navn. Lav gruppen igen i den nye integration – med samme navn – så dukker den op her.",
     unsureTag: "tjek",
+    rememberedTag: "{n} navne huskes",
+    eventTypesDiffer: "{name}: trykkene hedder noget andet nu ({missing} → {new}). Automatiseringer, der tjekker typen af tryk, skal rettes.",
     unsureLine: "Usikkert: {name} → {new}. Tjek at det er det samme.",
     aiTag: "AI",
     aiHint: "Nogle entiteter fandt ingen match. Tilslut AI under Indstillinger → Enheder og tjenester → Udskift enhed → Konfigurer, så hjælper den.",
@@ -486,7 +490,8 @@ class ReplaceDevicePanel extends HTMLElement {
     for (const d of c.dropped_used || []) lines.push(["warn", this.t("droppedUsed", { name: name(d.entity_id), where: d.used_in.join(", ") })]);
     for (const e of c.differences || []) {
       for (const d of e.differences) {
-        if (d.kind === "values") lines.push(["warn", this.t("valuesDiffer", { name: name(e.entity_id), missing: d.missing.join(", "), new: d.new.join(", ") })]);
+        if (d.kind === "values" && e.entity_id.startsWith("event.")) lines.push(["warn", this.t("eventTypesDiffer", { name: name(e.entity_id), missing: d.missing.join(", "), new: d.new.join(", ") })]);
+        else if (d.kind === "values") lines.push(["warn", this.t("valuesDiffer", { name: name(e.entity_id), missing: d.missing.join(", "), new: d.new.join(", ") })]);
         else if (d.kind === "unit") lines.push([e.energy ? "bad" : "warn", this.t(e.energy ? "unitEnergy" : "unitDiffers", { name: name(e.entity_id), old: d.old, new: d.new })]);
         else lines.push(["warn", this.t("stateClassDiffers", { name: name(e.entity_id), old: d.old, new: d.new })]);
       }
@@ -577,6 +582,7 @@ class ReplaceDevicePanel extends HTMLElement {
       const out = [];
       if (old && d.hardware?.some((k) => old.hardware?.includes(k))) out.push(`<span class="tag green">${this.t("sameHardware")}</span>`);
       else if (old && d.model && d.model === old.model) out.push(`<span class="tag blue">${this.t("sameModel")}</span>`);
+      if (d.remembered) out.push(`<span class="tag">${this.t("rememberedTag", { n: d.remembered })}</span>`);
       if (d.dead) out.push(`<span class="tag red">${this.t("deadTag")}</span>`);
       else if (d.created > day) out.push(`<span class="tag blue">${this.t("newTag")}</span>`);
       return out.join("");

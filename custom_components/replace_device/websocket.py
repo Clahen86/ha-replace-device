@@ -16,6 +16,7 @@ from . import references
 from .checks import async_checks
 from .groups import match_groups
 from .hardware import hardware_keys, source, z2m_ieee
+from .remembered import remembered
 from .replace import Plan, Replacer, async_plan, async_remove_device, device_name
 from .suggest import is_dead
 
@@ -103,11 +104,15 @@ async def ws_devices(hass: HomeAssistant, connection: websocket_api.ActiveConnec
     """All devices with entities; for the ones without contact, the last battery level and likely replacements."""
     replacer = _replacer(hass)
     hidden = set(replacer.hidden) if replacer else set()
-    devices = [
-        _device(hass, d)
-        for d in dr.async_get(hass).devices.values()
-        if d.entry_type is None and er.async_entries_for_device(er.async_get(hass), d.id)
-    ]
+    devices = []
+    for d in dr.async_get(hass).devices.values():
+        if d.entry_type is not None:
+            continue
+        if er.async_entries_for_device(er.async_get(hass), d.id):
+            devices.append(_device(hass, d))
+        elif names := remembered(hass, d):
+            # Lost its entities, but Home Assistant remembers their names: it can still be replaced.
+            devices.append(_device(hass, d) | {"remembered": len(names)})
     registry = dr.async_get(hass)
     took_over = _took_over(hass)
     for item in devices:

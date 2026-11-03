@@ -14,6 +14,8 @@ from .replace import Plan, _domain
 
 # Lists of allowed values, where an automation may test for one by name.
 _VALUE_LISTS = (
+    # Button presses: "single_press" in one integration, "multi_press_1" in another.
+    "event_types",
     "options",
     "hvac_modes",
     "preset_modes",
@@ -28,6 +30,9 @@ def differences(old: er.RegistryEntry, new: er.RegistryEntry) -> list[dict[str, 
     """Values, units and kinds of the old entity that the new one doesn't have."""
     found = []
     old_caps, new_caps = old.capabilities or {}, new.capabilities or {}
+    if old.capabilities is None and old.domain == "event" and new_caps.get("event_types"):
+        # A remembered (deleted) entity doesn't keep its presses, so they may well be called differently now.
+        found.append({"kind": "values", "missing": ["?"], "new": [str(v) for v in new_caps["event_types"]]})
     for key in _VALUE_LISTS:
         old_values, new_values = old_caps.get(key), new_caps.get(key)
         if isinstance(old_values, list) and isinstance(new_values, list):

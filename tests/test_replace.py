@@ -1118,3 +1118,106 @@ async def test_match_across_languages(hass: HomeAssistant) -> None:
         "number.termostat_traeningsrum_temperature_control_accuracy": "number.0x0ceff6fffea40f19_temperature_accuracy",
     }
     assert isinstance(unsure(old_entities, new_entities, result), list)
+
+
+async def test_device_that_lost_its_entities(hass: HomeAssistant, hass_ws_client) -> None:
+    """A W100 reset in HomeKit lost its entities; the remembered names go to the Matter one, with a press warning."""
+    from custom_components.replace_device.checks import async_checks
+    from custom_components.replace_device.replace import async_plan
+
+    hk = MockConfigEntry(domain="homekit_controller", title="Aqara Hub M3")
+    hk.add_to_hass(hass)
+    matter = MockConfigEntry(domain="matter", title="Matter")
+    matter.add_to_hass(hass)
+    devices, registry = dr.async_get(hass), er.async_get(hass)
+    old = devices.async_get_or_create(
+        config_entry_id=hk.entry_id,
+        identifiers={("homekit_controller:accessory-id", "C3:85:8B:5C:4D:CB:aid:65")},
+        name="Sensor",
+        serial_number="54ef4410014a64af",
+    )
+    devices.async_update_device(old.id, name_by_user="Trænings termostat styring")
+    for domain, uid, object_id, cls, events in (
+        ("sensor", "C3:85:8B:5C:4D:CB_65_10", "sensor_temperature", "temperature", None),
+        (
+            "event",
+            "C3:85:8B:5C:4D:CB_65_20",
+            "sensor_button1",
+            "button",
+            ["single_press", "double_press"],
+        ),
+        ("sensor", "C3:85:8B:5C:4D:CB_99_65_10", "other_accessory", None, None),
+    ):
+        registry.async_get_or_create(
+            domain,
+            "homekit_controller",
+            uid,
+            suggested_object_id=object_id,
+            config_entry=hk,
+            device_id=old.id if "_65_" in uid else None,
+            original_device_class=cls,
+            capabilities={"event_types": events} if events else None,
+        )
+    registry.async_update_entity("sensor.sensor_temperature", name="Træning temp")
+    for entity_id in ("sensor.sensor_temperature", "event.sensor_button1", "sensor.other_accessory"):
+        registry.async_remove(entity_id)
+    assert er.async_entries_for_device(registry, old.id) == []
+
+    new = devices.async_get_or_create(
+        config_entry_id=matter.entry_id, identifiers={("matter", "serial_54EF4410014A64AF")}, name="Climate Sensor W100"
+    )
+    registry.async_get_or_create(
+        "sensor",
+        "matter",
+        "775E-1-temp",
+        suggested_object_id="climate_sensor_w100_temperatur",
+        device_id=new.id,
+        config_entry=matter,
+        original_name="Temperatur",
+        original_device_class="temperature",
+    )
+    registry.async_get_or_create(
+        "event",
+        "matter",
+        "775E-3-button",
+        suggested_object_id="climate_sensor_w100_button_3",
+        device_id=new.id,
+        config_entry=matter,
+        original_name="Button (3)",
+        original_device_class="button",
+        capabilities={"event_types": ["multi_press_1", "multi_press_2", "long_press"]},
+    )
+    entry = await _setup(hass)
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": "replace_device/devices"})
+    found = {d["id"]: d for d in (await client.receive_json())["result"]["devices"]}
+    assert found[old.id]["remembered"] == 2
+
+    plan = async_plan(hass, old.id, new.id)
+    assert plan.mapping == {
+        "event.sensor_button1": "event.climate_sensor_w100_button_3",
+        "sensor.sensor_temperature": "sensor.climate_sensor_w100_temperatur",
+    }
+    checks = await async_checks(hass, plan)
+    press = next(c for c in checks["differences"] if c["entity_id"] == "event.sensor_button1")
+    assert press["differences"][0]["new"] == ["multi_press_1", "multi_press_2", "long_press"]
+
+    await entry.runtime_data.async_replace(plan, True)
+    await hass.async_block_till_done()
+    temp = registry.async_get("sensor.sensor_temperature")
+    assert temp.platform == "matter" and temp.name == "Træning temp"
+    assert registry.async_get("event.sensor_button1").platform == "matter"
+    assert devices.async_get(new.id).name_by_user == "Trænings termostat styring"
+
+
+def test_press_names_differ() -> None:
+    """Live entities: presses that the new event entity doesn't have are listed."""
+    from types import SimpleNamespace
+
+    from custom_components.replace_device.checks import differences
+
+    def entity(events):
+        return SimpleNamespace(domain="event", capabilities={"event_types": events}, unit_of_measurement=None)
+
+    found = differences(entity(["single_press", "long_press"]), entity(["multi_press_1", "long_press"]))
+    assert found == [{"kind": "values", "missing": ["single_press"], "new": ["multi_press_1", "long_press"]}]

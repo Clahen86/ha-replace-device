@@ -30,6 +30,7 @@ from . import ai, references, triggers
 from .const import AUTOMATIONS_FILE, CHECK_AFTER, DOMAIN, SCENES_FILE, SCRIPTS_FILE, TEXTS, Z2M_BASE_TOPIC
 from .hardware import z2m_base_topic, z2m_ieee, z2m_name
 from .matching import match, unsure
+from .remembered import remembered
 
 _LOGGER = logging.getLogger(__name__)
 _KEEP_DAYS = 30
@@ -67,6 +68,9 @@ def async_plan(
     if old is None or new is None or old_id == new_id:
         return None
     old_entities = er.async_entries_for_device(entities, old_id, include_disabled_entities=True)
+    # A device that lost its entities (reset or unpaired first): use the ones Home Assistant still remembers.
+    if not old_entities:
+        old_entities = remembered(hass, old)
     new_entities = er.async_entries_for_device(entities, new_id, include_disabled_entities=True)
     plan = Plan(
         old, new, old_entities, new_entities, mapping if mapping is not None else match(old_entities, new_entities)
