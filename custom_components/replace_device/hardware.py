@@ -10,6 +10,8 @@ from homeassistant.loader import async_get_loaded_integration
 
 _Z2M = re.compile(r"^zigbee2mqtt_0x([0-9a-f]{16})$")
 Z2M_SOURCE = "zigbee2mqtt"
+# Names people know these by.
+_SHORT = {"zha": "ZHA", "zwave_js": "Z-Wave JS"}
 
 
 def hardware_keys(device: dr.DeviceEntry) -> set[str]:
@@ -54,6 +56,8 @@ def source(hass: HomeAssistant, device: dr.DeviceEntry) -> tuple[str | None, str
     entry = hass.config_entries.async_get_entry(device.config_entry_id) if device.config_entry_id else None
     if entry is None:
         return None, None
+    if entry.domain in _SHORT:
+        return entry.domain, _SHORT[entry.domain]
     try:
         name = async_get_loaded_integration(hass, entry.domain).name
     except Exception:  # noqa: BLE001 - not loaded: use the entry's own title

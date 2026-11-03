@@ -63,6 +63,8 @@ const TEXT = {
     from: "From",
     to: "To",
     findPairs: "Find pairs",
+    matches: "{n} found",
+    noTargets: "Not found anywhere else",
     pairsFound: "{n} devices found in both",
     noPairs: "No device was found in both. Pair them in {target} first.",
     by_ieee: "Zigbee address",
@@ -140,6 +142,8 @@ const TEXT = {
     from: "Fra",
     to: "Til",
     findPairs: "Find par",
+    matches: "{n} fundet",
+    noTargets: "Ikke fundet andre steder",
     pairsFound: "{n} enheder fundet begge steder",
     noPairs: "Ingen enheder blev fundet begge steder. Par dem i {target} først.",
     by_ieee: "Zigbee-adresse",
@@ -338,7 +342,9 @@ class ReplaceDevicePanel extends HTMLElement {
 
   pickView() {
     const old = this.oldId && this.device(this.oldId);
-    const sources = [...new Map(this.devices.filter((d) => d.integration).map((d) => [d.integration, d.integration_title])).entries()];
+    const counts = new Map();
+    for (const d of this.devices.filter((x) => x.integration)) counts.set(d.integration, [d.integration_title, (counts.get(d.integration)?.[1] || 0) + 1]);
+    const sources = [...counts.entries()].sort((a, b) => b[1][1] - a[1][1]);
     return `
       ${old ? `<div class="card chosen"><div class="dev-head"><ha-icon icon="mdi:devices"></ha-icon><div class="grow"><div class="muted small">${this.t("old")}</div><div class="dev-name">${esc(old.name)}</div>
         <div class="muted small">${esc([old.area, old.model, old.integration_title].filter(Boolean).join(" · "))}</div></div>
@@ -346,7 +352,7 @@ class ReplaceDevicePanel extends HTMLElement {
       <h3>${old ? this.t("pickNew") : this.t("pickOld")}</h3>
       <div class="filters">
         <div class="search"><ha-icon icon="mdi:magnify"></ha-icon><input id="q" type="search" placeholder="${this.t("search")}" value="${esc(this.query)}"></div>
-        <select id="src"><option value="">${this.t("allIntegrations")}</option>${sources.map(([k, v]) => `<option value="${esc(k)}" ${k === this.srcFilter ? "selected" : ""}>${esc(v || k)}</option>`).join("")}</select>
+        <select id="src"><option value="">${this.t("allIntegrations")}</option>${sources.map(([k, [v, n]]) => `<option value="${esc(k)}" ${k === this.srcFilter ? "selected" : ""}>${esc(v || k)} (${n})</option>`).join("")}</select>
       </div>
       <div class="pick-list" id="list">${this.pickList()}</div>
       <div class="actions"><button class="ghost" data-act="home">${this.t("back")}</button></div>`;
@@ -382,11 +388,42 @@ class ReplaceDevicePanel extends HTMLElement {
       </button>`).join("");
   }
 
+  // Integrations with physical devices (Zigbee address, serial number or MAC), with how many.
+  migrateSources() {
+    const counts = new Map();
+    for (const d of this.devices) {
+      if (!d.integration || !d.hardware?.length) continue;
+      const c = counts.get(d.integration) || { key: d.integration, name: d.integration_title || d.integration, n: 0 };
+      c.n += 1;
+      counts.set(d.integration, c);
+    }
+    return [...counts.values()].sort((a, b) => b.n - a.n);
+  }
+
+  // Integrations where devices of the source are found again, with how many.
+  migrateTargets(source) {
+    const keys = new Set(this.devices.filter((d) => d.integration === source).flatMap((d) => d.hardware || []));
+    const counts = new Map();
+    for (const d of this.devices) {
+      if (!d.integration || d.integration === source || !d.hardware?.some((k) => keys.has(k))) continue;
+      const c = counts.get(d.integration) || { key: d.integration, name: d.integration_title || d.integration, n: 0 };
+      c.n += 1;
+      counts.set(d.integration, c);
+    }
+    return [...counts.values()].sort((a, b) => b.n - a.n);
+  }
+
   migrateView() {
-    const sources = [...new Map(this.devices.filter((d) => d.integration).map((d) => [d.integration, d.integration_title])).entries()];
-    const opts = (sel) => sources.map(([k, v]) => `<option value="${esc(k)}" ${k === sel ? "selected" : ""}>${esc(v || k)}</option>`).join("");
+    const sources = this.migrateSources();
+    const targets = this.migrateTargets(this.migrateSource);
+    if (!targets.some((t) => t.key === this.migrateTarget)) this.migrateTarget = targets[0]?.key || "";
+    const all = [...sources, ...targets];
+    const name = (k) => esc(all.find((x) => x.key === k)?.name || k);
+    const srcOpts = sources.map((x) => `<option value="${esc(x.key)}" ${x.key === this.migrateSource ? "selected" : ""}>${esc(x.name)} (${x.n})</option>`).join("");
+    const dstOpts = targets.length
+      ? targets.map((x) => `<option value="${esc(x.key)}" ${x.key === this.migrateTarget ? "selected" : ""}>${esc(x.name)} (${this.t("matches", { n: x.n })})</option>`).join("")
+      : `<option value="">${this.t("noTargets")}</option>`;
     const plan = this.migratePlan;
-    const name = (k) => esc((sources.find(([x]) => x === k) || [k, k])[1] || k);
     let result = "";
     if (plan) {
       const rows = plan.pairs.map((p) => `
@@ -414,11 +451,11 @@ class ReplaceDevicePanel extends HTMLElement {
       <div class="card">
         <h2>${this.t("migrateTitle")}</h2><p class="muted">${this.t("migrateText")}</p>
         <div class="fromto">
-          <div><label>${this.t("from")}</label><select id="msrc">${opts(this.migrateSource)}</select></div>
+          <div><label>${this.t("from")}</label><select id="msrc">${srcOpts}</select></div>
           <ha-icon icon="mdi:arrow-right"></ha-icon>
-          <div><label>${this.t("to")}</label><select id="mdst">${opts(this.migrateTarget)}</select></div>
+          <div><label>${this.t("to")}</label><select id="mdst" ${targets.length ? "" : "disabled"}>${dstOpts}</select></div>
         </div>
-        <div class="actions"><button class="ghost" data-act="home">${this.t("back")}</button><button class="primary" data-act="findPairs">${this.t("findPairs")}</button></div>
+        <div class="actions"><button class="ghost" data-act="home">${this.t("back")}</button><button class="primary" data-act="findPairs" ${this.migrateTarget ? "" : "disabled"}>${this.t("findPairs")}</button></div>
       </div>
       ${result}`;
   }
@@ -579,6 +616,22 @@ class ReplaceDevicePanel extends HTMLElement {
         this.renderList();
       });
     }
+    const msrc = this.shadowRoot.getElementById("msrc");
+    if (msrc) {
+      msrc.addEventListener("change", () => {
+        this.migrateSource = msrc.value;
+        this.migratePlan = null;
+        this.render();
+      });
+    }
+    const mdst = this.shadowRoot.getElementById("mdst");
+    if (mdst) {
+      mdst.addEventListener("change", () => {
+        this.migrateTarget = mdst.value;
+        this.migratePlan = null;
+        this.render();
+      });
+    }
     this.shadowRoot.querySelectorAll("input[data-pair]").forEach((el) =>
       el.addEventListener("change", () => {
         if (el.checked) this.migrateSelected.add(el.dataset.pair);
@@ -620,9 +673,9 @@ class ReplaceDevicePanel extends HTMLElement {
       this.view = "pick";
       this.render();
     } else if (data.act === "migrate") {
-      const sources = [...new Set(this.devices.map((d) => d.integration).filter(Boolean))];
-      this.migrateSource ||= sources.includes("zha") ? "zha" : sources[0] || "";
-      this.migrateTarget ||= sources.includes("zigbee2mqtt") ? "zigbee2mqtt" : sources.find((x) => x !== this.migrateSource) || "";
+      // Start with the source that has the most devices to move somewhere.
+      const best = this.migrateSources().find((x) => this.migrateTargets(x.key).length);
+      this.migrateSource ||= best?.key || this.migrateSources()[0]?.key || "";
       this.view = "migrate";
       this.render();
     } else if (data.act === "findPairs") {
@@ -720,6 +773,7 @@ button[disabled]{opacity:.45;cursor:default}
 @media (max-width:600px){
   .content{padding:12px 12px 96px}.hero{flex-direction:column}.pair{flex-direction:column;gap:0}.pair-arrow{transform:rotate(90deg);margin:-8px auto 8px}
   .row{grid-template-columns:1fr;gap:6px}.mid{display:none}.actions.sticky button{flex:1}
+  .fromto{flex-direction:column;align-items:stretch;gap:4px}.fromto>ha-icon{transform:rotate(90deg);align-self:center;margin:4px 0 0}
   .filters select{flex:1 1 100%}.devpick .tags{display:none}.devpick .tags:has(.green){display:flex}
 }
 `;
