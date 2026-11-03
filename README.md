@@ -28,6 +28,14 @@ A note is added to the logbook, and if the new device sends no values after 10 m
 
 Pair a new device of the same make and model while an old one has been dead for an hour, and a repair shows up: **"New Aqara WSDCGQ11LM found – replace Kitchen?"**. Tap **Fix**, check the preview, done.
 
+### Move many devices at once
+
+Moving from **ZHA to Zigbee2MQTT** (or any integration to another)? Pair the devices in the new integration, then tap **Move many devices** in the panel and pick *from* and *to*. Every device found in both is paired by what doesn't change: the **Zigbee address** (IEEE), the **serial number** (Matter) or the **MAC address** (Wi-Fi). Names don't matter. Untick the ones to leave, and move them all with one tap.
+
+Moving to Zigbee2MQTT, it can also give each device its Home Assistant name in Zigbee2MQTT, without Zigbee2MQTT changing the entity IDs.
+
+<p><img src="docs/panel-migrate.png" alt="Move many devices from ZHA to Zigbee2MQTT" width="300"></p>
+
 ### Use it for
 
 - A dead sensor replaced with a new one
@@ -44,7 +52,7 @@ Pair a new device of the same make and model while an old one has been dead for 
 ### How to replace a device
 
 1. Pair the new device as you normally would.
-2. Open **Replace device** in the sidebar. Dead devices are listed, with a likely replacement when one is found – tap **Replace with …**. Or tap **Replace a device** and pick the old and the new one.
+2. Open **Replace device** in the sidebar. Dead devices are listed, with a likely replacement when one is found – tap **Replace with …**. Or tap **Replace a device**, search for the old one, then the new one. The same physical device or the same model is shown first.
 3. The old and the new device are shown side by side. Each old entity has its match picked (temperature to temperature, battery to battery). Change one if it's wrong, or pick "— removed".
 4. See what moves, what's removed and which automations use the old device, then tap **Replace now**.
 
@@ -76,6 +84,12 @@ Der kommer en note i logbogen. Sender den nye enhed ingen værdier efter 10 minu
 
 Parrer du en ny enhed af samme mærke og model, mens en gammel har været død i en time, kommer der en reparation: **"Ny Aqara WSDCGQ11LM fundet – skal den erstatte Køkken?"**. Tryk **Ret**, se forhåndsvisningen, og så er det klaret.
 
+### Flyt mange enheder på én gang
+
+Skal du flytte fra **ZHA til Zigbee2MQTT** eller mellem to andre integrationer? Par først enhederne i den nye integration. Tryk så **Flyt mange enheder** i panelet, og vælg *fra* og *til*. Alle enheder, der findes begge steder, bliver parret på det, der ikke ændrer sig: **Zigbee-adressen** (IEEE), **serienummeret** (Matter) eller **MAC-adressen** (Wi-Fi). Navnene er ligegyldige. Fjern fluebenet ved dem, der skal blive, og flyt resten med ét tryk.
+
+Flytter du til Zigbee2MQTT, kan den også give hver enhed dens Home Assistant-navn i Zigbee2MQTT, uden at Zigbee2MQTT ændrer entity-id'erne.
+
 ### Installation
 
 1. **HACS** → ⋮ → **Brugerdefinerede repositories** → `https://github.com/Clahen86/ha-replace-device`, type **Integration** → **Tilføj**.
@@ -85,7 +99,7 @@ Parrer du en ny enhed af samme mærke og model, mens en gammel har været død i
 ### Sådan udskifter du en enhed
 
 1. Par den nye enhed, som du plejer.
-2. Åbn **Udskift enhed** i sidemenuen. Her ser du de døde enheder, og har den fundet en sandsynlig afløser, står den der. Tryk **Udskift med …**. Du kan også trykke **Udskift en enhed** og selv vælge den gamle og den nye.
+2. Åbn **Udskift enhed** i sidemenuen. Her ser du de døde enheder, og har den fundet en sandsynlig afløser, står den der. Tryk **Udskift med …**. Du kan også trykke **Udskift en enhed**, søge den gamle frem og derefter den nye. Den samme fysiske enhed eller samme model står øverst.
 3. Den gamle og den nye enhed vises side om side. For hver gammel entitet er den matchende valgt, fx temperatur til temperatur og batteri til batteri. Ret den, hvis den er forkert, eller vælg "— fjernes".
 4. Se, hvad der flyttes, hvad der fjernes, og hvilke automatiseringer der bruger den gamle enhed. Tryk så **Udskift nu**.
 

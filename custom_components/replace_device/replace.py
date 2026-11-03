@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
+import json
 import logging
 import time
 from typing import Any
@@ -22,7 +23,8 @@ from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.storage import Store
 from homeassistant.util.file import write_utf8_file_atomic
 
-from .const import AUTOMATIONS_FILE, CHECK_AFTER, DOMAIN, SCRIPTS_FILE, TEXTS
+from .const import AUTOMATIONS_FILE, CHECK_AFTER, DOMAIN, SCRIPTS_FILE, TEXTS, Z2M_BASE_TOPIC
+from .hardware import z2m_ieee, z2m_name
 from .matching import match
 
 _LOGGER = logging.getLogger(__name__)
@@ -98,7 +100,9 @@ class Replacer:
         cutoff = time.time() - _KEEP_DAYS * 86400
         self.history = [h for h in (await self.store.async_load() or {}).get("history", []) if h["at"] >= cutoff]
 
-    async def async_replace(self, plan: Plan, remove_old: bool) -> dict[str, Any]:
+    async def async_replace(
+        self, plan: Plan, remove_old: bool, rename_z2m: bool = False, reload: bool = True
+    ) -> dict[str, Any]:
         hass = self.hass
         devices, entities = dr.async_get(hass), er.async_get(hass)
         pairs = plan.pairs
@@ -149,8 +153,9 @@ class Replacer:
         )
 
         # 4. Automations and scripts that point at the old device or its entities by id.
-        changed = await self._rewrite(record["ids"])
+        changed = await self._rewrite(record["ids"], reload)
         record["files"] = changed
+        renamed = await _rename_in_z2m(hass, plan.new, device_name(plan.old)) if rename_z2m else False
 
         # 5. The new entities' first minutes under their own ids are not needed.
         await _clean_recorder(hass, temp_ids)
@@ -159,7 +164,7 @@ class Replacer:
 
         self.history.append(record)
         self._save()
-        return {"id": record["id"], "moved": len(pairs), "removed": removed, "changed": changed}
+        return {"id": record["id"], "moved": len(pairs), "removed": removed, "changed": changed, "renamed": renamed}
 
     async def async_undo(self, record_id: str) -> bool:
         """Give the new device its own names and entity ids back. The old device returns only if its integration
@@ -192,7 +197,12 @@ class Replacer:
     def _save(self) -> None:
         self.store.async_delay_save(lambda: {"history": self.history}, 1)
 
-    async def _rewrite(self, ids: dict[str, str]) -> list[str]:
+    async def async_reload(self, domains: set[str]) -> None:
+        for domain in domains:
+            if self.hass.services.has_service(domain, "reload"):
+                await self.hass.services.async_call(domain, "reload", blocking=True)
+
+    async def _rewrite(self, ids: dict[str, str], reload: bool = True) -> list[str]:
         """Replace device and entity registry ids in the automation and script files, then reload them."""
         changed = []
         for domain, name in (("automation", AUTOMATIONS_FILE), ("script", SCRIPTS_FILE)):
@@ -207,8 +217,8 @@ class Replacer:
                 continue
             await self.hass.async_add_executor_job(write_utf8_file_atomic, path, new)
             changed.append(domain)
-            if self.hass.services.has_service(domain, "reload"):
-                await self.hass.services.async_call(domain, "reload", blocking=True)
+        if reload:
+            await self.async_reload(set(changed))
         return changed
 
 
@@ -251,6 +261,18 @@ def _restore(item: dict[str, Any]) -> dict[str, Any]:
         "device_class": item["device_class"],
         "hidden_by": er.RegistryEntryHider(item["hidden_by"]) if item["hidden_by"] else None,
     }
+
+
+async def _rename_in_z2m(hass: HomeAssistant, device: dr.DeviceEntry, name: str) -> bool:
+    """Give the device the same name in Zigbee2MQTT, without letting it change the Home Assistant entity ids."""
+    ieee = z2m_ieee(device)
+    if ieee is None or not hass.services.has_service("mqtt", "publish"):
+        return False
+    payload = json.dumps({"from": ieee, "to": z2m_name(name), "homeassistant_rename": False})
+    await hass.services.async_call(
+        "mqtt", "publish", {"topic": f"{Z2M_BASE_TOPIC}/bridge/request/device/rename", "payload": payload}
+    )
+    return True
 
 
 def _read(path: str) -> str | None:

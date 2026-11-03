@@ -16,6 +16,9 @@ SUGGEST_DELAY = 120
 # After a replacement: does the new device send values?
 CHECK_AFTER = 600
 
+# Zigbee2MQTT's default MQTT base topic.
+Z2M_BASE_TOPIC = "zigbee2mqtt"
+
 # The files the automation and script editors write.
 AUTOMATIONS_FILE = "automations.yaml"
 SCRIPTS_FILE = "scripts.yaml"

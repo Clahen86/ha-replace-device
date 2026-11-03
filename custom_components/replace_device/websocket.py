@@ -12,13 +12,15 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import area_registry as ar, device_registry as dr, entity_registry as er
 
 from .const import DOMAIN
+from .hardware import hardware_keys, source, z2m_ieee
+from .matching import match
 from .replace import Plan, Replacer, async_plan, device_name
 from .suggest import is_dead
 
 
 @callback
 def async_setup(hass: HomeAssistant) -> None:
-    for command in (ws_devices, ws_plan, ws_replace, ws_history, ws_undo):
+    for command in (ws_devices, ws_plan, ws_replace, ws_history, ws_undo, ws_migrate_plan, ws_migrate):
         websocket_api.async_register_command(hass, command)
 
 
@@ -30,7 +32,7 @@ def _replacer(hass: HomeAssistant) -> Replacer | None:
 def _device(hass: HomeAssistant, device: dr.DeviceEntry) -> dict[str, Any]:
     entities = er.async_entries_for_device(er.async_get(hass), device.id)
     area = ar.async_get(hass).async_get_area(device.area_id) if device.area_id else None
-    entry = hass.config_entries.async_get_entry(device.config_entry_id) if device.config_entry_id else None
+    source_key, source_name = source(hass, device)
     dead = is_dead(hass, device.id)
     since = None
     if dead:
@@ -42,8 +44,10 @@ def _device(hass: HomeAssistant, device: dr.DeviceEntry) -> dict[str, Any]:
         "area": area.name if area else None,
         "manufacturer": device.manufacturer,
         "model": device.model or device.model_id,
-        "integration": entry.domain if entry else None,
-        "integration_title": entry.title if entry else None,
+        "integration": source_key,
+        "integration_title": source_name,
+        "z2m": z2m_ieee(device) is not None,
+        "hardware": sorted(hardware_keys(device)),
         "entities": len(entities),
         "dead": dead,
         "dead_since": since,
@@ -132,6 +136,7 @@ def ws_plan(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg
         vol.Required("new"): str,
         vol.Required("mapping"): {str: vol.Any(str, None)},
         vol.Optional("remove_old", default=True): bool,
+        vol.Optional("rename_z2m", default=False): bool,
     }
 )
 @websocket_api.async_response
@@ -142,7 +147,7 @@ async def ws_replace(hass: HomeAssistant, connection: websocket_api.ActiveConnec
     if plan is None or replacer is None or len(picked) != len(set(picked)):
         connection.send_error(msg["id"], "invalid", "Not a valid replacement")
         return
-    connection.send_result(msg["id"], await replacer.async_replace(plan, msg["remove_old"]))
+    connection.send_result(msg["id"], await replacer.async_replace(plan, msg["remove_old"], msg["rename_z2m"]))
 
 
 @websocket_api.require_admin
@@ -166,3 +171,75 @@ async def ws_undo(hass: HomeAssistant, connection: websocket_api.ActiveConnectio
         connection.send_error(msg["id"], "not_found", "Nothing to undo")
         return
     connection.send_result(msg["id"], {"ok": True})
+
+
+def _devices_from(hass: HomeAssistant, key: str) -> list[dr.DeviceEntry]:
+    entities = er.async_get(hass)
+    return [
+        d
+        for d in dr.async_get(hass).devices.values()
+        if d.entry_type is None and source(hass, d)[0] == key and er.async_entries_for_device(entities, d.id)
+    ]
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {vol.Required("type"): f"{DOMAIN}/migrate_plan", vol.Required("source"): str, vol.Required("target"): str}
+)
+@callback
+def ws_migrate_plan(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Every device of one integration paired with the same physical device in another."""
+    entities = er.async_get(hass)
+    targets: dict[str, dr.DeviceEntry] = {}
+    for device in _devices_from(hass, msg["target"]):
+        for key in hardware_keys(device):
+            targets.setdefault(key, device)
+    pairs, missing = [], []
+    for old in _devices_from(hass, msg["source"]):
+        keys = hardware_keys(old)
+        new = next((targets[k] for k in sorted(keys) if k in targets), None)
+        if new is None:
+            missing.append(_device(hass, old))
+            continue
+        old_entities = er.async_entries_for_device(entities, old.id, include_disabled_entities=True)
+        mapping = match(old_entities, er.async_entries_for_device(entities, new.id, include_disabled_entities=True))
+        pairs.append(
+            {
+                "old": _device(hass, old),
+                "new": _device(hass, new),
+                "by": next(k for k in sorted(keys) if k in targets).split(":")[0],
+                "matched": sum(1 for v in mapping.values() if v),
+                "total": len(mapping),
+            }
+        )
+    connection.send_result(msg["id"], {"pairs": pairs, "missing": missing})
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/migrate",
+        vol.Required("pairs"): [{vol.Required("old"): str, vol.Required("new"): str}],
+        vol.Optional("remove_old", default=True): bool,
+        vol.Optional("rename_z2m", default=False): bool,
+    }
+)
+@websocket_api.async_response
+async def ws_migrate(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Replace many devices in one go; automations and scripts are reloaded once at the end."""
+    replacer = _replacer(hass)
+    if replacer is None:
+        connection.send_error(msg["id"], "not_loaded", "Replace Device is not set up")
+        return
+    done, failed, moved, reload = [], [], 0, set()
+    for pair in msg["pairs"]:
+        plan = async_plan(hass, pair["old"], pair["new"])
+        if plan is None:
+            failed.append(pair["old"])
+            continue
+        result = await replacer.async_replace(plan, msg["remove_old"], msg["rename_z2m"], reload=False)
+        done.append(result["id"])
+        moved += result["moved"]
+        reload.update(result["changed"])
+    await replacer.async_reload(reload)
+    connection.send_result(msg["id"], {"devices": len(done), "moved": moved, "failed": failed, "ids": done})

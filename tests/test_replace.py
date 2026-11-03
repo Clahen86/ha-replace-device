@@ -231,3 +231,82 @@ async def test_panel_api_and_undo(hass: HomeAssistant, hass_ws_client, tmp_path,
     assert old.id in (tmp_path / "automations.yaml").read_text()
     await client.send_json_auto_id({"type": "replace_device/undo", "record": result["id"]})
     assert not (await client.receive_json())["success"]
+
+
+async def test_move_many_zha_to_z2m(hass: HomeAssistant, hass_ws_client) -> None:
+    """ZHA and Zigbee2MQTT devices are paired on their IEEE address, whatever they are called."""
+    from pytest_homeassistant_custom_component.common import async_mock_service
+
+    from custom_components.replace_device.hardware import hardware_keys
+
+    published = async_mock_service(hass, "mqtt", "publish")
+    zha_entry = MockConfigEntry(domain="zha", title="ZHA")
+    zha_entry.add_to_hass(hass)
+    mqtt_entry = MockConfigEntry(domain="mqtt", title="Mosquitto broker")
+    mqtt_entry.add_to_hass(hass)
+    devices, registry = dr.async_get(hass), er.async_get(hass)
+    made = {}
+    for name, ieee in (("Stue sensor", "00:15:8d:00:01:a2:b3:c4"), ("Gang knap", "54:ef:44:10:01:69:24:45")):
+        old = devices.async_get_or_create(
+            config_entry_id=zha_entry.entry_id,
+            identifiers={("zha", ieee)},
+            connections={(dr.CONNECTION_ZIGBEE, ieee)},
+            name=name,
+            manufacturer="LUMI",
+            model="lumi.weather",
+        )
+        compact = ieee.replace(":", "")
+        new = devices.async_get_or_create(
+            config_entry_id=mqtt_entry.entry_id,
+            identifiers={("mqtt", f"zigbee2mqtt_0x{compact}")},
+            name=f"0x{compact}",
+            manufacturer="Aqara",
+            model="WSDCGQ11LM",
+        )
+        registry.async_get_or_create(
+            "sensor",
+            "zha",
+            f"{ieee}-temp",
+            suggested_object_id=f"{name}_temperatur".lower().replace(" ", "_"),
+            device_id=old.id,
+            config_entry=zha_entry,
+            original_device_class="temperature",
+            unit_of_measurement="°C",
+        )
+        registry.async_get_or_create(
+            "sensor",
+            "mqtt",
+            f"0x{compact}-temp",
+            suggested_object_id=f"0x{compact}_temperature",
+            device_id=new.id,
+            config_entry=mqtt_entry,
+            original_device_class="temperature",
+            unit_of_measurement="°C",
+        )
+        made[name] = (old, new)
+        assert hardware_keys(old) & hardware_keys(new) == {f"ieee:{compact}"}
+    # A Zigbee2MQTT device with no ZHA twin, and an MQTT device that is not Zigbee2MQTT.
+    lonely = devices.async_get_or_create(
+        config_entry_id=zha_entry.entry_id, identifiers={("zha", "aa:aa:aa:aa:aa:aa:aa:aa")}, name="Lonely"
+    )
+    registry.async_get_or_create("light", "zha", "lonely", device_id=lonely.id, config_entry=zha_entry)
+    await _setup(hass)
+    client = await hass_ws_client(hass)
+
+    await client.send_json_auto_id({"type": "replace_device/migrate_plan", "source": "zha", "target": "zigbee2mqtt"})
+    plan = (await client.receive_json())["result"]
+    assert {p["old"]["name"] for p in plan["pairs"]} == {"Stue sensor", "Gang knap"}
+    assert all(p["by"] == "ieee" and p["matched"] == 1 for p in plan["pairs"])
+    assert [m["name"] for m in plan["missing"]] == ["Lonely"]
+
+    pairs = [{"old": p["old"]["id"], "new": p["new"]["id"]} for p in plan["pairs"]]
+    await client.send_json_auto_id({"type": "replace_device/migrate", "pairs": pairs, "rename_z2m": True})
+    result = (await client.receive_json())["result"]
+    await hass.async_block_till_done()
+    assert result["devices"] == 2 and result["moved"] == 2 and not result["failed"]
+    assert registry.async_get("sensor.stue_sensor_temperatur").platform == "mqtt"
+    assert devices.async_get(made["Gang knap"][1].id).name_by_user == "Gang knap"
+    topics = {c.data["topic"] for c in published}
+    assert topics == {"zigbee2mqtt/bridge/request/device/rename"}
+    assert '"to": "Stue sensor"' in " ".join(c.data["payload"] for c in published)
+    assert all('"homeassistant_rename": false' in c.data["payload"] for c in published)
