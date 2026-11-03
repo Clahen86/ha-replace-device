@@ -145,7 +145,7 @@ async def test_wizard(hass: HomeAssistant, tmp_path) -> None:
     automations = (tmp_path / "automations.yaml").read_text()
     assert old.id not in automations and new.id in automations
     assert old_temp.id not in automations and temp.id in automations
-    assert entry.runtime_data.history[0]["files"]["automations.yaml"].count(old.id) == 1
+    assert entry.runtime_data.history[0]["files"] == ["automation"]
 
 
 async def test_suggested_repair(hass: HomeAssistant, freezer) -> None:
@@ -183,3 +183,51 @@ async def test_no_suggestion_when_alive(hass: HomeAssistant, freezer) -> None:
     async_fire_time_changed(hass, dt_util.utcnow())
     await hass.async_block_till_done()
     assert ir.async_get(hass).async_get_issue(DOMAIN, f"suggest_{new.id}") is None
+
+
+async def test_panel_api_and_undo(hass: HomeAssistant, hass_ws_client, tmp_path, monkeypatch) -> None:
+    hass.config.config_dir = str(tmp_path)
+    monkeypatch.setattr("custom_components.replace_device.suggest.DEAD_AFTER", 0)
+    old = _device(hass, "zha", "old", "Kitchen", OLD_SENSORS)
+    for key, *_ in OLD_SENSORS:
+        hass.states.async_set(f"sensor.kitchen_{key}", "unavailable")
+    new = _device(hass, "mqtt", "new", "0x00158d0001", NEW_SENSORS)
+    (tmp_path / "automations.yaml").write_text(f"- id: '1'\n  alias: A\n  triggers:\n  - device_id: {old.id}\n")
+    await _setup(hass)
+    client = await hass_ws_client(hass)
+
+    await client.send_json_auto_id({"type": "replace_device/devices"})
+    devices = {d["id"]: d for d in (await client.receive_json())["result"]["devices"]}
+    assert devices[old.id]["dead"] and devices[old.id]["twins"] == [new.id]
+    assert not devices[new.id]["dead"]
+
+    await client.send_json_auto_id({"type": "replace_device/plan", "old": old.id, "new": new.id})
+    plan = (await client.receive_json())["result"]
+    assert plan["mapping"]["sensor.kitchen_temperature"] == "sensor.0x00158d0001_temperature"
+    assert {e["entity_id"] for e in plan["new_entities"]} >= {"sensor.0x00158d0001_pressure"}
+
+    await client.send_json_auto_id(
+        {"type": "replace_device/replace", "old": old.id, "new": new.id, "mapping": plan["mapping"]}
+    )
+    result = (await client.receive_json())["result"]
+    await hass.async_block_till_done()
+    assert result["moved"] == 3 and result["removed"]
+    registry = er.async_get(hass)
+    assert registry.async_get("sensor.kitchen_temperature").platform == "mqtt"
+    assert new.id in (tmp_path / "automations.yaml").read_text()
+
+    await client.send_json_auto_id({"type": "replace_device/history"})
+    history = (await client.receive_json())["result"]["history"]
+    assert history[0]["old_device"]["name"] == "Kitchen" and not history[0]["undone"]
+
+    # Undo: the new device gets its own names and ids back.
+    await client.send_json_auto_id({"type": "replace_device/undo", "record": result["id"]})
+    assert (await client.receive_json())["success"]
+    await hass.async_block_till_done()
+    temp = registry.async_get("sensor.0x00158d0001_temperature")
+    assert temp is not None and temp.device_id == new.id and temp.name is None
+    assert registry.async_get("sensor.kitchen_temperature") is None
+    assert dr.async_get(hass).async_get(new.id).name_by_user is None
+    assert old.id in (tmp_path / "automations.yaml").read_text()
+    await client.send_json_auto_id({"type": "replace_device/undo", "record": result["id"]})
+    assert not (await client.receive_json())["success"]

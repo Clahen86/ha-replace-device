@@ -1,0 +1,470 @@
+// Replace Device – sidebar panel. Plain web component, no build step; follows the Home Assistant theme.
+
+const TEXT = {
+  en: {
+    title: "Replace device",
+    heroTitle: "A device died?",
+    heroText: "Pair the new one first. It then takes over the old one's name, entity IDs and history – your automations and dashboards keep working.",
+    start: "Replace a device",
+    dead: "Dead devices",
+    noDead: "No dead devices. Everything is reporting.",
+    deadFor: "No contact for {t}",
+    twin: "Possible replacement",
+    replaceWith: "Replace with {name}",
+    pickReplacement: "Pick replacement",
+    history: "Replaced",
+    undo: "Undo",
+    undone: "Undone",
+    moved: "{n} entities moved",
+    pickTitle: "Which device is replaced?",
+    old: "Old device",
+    new: "New device",
+    choose: "Choose…",
+    deadGroup: "Dead",
+    allGroup: "All devices",
+    newestGroup: "Newest first",
+    next: "Next",
+    back: "Back",
+    tookOver: "takes over",
+    deadTag: "dead",
+    matchTitle: "What goes where",
+    matchText: "Each old entity has its match picked. Change it if it's wrong.",
+    removed: "— removed",
+    keepsOwn: "New, keep their own entity ID",
+    usesDevice: "Automations and scripts that use the old device itself",
+    usesDeviceHint: "They are updated. If the new device uses another integration, check their device triggers.",
+    removeOld: "Remove the old device",
+    removeOldHint: "Needed for the names to be free. If it's still in your Zigbee network, remove it there too.",
+    replace: "Replace now",
+    working: "Replacing…",
+    doneTitle: "{name} is replaced",
+    doneText: "{n} entities moved over with their history. Automations and dashboards keep working.",
+    keptOld: "The old device's integration didn't allow removing it here – remove it there, so it doesn't come back.",
+    undoHint: "Undo gives the new device its own names back. The old one only returns if its integration finds it again.",
+    home: "Done",
+    duplicate: "Two old entities point at the same new one.",
+    sameDevice: "Pick two different devices.",
+    error: "Something went wrong: {e}",
+    minutes: "{n} min",
+    hours: "{n} h",
+    days: "{n} days",
+  },
+  da: {
+    title: "Udskift enhed",
+    heroTitle: "Er en enhed død?",
+    heroText: "Par den nye først. Så overtager den den gamles navn, entity-id'er og historik – dine automatiseringer og dashboards virker videre.",
+    start: "Udskift en enhed",
+    dead: "Døde enheder",
+    noDead: "Ingen døde enheder. Alt melder sig.",
+    deadFor: "Ingen kontakt i {t}",
+    twin: "Mulig afløser",
+    replaceWith: "Udskift med {name}",
+    pickReplacement: "Vælg afløser",
+    history: "Udskiftet",
+    undo: "Fortryd",
+    undone: "Fortrudt",
+    moved: "{n} entiteter flyttet",
+    pickTitle: "Hvilken enhed skal udskiftes?",
+    old: "Gammel enhed",
+    new: "Ny enhed",
+    choose: "Vælg…",
+    deadGroup: "Døde",
+    allGroup: "Alle enheder",
+    newestGroup: "Nyeste først",
+    next: "Næste",
+    back: "Tilbage",
+    tookOver: "overtager",
+    deadTag: "død",
+    matchTitle: "Hvad hører sammen",
+    matchText: "For hver gammel entitet er den matchende valgt. Ret den, hvis den er forkert.",
+    removed: "— fjernes",
+    keepsOwn: "Nye, beholder deres eget entity-id",
+    usesDevice: "Automatiseringer og scripts, der bruger selve den gamle enhed",
+    usesDeviceHint: "De bliver opdateret. Bruger den nye enhed en anden integration, så tjek deres enhedstriggere.",
+    removeOld: "Fjern den gamle enhed",
+    removeOldHint: "Nødvendigt, for at navnene bliver ledige. Er den stadig i dit Zigbee-netværk, så fjern den også der.",
+    replace: "Udskift nu",
+    working: "Udskifter…",
+    doneTitle: "{name} er udskiftet",
+    doneText: "{n} entiteter er flyttet med deres historik. Automatiseringer og dashboards virker videre.",
+    keptOld: "Den gamle enheds integration tillod ikke at fjerne den her – fjern den dér, så den ikke kommer igen.",
+    undoHint: "Fortryd giver den nye enhed dens egne navne tilbage. Den gamle kommer kun igen, hvis dens integration finder den.",
+    home: "Færdig",
+    duplicate: "To gamle entiteter peger på den samme nye.",
+    sameDevice: "Vælg to forskellige enheder.",
+    error: "Noget gik galt: {e}",
+    minutes: "{n} min",
+    hours: "{n} t",
+    days: "{n} dage",
+  },
+};
+
+const DOMAIN_ICON = {
+  sensor: "mdi:eye", binary_sensor: "mdi:radiobox-marked", light: "mdi:lightbulb", switch: "mdi:toggle-switch",
+  button: "mdi:gesture-tap-button", event: "mdi:bell-ring", climate: "mdi:thermostat", cover: "mdi:window-shutter",
+  fan: "mdi:fan", lock: "mdi:lock", number: "mdi:ray-vertex", select: "mdi:format-list-bulleted", update: "mdi:package-up",
+};
+const CLASS_ICON = {
+  temperature: "mdi:thermometer", humidity: "mdi:water-percent", battery: "mdi:battery", pressure: "mdi:gauge",
+  illuminance: "mdi:brightness-5", motion: "mdi:motion-sensor", occupancy: "mdi:home-account", door: "mdi:door",
+  window: "mdi:window-open", power: "mdi:flash", energy: "mdi:lightning-bolt", voltage: "mdi:sine-wave",
+  signal_strength: "mdi:wifi", moisture: "mdi:water", carbon_dioxide: "mdi:molecule-co2",
+};
+
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+class ReplaceDevicePanel extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: "open" });
+    this.view = "home";
+    this.devices = [];
+    this.historyItems = [];
+    this.plan = null;
+    this.mapping = {};
+    this.removeOld = true;
+    this.result = null;
+    this.error = "";
+    this.oldId = "";
+    this.newId = "";
+  }
+
+  set hass(hass) {
+    const first = !this._hass;
+    this._hass = hass;
+    if (first) this.load();
+    const menu = this.shadowRoot.querySelector("ha-menu-button");
+    if (menu) menu.hass = hass;
+  }
+
+  set narrow(narrow) {
+    this._narrow = narrow;
+    const menu = this.shadowRoot.querySelector("ha-menu-button");
+    if (menu) menu.narrow = narrow;
+  }
+
+  t(key, vars = {}) {
+    const lang = (this._hass?.language || "en").startsWith("da") ? "da" : "en";
+    return (TEXT[lang][key] || TEXT.en[key]).replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? "");
+  }
+
+  ago(ts) {
+    const s = Math.max(0, (Date.now() / 1000) - ts);
+    if (s < 3600) return this.t("minutes", { n: Math.round(s / 60) });
+    if (s < 172800) return this.t("hours", { n: Math.round(s / 3600) });
+    return this.t("days", { n: Math.round(s / 86400) });
+  }
+
+  async ws(type, data = {}) {
+    return this._hass.callWS({ type: `replace_device/${type}`, ...data });
+  }
+
+  async load() {
+    try {
+      const [devices, history] = await Promise.all([this.ws("devices"), this.ws("history")]);
+      this.devices = devices.devices;
+      this.historyItems = history.history;
+      this.error = "";
+    } catch (e) {
+      this.error = this.t("error", { e: e.message || e.code || e });
+    }
+    this.render();
+  }
+
+  device(id) {
+    return this.devices.find((d) => d.id === id);
+  }
+
+  async openPlan(oldId, newId, mapping) {
+    if (!oldId || !newId || oldId === newId) {
+      this.error = this.t("sameDevice");
+      return this.render();
+    }
+    this.oldId = oldId;
+    this.newId = newId;
+    try {
+      this.plan = await this.ws("plan", { old: oldId, new: newId, ...(mapping ? { mapping } : {}) });
+      this.mapping = { ...this.plan.mapping };
+      this.view = "match";
+      this.error = "";
+    } catch (e) {
+      this.error = this.t("error", { e: e.message || e.code });
+    }
+    this.render();
+  }
+
+  async doReplace() {
+    const picked = Object.values(this.mapping).filter(Boolean);
+    if (picked.length !== new Set(picked).size) {
+      this.error = this.t("duplicate");
+      return this.render();
+    }
+    this.view = "working";
+    this.render();
+    try {
+      this.result = await this.ws("replace", { old: this.oldId, new: this.newId, mapping: this.mapping, remove_old: this.removeOld });
+      this.result.name = this.plan.old.name;
+      this.view = "done";
+      this.error = "";
+    } catch (e) {
+      this.view = "match";
+      this.error = this.t("error", { e: e.message || e.code });
+    }
+    this.render();
+    this.load();
+  }
+
+  async undo(id) {
+    try {
+      await this.ws("undo", { record: id });
+      this.view = "home";
+    } catch (e) {
+      this.error = this.t("error", { e: e.message || e.code });
+    }
+    this.load();
+  }
+
+  icon(e) {
+    return e.icon || CLASS_ICON[e.device_class] || DOMAIN_ICON[e.domain] || "mdi:shape";
+  }
+
+  // ---------- views ----------
+
+  homeView() {
+    const dead = this.devices.filter((d) => d.dead).sort((a, b) => (b.twins?.length || 0) - (a.twins?.length || 0));
+    const deadCards = dead.length
+      ? dead.map((d) => {
+          const twin = d.twins?.length ? this.device(d.twins[0]) : null;
+          return `
+          <div class="card dead-card">
+            <div class="dev-head">
+              <div class="dot red"></div>
+              <div class="grow">
+                <div class="dev-name">${esc(d.name)}</div>
+                <div class="muted">${esc([d.area, d.model, d.integration_title].filter(Boolean).join(" · "))}</div>
+                <div class="muted small">${esc(this.t("deadFor", { t: d.dead_since ? this.ago(d.dead_since) : "?" }))}</div>
+              </div>
+            </div>
+            ${twin ? `
+              <div class="twin"><ha-icon icon="mdi:auto-fix"></ha-icon><div class="grow"><div class="small muted">${this.t("twin")}</div><b>${esc(twin.name)}</b></div></div>
+              <button class="primary full" data-act="plan" data-old="${d.id}" data-new="${twin.id}">${esc(this.t("replaceWith", { name: twin.name }))}</button>`
+            : `<button class="ghost full" data-act="pick" data-old="${d.id}">${this.t("pickReplacement")}</button>`}
+          </div>`;
+        }).join("")
+      : `<div class="card empty"><ha-icon icon="mdi:check-circle"></ha-icon>${this.t("noDead")}</div>`;
+    const history = this.historyItems.map((h) => `
+      <div class="hist">
+        <ha-icon icon="mdi:swap-horizontal"></ha-icon>
+        <div class="grow"><b>${esc(h.old_device.name)}</b> → ${esc(h.new_device.model || h.new_device.name)}
+          <div class="muted small">${new Date(h.at * 1000).toLocaleString(this._hass.language)} · ${this.t("moved", { n: h.moved })}</div></div>
+        ${h.undone ? `<span class="tag">${this.t("undone")}</span>` : `<button class="ghost small-btn" data-act="undo" data-id="${h.id}">${this.t("undo")}</button>`}
+      </div>`).join("");
+    return `
+      <div class="hero card">
+        <div class="hero-icon"><ha-icon icon="mdi:swap-horizontal-circle"></ha-icon></div>
+        <div class="grow"><h2>${this.t("heroTitle")}</h2><p class="muted">${this.t("heroText")}</p>
+        <button class="primary" data-act="pick">${this.t("start")}</button></div>
+      </div>
+      <h3>${this.t("dead")} ${dead.length ? `<span class="count">${dead.length}</span>` : ""}</h3>
+      <div class="grid">${deadCards}</div>
+      ${history ? `<h3>${this.t("history")}</h3><div class="card list">${history}</div>` : ""}`;
+  }
+
+  pickView() {
+    const dead = this.devices.filter((d) => d.dead);
+    const alive = this.devices.filter((d) => !d.dead);
+    const option = (d, sel) => `<option value="${d.id}" ${d.id === sel ? "selected" : ""}>${esc(d.name)}${d.area ? ` · ${esc(d.area)}` : ""}${d.model ? ` (${esc(d.model)})` : ""}</option>`;
+    const newest = [...alive].sort((a, b) => b.created - a.created);
+    return `
+      <div class="card pick">
+        <h2>${this.t("pickTitle")}</h2>
+        <label>${this.t("old")}</label>
+        <select id="old"><option value="">${this.t("choose")}</option>
+          ${dead.length ? `<optgroup label="${this.t("deadGroup")}">${dead.map((d) => option(d, this.oldId)).join("")}</optgroup>` : ""}
+          <optgroup label="${this.t("allGroup")}">${alive.map((d) => option(d, this.oldId)).join("")}</optgroup></select>
+        <div class="arrow-down"><ha-icon icon="mdi:arrow-down"></ha-icon></div>
+        <label>${this.t("new")}</label>
+        <select id="new"><option value="">${this.t("choose")}</option>
+          <optgroup label="${this.t("newestGroup")}">${newest.map((d) => option(d, this.newId)).join("")}</optgroup></select>
+        <div class="actions"><button class="ghost" data-act="home">${this.t("back")}</button><button class="primary" data-act="next">${this.t("next")}</button></div>
+      </div>`;
+  }
+
+  deviceCard(d, kind) {
+    return `
+      <div class="card devcard ${kind}">
+        <div class="dev-head"><ha-icon icon="${kind === "old" ? "mdi:devices" : "mdi:new-box"}"></ha-icon>
+          <div class="grow"><div class="dev-name">${esc(d.name)}</div><div class="muted small">${esc([d.manufacturer, d.model].filter(Boolean).join(" "))}</div>
+          <div class="muted small">${esc(d.integration_title || d.integration || "")}</div></div>
+          ${kind === "old" && d.dead ? `<span class="tag red">${this.t("deadTag")}</span>` : ""}
+          ${kind === "new" ? `<span class="tag blue">${this.t("tookOver")}</span>` : ""}
+        </div>
+      </div>`;
+  }
+
+  matchView() {
+    const p = this.plan;
+    const taken = new Set(Object.values(this.mapping).filter(Boolean));
+    const rows = p.old_entities.map((o) => {
+      const choice = this.mapping[o.entity_id];
+      const options = p.new_entities.filter((n) => n.domain === o.domain);
+      return `
+        <div class="row ${choice ? "ok" : "gone"}">
+          <div class="side">
+            <ha-icon icon="${this.icon(o)}"></ha-icon>
+            <div class="grow"><div class="ename">${esc(o.name || o.entity_id)}</div><code>${esc(o.entity_id)}</code></div>
+          </div>
+          <div class="mid"><ha-icon icon="${choice ? "mdi:arrow-left-bold" : "mdi:close"}"></ha-icon></div>
+          <div class="side">
+            <select data-old="${o.entity_id}">
+              <option value="">${this.t("removed")}</option>
+              ${options.map((n) => `<option value="${n.entity_id}" ${n.entity_id === choice ? "selected" : ""}>${esc(n.name || n.entity_id)}${n.state && n.state !== "unavailable" ? ` · ${esc(n.state)}${n.unit ? ` ${esc(n.unit)}` : ""}` : ""}</option>`).join("")}
+            </select>
+          </div>
+        </div>`;
+    }).join("");
+    const own = p.new_entities.filter((n) => !taken.has(n.entity_id));
+    return `
+      <div class="pair">
+        ${this.deviceCard(p.old, "old")}
+        <div class="pair-arrow"><ha-icon icon="mdi:arrow-right-thick"></ha-icon></div>
+        ${this.deviceCard(p.new, "new")}
+      </div>
+      <div class="card">
+        <h3 class="in">${this.t("matchTitle")}</h3>
+        <p class="muted">${this.t("matchText")}</p>
+        <div class="rows">${rows}</div>
+      </div>
+      ${own.length ? `<div class="card"><h3 class="in">${this.t("keepsOwn")}</h3><div class="chips">${own.map((n) => `<span class="chip"><ha-icon icon="${this.icon(n)}"></ha-icon>${esc(n.name || n.entity_id)}</span>`).join("")}</div></div>` : ""}
+      ${p.uses_device.length ? `<div class="card warn"><h3 class="in"><ha-icon icon="mdi:robot"></ha-icon> ${this.t("usesDevice")}</h3><ul>${p.uses_device.map((n) => `<li>${esc(n)}</li>`).join("")}</ul><p class="muted small">${this.t("usesDeviceHint")}</p></div>` : ""}
+      <div class="card">
+        <label class="switch-row"><input type="checkbox" id="removeOld" ${this.removeOld ? "checked" : ""}><span class="switch"></span>
+          <div class="grow"><b>${this.t("removeOld")}</b><div class="muted small">${this.t("removeOldHint")}</div></div></label>
+      </div>
+      <div class="actions sticky"><button class="ghost" data-act="pick">${this.t("back")}</button>
+        <button class="primary big" data-act="replace"><ha-icon icon="mdi:swap-horizontal"></ha-icon>${esc(this.t("replace", { name: p.old.name }))}</button></div>`;
+  }
+
+  workingView() {
+    return `<div class="card center"><div class="spinner"></div><h2>${this.t("working")}</h2></div>`;
+  }
+
+  doneView() {
+    const r = this.result;
+    return `
+      <div class="card center done">
+        <div class="check"><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="24"/><path d="M15 27l7 7 15-16"/></svg></div>
+        <h2>${esc(this.t("doneTitle", { name: r.name }))}</h2>
+        <p class="muted">${this.t("doneText", { n: r.moved })}</p>
+        ${this.removeOld && !r.removed ? `<p class="warn-text">${this.t("keptOld")}</p>` : ""}
+        <div class="actions"><button class="ghost" data-act="undo" data-id="${r.id}">${this.t("undo")}</button><button class="primary" data-act="home">${this.t("home")}</button></div>
+        <p class="muted small">${this.t("undoHint")}</p>
+      </div>`;
+  }
+
+  render() {
+    if (!this._hass) return;
+    const body = { home: () => this.homeView(), pick: () => this.pickView(), match: () => this.matchView(), working: () => this.workingView(), done: () => this.doneView() }[this.view]();
+    this.shadowRoot.innerHTML = `<style>${STYLE}</style>
+      <div class="toolbar">${customElements.get("ha-menu-button") ? "<ha-menu-button></ha-menu-button>" : ""}<div class="tb-title">${this.t("title")}</div></div>
+      <div class="content">${this.error ? `<div class="card error"><ha-icon icon="mdi:alert-circle"></ha-icon>${esc(this.error)}</div>` : ""}${body}</div>`;
+    const menu = this.shadowRoot.querySelector("ha-menu-button");
+    if (menu) {
+      menu.hass = this._hass;
+      menu.narrow = this._narrow;
+    }
+    this.shadowRoot.querySelectorAll("[data-act]").forEach((el) => el.addEventListener("click", () => this.act(el.dataset)));
+    this.shadowRoot.querySelectorAll("select[data-old]").forEach((el) =>
+      el.addEventListener("change", () => {
+        this.mapping[el.dataset.old] = el.value || null;
+        this.error = "";
+        this.render();
+      }));
+    const remove = this.shadowRoot.getElementById("removeOld");
+    if (remove) remove.addEventListener("change", () => (this.removeOld = remove.checked));
+  }
+
+  act(data) {
+    this.error = "";
+    if (data.act === "home") {
+      this.view = "home";
+      this.oldId = this.newId = "";
+      this.load();
+    } else if (data.act === "pick") {
+      if (data.old) this.oldId = data.old;
+      this.view = "pick";
+      this.render();
+    } else if (data.act === "next") {
+      this.openPlan(this.shadowRoot.getElementById("old").value, this.shadowRoot.getElementById("new").value);
+    } else if (data.act === "plan") {
+      this.openPlan(data.old, data.new);
+    } else if (data.act === "replace") {
+      this.doReplace();
+    } else if (data.act === "undo") {
+      this.undo(data.id);
+    }
+  }
+}
+
+const STYLE = `
+:host{display:block;min-height:100vh;background:var(--primary-background-color,#f3f5f8);color:var(--primary-text-color,#1c2430);font-family:var(--paper-font-body1_-_font-family,Roboto,"Noto Sans",sans-serif);
+  --rd-red:var(--error-color,#db4437);--rd-green:var(--success-color,#43a047);--rd-blue:var(--primary-color,#03a9f4);--rd-amber:var(--warning-color,#ffa600)}
+*{box-sizing:border-box}
+.toolbar{display:flex;align-items:center;height:56px;padding:0 12px;background:var(--app-header-background-color,var(--primary-color,#03a9f4));color:var(--app-header-text-color,#fff);position:sticky;top:0;z-index:2}
+.tb-title{font-size:20px;margin-left:8px}
+.content{max-width:960px;margin:0 auto;padding:16px 16px 96px}
+.card{background:var(--card-background-color,#fff);border-radius:var(--ha-card-border-radius,12px);box-shadow:var(--ha-card-box-shadow,0 1px 4px rgba(0,0,0,.1));border:1px solid var(--divider-color,transparent);padding:16px;margin-bottom:16px}
+h2{margin:0 0 6px;font-size:22px}h3{margin:24px 4px 10px;font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px}h3.in{margin:0 0 6px}
+p{margin:4px 0 12px;line-height:1.45}.muted{color:var(--secondary-text-color,#6b7686)}.small{font-size:13px}.grow{flex:1;min-width:0}
+code{font-family:var(--code-font-family,monospace);font-size:12px;color:var(--secondary-text-color);word-break:break-all}
+button{font:inherit;font-weight:500;border-radius:10px;padding:10px 18px;cursor:pointer;border:1px solid transparent;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+button.primary{background:var(--rd-blue);color:var(--text-primary-color,#fff)}button.primary:hover{filter:brightness(1.08)}
+button.ghost{background:transparent;color:var(--rd-blue);border-color:var(--divider-color,#d0d7e0)}
+button.full{width:100%;margin-top:12px}button.big{padding:13px 22px;font-size:16px}button.small-btn{padding:6px 12px;font-size:13px}
+.hero{display:flex;gap:16px;align-items:flex-start;background:linear-gradient(135deg,rgba(3,169,244,.10),transparent 60%),var(--card-background-color,#fff)}
+.hero-icon ha-icon{--mdc-icon-size:48px;color:var(--rd-blue)}
+.count{background:var(--rd-red);color:#fff;border-radius:99px;font-size:12px;padding:1px 8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}.grid .card{margin:0}
+.dev-head{display:flex;gap:12px;align-items:flex-start}.dev-name{font-weight:600;font-size:16px}
+.dot{width:12px;height:12px;border-radius:50%;margin-top:5px;flex:none}.dot.red{background:var(--rd-red);box-shadow:0 0 0 4px rgba(219,68,55,.15)}
+.twin{display:flex;gap:10px;align-items:center;margin-top:12px;padding:10px 12px;border-radius:10px;background:rgba(67,160,71,.10)}.twin ha-icon{color:var(--rd-green)}
+.empty{display:flex;gap:10px;align-items:center;color:var(--secondary-text-color)}.empty ha-icon{color:var(--rd-green)}
+.list{padding:4px 16px}.hist{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--divider-color,#e6e9ee)}.hist:last-child{border:0}
+.tag{font-size:12px;padding:3px 10px;border-radius:99px;background:var(--secondary-background-color,#eef1f5);white-space:nowrap}
+.tag.red{background:rgba(219,68,55,.14);color:var(--rd-red)}.tag.blue{background:rgba(3,169,244,.14);color:var(--rd-blue)}
+.pick label{display:block;font-size:13px;color:var(--secondary-text-color);margin:16px 0 6px}
+select{width:100%;font:inherit;padding:10px 12px;border-radius:10px;border:1px solid var(--divider-color,#d0d7e0);background:var(--card-background-color,#fff);color:var(--primary-text-color)}
+.arrow-down{text-align:center;margin-top:12px;color:var(--secondary-text-color)}
+.actions{display:flex;gap:12px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap}
+.actions.sticky{position:sticky;bottom:0;padding:12px 0;background:linear-gradient(transparent,var(--primary-background-color,#f3f5f8) 30%)}
+.pair{display:flex;gap:12px;align-items:stretch}.pair .card{flex:1;margin-bottom:16px}
+.pair-arrow{align-self:center;color:var(--rd-blue);margin-bottom:16px}.pair-arrow ha-icon{--mdc-icon-size:32px}
+.devcard.old{opacity:.75}.devcard.new{border:2px solid var(--rd-blue)}
+.rows{display:flex;flex-direction:column;gap:8px}
+.row{display:grid;grid-template-columns:1fr 36px 1fr;align-items:center;gap:8px;padding:10px;border-radius:10px;border-left:4px solid var(--rd-green);background:var(--secondary-background-color,#f6f8fa)}
+.row.gone{border-left-color:var(--rd-red)}.row.gone .side:first-child .ename{text-decoration:line-through;opacity:.7}
+.side{display:flex;gap:10px;align-items:center;min-width:0}.side ha-icon{color:var(--secondary-text-color);flex:none}
+.mid{text-align:center;color:var(--rd-green)}.row.gone .mid{color:var(--rd-red)}
+.ename{font-weight:500;overflow:hidden;text-overflow:ellipsis}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.chip{display:inline-flex;gap:6px;align-items:center;padding:6px 12px;border-radius:99px;background:var(--secondary-background-color,#eef1f5);font-size:13px}.chip ha-icon{--mdc-icon-size:16px}
+.warn{border-left:4px solid var(--rd-amber)}.warn ul{margin:6px 0;padding-left:20px}
+.error{display:flex;gap:10px;align-items:center;border-left:4px solid var(--rd-red);color:var(--rd-red)}
+.switch-row{display:flex;gap:14px;align-items:center;cursor:pointer}.switch-row input{display:none}
+.switch{width:44px;height:24px;border-radius:12px;background:var(--divider-color,#c4cbd4);position:relative;flex:none;transition:.2s}
+.switch:after{content:"";position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s}
+input:checked+.switch{background:var(--rd-blue)}input:checked+.switch:after{left:23px}
+.center{text-align:center;padding:40px 20px}.center .actions{justify-content:center}
+.spinner{width:48px;height:48px;margin:0 auto 16px;border-radius:50%;border:4px solid var(--divider-color,#e0e0e0);border-top-color:var(--rd-blue);animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.check svg{width:84px;height:84px;margin-bottom:12px;animation:pop .5s cubic-bezier(.3,1.6,.6,1)}
+.check circle{fill:rgba(67,160,71,.12);stroke:var(--rd-green);stroke-width:3}
+.check path{fill:none;stroke:var(--rd-green);stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
+@keyframes pop{from{transform:scale(.5)}}
+.warn-text{color:var(--rd-amber)}
+@media (max-width:600px){
+  .content{padding:12px 12px 96px}.hero{flex-direction:column}.pair{flex-direction:column;gap:0}.pair-arrow{transform:rotate(90deg);margin:-8px auto 8px}
+  .row{grid-template-columns:1fr;gap:6px}.mid{display:none}.actions.sticky button{flex:1}
+}
+`;
+
+customElements.define("replace-device-panel", ReplaceDevicePanel);

@@ -10,7 +10,7 @@
 
 When a device breaks and you buy a new one, Home Assistant sees a stranger: new entity IDs, no history, and every automation, script and dashboard still points at the dead one. Replace Device moves everything over in one go.
 
-![The replace wizard (illustration)](docs/wizard.png)
+<p><img src="docs/panel-home.png" alt="Dead devices with a suggested replacement" width="300"> <img src="docs/panel-match.png" alt="Old and new device side by side" width="520"></p>
 
 ### What moves over
 
@@ -22,7 +22,7 @@ When a device breaks and you buy a new one, Home Assistant sees a stranger: new 
 | **The device** | The new device gets the old one's name and area. |
 | **Device triggers and actions** | Automations and scripts that point at the old device by ID are updated. |
 
-A note is added to the logbook, and if the new device sends no values after 10 minutes, you get a repair.
+A note is added to the logbook, and if the new device sends no values after 10 minutes, you get a repair. Changed your mind? **Undo** gives the new device its own names back (for 30 days).
 
 ### It notices by itself
 
@@ -44,10 +44,11 @@ Pair a new device of the same make and model while an old one has been dead for 
 ### How to replace a device
 
 1. Pair the new device as you normally would.
-2. **Settings → Devices & services → Replace Device → Replace a device.**
-3. Pick the old and the new device.
-4. Check the pairs: each old entity has the matching new one picked (temperature to temperature, battery to battery). Change one if it's wrong, or pick — to drop it.
-5. Read the preview – what moves, what's removed, which automations use the old device – and tap **Submit**.
+2. Open **Replace device** in the sidebar. Dead devices are listed, with a likely replacement when one is found – tap **Replace with …**. Or tap **Replace a device** and pick the old and the new one.
+3. The old and the new device are shown side by side. Each old entity has its match picked (temperature to temperature, battery to battery). Change one if it's wrong, or pick "— removed".
+4. See what moves, what's removed and which automations use the old device, then tap **Replace now**.
+
+The same is available without the panel: **Settings → Devices & services → Replace Device → Replace a device**.
 
 ### Good to know
 
@@ -69,7 +70,7 @@ Når en enhed går i stykker, og du køber en ny, ser Home Assistant en fremmed.
 - **Enheden:** Den nye enhed får den gamles navn og område.
 - **Enhedstriggere og -handlinger:** Automatiseringer og scripts, der peger på den gamle enhed via id, bliver opdateret.
 
-Der kommer en note i logbogen. Sender den nye enhed ingen værdier efter 10 minutter, får du en reparation.
+Der kommer en note i logbogen. Sender den nye enhed ingen værdier efter 10 minutter, får du en reparation. Fortryder du, giver **Fortryd** den nye enhed dens egne navne tilbage (i 30 dage).
 
 ### Den opdager det selv
 
@@ -84,10 +85,11 @@ Parrer du en ny enhed af samme mærke og model, mens en gammel har været død i
 ### Sådan udskifter du en enhed
 
 1. Par den nye enhed, som du plejer.
-2. **Indstillinger → Enheder og tjenester → Udskift enhed → Udskift en enhed.**
-3. Vælg den gamle og den nye enhed.
-4. Tjek parrene: For hver gammel entitet er den matchende nye valgt, fx temperatur til temperatur og batteri til batteri. Ret den, hvis den er forkert, eller vælg — for at droppe den.
-5. Læs forhåndsvisningen, der viser, hvad der flyttes, hvad der fjernes, og hvilke automatiseringer der bruger den gamle enhed. Tryk så **Send**.
+2. Åbn **Udskift enhed** i sidemenuen. Her ser du de døde enheder, og har den fundet en sandsynlig afløser, står den der. Tryk **Udskift med …**. Du kan også trykke **Udskift en enhed** og selv vælge den gamle og den nye.
+3. Den gamle og den nye enhed vises side om side. For hver gammel entitet er den matchende valgt, fx temperatur til temperatur og batteri til batteri. Ret den, hvis den er forkert, eller vælg "— fjernes".
+4. Se, hvad der flyttes, hvad der fjernes, og hvilke automatiseringer der bruger den gamle enhed. Tryk så **Udskift nu**.
+
+Det samme kan gøres uden panelet: **Indstillinger → Enheder og tjenester → Udskift enhed → Udskift en enhed**.
 
 ### Godt at vide
 

@@ -102,12 +102,26 @@ class Replacer:
         hass = self.hass
         devices, entities = dr.async_get(hass), er.async_get(hass)
         pairs = plan.pairs
+        now = time.time()
         record: dict[str, Any] = {
-            "at": time.time(),
+            "id": str(int(now * 1000)),
+            "at": now,
             "old_device": {"id": plan.old.id, "name": device_name(plan.old), "model": plan.old.model},
-            "new_device": {"id": plan.new.id, "name": device_name(plan.new), "model": plan.new.model},
-            "entities": [{"entity_id": o.entity_id, "was": n.entity_id, "name": o.name} for o, n in pairs],
-            "files": {},
+            # How the new device looked before, so it can be given back.
+            "new_device": {
+                "id": plan.new.id,
+                "name": device_name(plan.new),
+                "model": plan.new.model,
+                "name_by_user": plan.new.name_by_user,
+                "area_id": plan.new.area_id,
+                "labels": sorted(plan.new.labels),
+            },
+            "entities": [
+                {"entity_id": o.entity_id, "was": n.entity_id, "uuid": n.id, **_settings(n)} for o, n in pairs
+            ],
+            "ids": {plan.old.id: plan.new.id} | {o.id: n.id for o, n in pairs},
+            "files": [],
+            "undone": False,
         }
         old_ids = [o.entity_id for o, _ in pairs]
         temp_ids = [n.entity_id for _, n in pairs]
@@ -121,18 +135,7 @@ class Replacer:
 
         # 2. The new entities take over the old entity ids and everything the user set on them.
         for old_entry, new_entry in pairs:
-            entities.async_update_entity(
-                new_entry.entity_id,
-                new_entity_id=old_entry.entity_id,
-                name=old_entry.name,
-                icon=old_entry.icon,
-                area_id=old_entry.area_id,
-                labels=set(old_entry.labels),
-                aliases=list(old_entry.aliases),
-                categories=dict(old_entry.categories),
-                device_class=old_entry.device_class,
-                hidden_by=old_entry.hidden_by if old_entry.hidden_by == er.RegistryEntryHider.USER else None,
-            )
+            entities.async_update_entity(new_entry.entity_id, new_entity_id=old_entry.entity_id, **_update(old_entry))
             for domain, options in old_entry.options.items():
                 merged = dict(new_entry.options.get(domain, {})) | dict(options)
                 entities.async_update_entity_options(old_entry.entity_id, domain, merged)
@@ -146,8 +149,8 @@ class Replacer:
         )
 
         # 4. Automations and scripts that point at the old device or its entities by id.
-        ids = {plan.old.id: plan.new.id} | {o.id: n.id for o, n in pairs}
-        changed = await self._rewrite(ids, record)
+        changed = await self._rewrite(record["ids"])
+        record["files"] = changed
 
         # 5. The new entities' first minutes under their own ids are not needed.
         await _clean_recorder(hass, temp_ids)
@@ -155,11 +158,42 @@ class Replacer:
         self._timers.append(_check_later(hass, plan, old_ids))
 
         self.history.append(record)
-        self.store.async_delay_save(lambda: {"history": self.history}, 1)
-        return {"moved": len(pairs), "removed": removed, "changed": changed}
+        self._save()
+        return {"id": record["id"], "moved": len(pairs), "removed": removed, "changed": changed}
 
-    async def _rewrite(self, ids: dict[str, str], record: dict[str, Any]) -> list[str]:
-        """Replace old device and entity registry ids in the automation and script files, then reload them."""
+    async def async_undo(self, record_id: str) -> bool:
+        """Give the new device its own names and entity ids back. The old device returns only if its integration
+        finds it again; the history recorded since stays with the old entity ids."""
+        record = next((r for r in self.history if r["id"] == record_id and not r["undone"]), None)
+        if record is None:
+            return False
+        devices, entities = dr.async_get(self.hass), er.async_get(self.hass)
+        for item in record["entities"]:
+            entry = entities.async_get(item["uuid"])
+            if entry is None:
+                continue
+            new_id = item["was"] if not entities.async_get(item["was"]) else entry.entity_id
+            entities.async_update_entity(entry.entity_id, new_entity_id=new_id, **_restore(item))
+            for domain in set(entry.options) | set(item["options"]):
+                entities.async_update_entity_options(new_id, domain, item["options"].get(domain, {}))
+        device = record["new_device"]
+        if devices.async_get(device["id"]):
+            devices.async_update_device(
+                device["id"],
+                name_by_user=device["name_by_user"],
+                area_id=device["area_id"],
+                labels=set(device["labels"]),
+            )
+        await self._rewrite({new: old for old, new in record["ids"].items()})
+        record["undone"] = True
+        self._save()
+        return True
+
+    def _save(self) -> None:
+        self.store.async_delay_save(lambda: {"history": self.history}, 1)
+
+    async def _rewrite(self, ids: dict[str, str]) -> list[str]:
+        """Replace device and entity registry ids in the automation and script files, then reload them."""
         changed = []
         for domain, name in (("automation", AUTOMATIONS_FILE), ("script", SCRIPTS_FILE)):
             path = self.hass.config.path(name)
@@ -171,12 +205,52 @@ class Replacer:
                 new = new.replace(old_id, new_id)
             if new == text:
                 continue
-            record["files"][name] = text
             await self.hass.async_add_executor_job(write_utf8_file_atomic, path, new)
             changed.append(domain)
             if self.hass.services.has_service(domain, "reload"):
                 await self.hass.services.async_call(domain, "reload", blocking=True)
         return changed
+
+
+def _settings(entry: er.RegistryEntry) -> dict[str, Any]:
+    """What a user can set on an entity, as JSON. A computed name among the aliases is kept as None."""
+    return {
+        "name": entry.name,
+        "icon": entry.icon,
+        "area_id": entry.area_id,
+        "labels": sorted(entry.labels),
+        "aliases": [a if isinstance(a, str) else None for a in entry.aliases],
+        "categories": dict(entry.categories),
+        "device_class": entry.device_class,
+        "hidden_by": entry.hidden_by,
+        "options": {domain: dict(options) for domain, options in entry.options.items()},
+    }
+
+
+def _update(entry: er.RegistryEntry) -> dict[str, Any]:
+    return {
+        "name": entry.name,
+        "icon": entry.icon,
+        "area_id": entry.area_id,
+        "labels": set(entry.labels),
+        "aliases": list(entry.aliases),
+        "categories": dict(entry.categories),
+        "device_class": entry.device_class,
+        "hidden_by": entry.hidden_by if entry.hidden_by == er.RegistryEntryHider.USER else None,
+    }
+
+
+def _restore(item: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "name": item["name"],
+        "icon": item["icon"],
+        "area_id": item["area_id"],
+        "labels": set(item["labels"]),
+        "aliases": [er.COMPUTED_NAME if a is None else a for a in item["aliases"]],
+        "categories": item["categories"],
+        "device_class": item["device_class"],
+        "hidden_by": er.RegistryEntryHider(item["hidden_by"]) if item["hidden_by"] else None,
+    }
 
 
 def _read(path: str) -> str | None:

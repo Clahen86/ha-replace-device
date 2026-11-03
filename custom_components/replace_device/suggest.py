@@ -30,16 +30,15 @@ def dead_twins(hass: HomeAssistant, new_id: str) -> list[dr.DeviceEntry]:
 
 
 def is_dead(hass: HomeAssistant, device_id: str) -> bool:
-    """Every entity unavailable (or gone) for at least an hour."""
+    """Every entity that has a state has been unavailable for at least an hour."""
     entries = er.async_entries_for_device(er.async_get(hass), device_id)
     if not entries:
         return False
     now = time.time()
-    for entry in entries:
-        state = hass.states.get(entry.entity_id)
-        if state is not None and (state.state != STATE_UNAVAILABLE or now - state.last_changed_timestamp < DEAD_AFTER):
-            return False
-    return True
+    states = [s for entry in entries if (s := hass.states.get(entry.entity_id)) is not None]
+    return bool(states) and all(
+        s.state == STATE_UNAVAILABLE and now - s.last_changed_timestamp >= DEAD_AFTER for s in states
+    )
 
 
 @callback
