@@ -473,3 +473,148 @@ async def test_translate_triggers_ai_and_undo_all(hass: HomeAssistant, hass_ws_c
     assert "remote_button_short_press" in automations and "discovery_id" not in automations
     assert old.id in automations and new.id not in automations
     assert old.id in (tmp_path / "packages" / "gang.yaml").read_text()
+
+
+async def test_checks_other_places_and_groups(hass: HomeAssistant, hass_ws_client, tmp_path) -> None:
+    """Values and units that differ, things only the old one had, other integrations, dashboards and Zigbee groups."""
+    from homeassistant.setup import async_setup_component
+
+    hass.config.config_dir = str(tmp_path)
+    (tmp_path / "configuration.yaml").write_text("automation: !include automations.yaml\n")
+    assert await async_setup_component(hass, "lovelace", {})
+    zha_entry = MockConfigEntry(domain="zha", title="ZHA")
+    zha_entry.add_to_hass(hass)
+    mqtt_entry = MockConfigEntry(domain="mqtt", title="Mosquitto broker")
+    mqtt_entry.add_to_hass(hass)
+    devices, registry = dr.async_get(hass), er.async_get(hass)
+    ieee = "00:15:8d:00:01:a2:b3:c4"
+    old = devices.async_get_or_create(
+        config_entry_id=zha_entry.entry_id,
+        identifiers={("zha", ieee)},
+        connections={(dr.CONNECTION_ZIGBEE, ieee)},
+        name="Stik",
+    )
+    new = devices.async_get_or_create(
+        config_entry_id=mqtt_entry.entry_id,
+        identifiers={("mqtt", "zigbee2mqtt_0x00158d0001a2b3c4")},
+        name="0x00",
+    )
+    for platform, entry, device, uid, object_id, kwargs in (
+        (
+            "zha",
+            zha_entry,
+            old,
+            "e",
+            "stik_energi",
+            {
+                "original_device_class": "energy",
+                "unit_of_measurement": "Wh",
+                "capabilities": {"state_class": "total_increasing"},
+            },
+        ),
+        ("zha", zha_entry, old, "s", "stik_start", {"capabilities": {"options": ["Off", "On", "Previous"]}}),
+        ("zha", zha_entry, old, "r", "stik_rssi", {"original_device_class": "signal_strength"}),
+        (
+            "mqtt",
+            mqtt_entry,
+            new,
+            "e2",
+            "z_energy",
+            {
+                "original_device_class": "energy",
+                "unit_of_measurement": "kWh",
+                "capabilities": {"state_class": "total_increasing"},
+            },
+        ),
+        (
+            "mqtt",
+            mqtt_entry,
+            new,
+            "s2",
+            "z_power_on_behavior",
+            {"capabilities": {"options": ["off", "on", "toggle", "previous"]}},
+        ),
+    ):
+        domain = "select" if "start" in object_id or "behavior" in object_id else "sensor"
+        registry.async_get_or_create(
+            domain, platform, uid, suggested_object_id=object_id, device_id=device.id, config_entry=entry, **kwargs
+        )
+    # Only the old one has RSSI, and an automation uses it.
+    (tmp_path / "automations.yaml").write_text(
+        "- id: '1'\n  alias: Svagt signal\n  triggers:\n  - trigger: state\n"
+        "    entity_id: sensor.stik_rssi\n  actions:\n"
+        f"  - device_id: {old.id}\n    domain: zha\n    type: issue_all_led_effect\n"
+    )
+    assert await async_setup_component(
+        hass,
+        "automation",
+        {
+            "automation": {
+                "id": "1",
+                "alias": "Svagt signal",
+                "triggers": [{"trigger": "state", "entity_id": "sensor.stik_rssi"}],
+                "actions": [],
+            }
+        },
+    )
+    notes = MockConfigEntry(domain="battery_notes", title="Stik batteri", data={"device_id": old.id})
+    notes.add_to_hass(hass)
+    from homeassistant.components.lovelace.const import LOVELACE_DATA
+
+    await (
+        hass.data[LOVELACE_DATA]
+        .dashboards[None]
+        .async_save({"views": [{"cards": [{"type": "device", "device_id": old.id}]}]})
+    )
+    # A ZHA group, made again in Zigbee2MQTT with the same name.
+    registry.async_get_or_create(
+        "light",
+        "zha",
+        "light_zha_group_0x0002",
+        suggested_object_id="stue_loft",
+        config_entry=zha_entry,
+        original_name="Stue loft",
+    )
+    group_device = devices.async_get_or_create(
+        config_entry_id=mqtt_entry.entry_id,
+        identifiers={("mqtt", "zigbee2mqtt_1221051039810110150109113116116_9")},
+        name="Stue loft",
+        model="Group",
+        manufacturer="Zigbee2MQTT",
+    )
+    registry.async_get_or_create(
+        "light", "mqtt", "g9", suggested_object_id="stue_loft_2", device_id=group_device.id, config_entry=mqtt_entry
+    )
+    await _setup(hass)
+    client = await hass_ws_client(hass)
+
+    await client.send_json_auto_id({"type": "replace_device/migrate_plan", "source": "zha", "target": "zigbee2mqtt"})
+    plan = (await client.receive_json())["result"]
+    assert [p["old"]["name"] for p in plan["pairs"]] == ["Stik"]
+    checks = plan["pairs"][0]["checks"]
+    assert checks["dropped_used"] == [{"entity_id": "sensor.stik_rssi", "used_in": ["Svagt signal"]}]
+    by_entity = {c["entity_id"]: c for c in checks["differences"]}
+    assert by_entity["sensor.stik_energi"]["energy"]
+    assert by_entity["sensor.stik_energi"]["differences"] == [{"kind": "unit", "old": "Wh", "new": "kWh"}]
+    assert by_entity["select.stik_start"]["differences"][0]["missing"] == ["Off", "On", "Previous"]
+    assert checks["device_actions"] == ["Svagt signal: issue_all_led_effect"]
+    assert checks["integrations"] == ["Stik batteri"]
+    assert checks["dashboards"] == ["Overview"]
+    assert plan["groups"] == [{"name": "Stue loft", "old": "light.stue_loft", "new": "light.stue_loft_2"}]
+
+    pairs = [{"old": old.id, "new": new.id}]
+    await client.send_json_auto_id({"type": "replace_device/migrate", "pairs": pairs, "groups": plan["groups"]})
+    result = (await client.receive_json())["result"]
+    await hass.async_block_till_done()
+    assert result["devices"] == 2 and not result["failed"]
+    assert notes.data == {"device_id": new.id}
+    dashboard = await hass.data[LOVELACE_DATA].dashboards[None].async_load(False)
+    assert dashboard["views"][0]["cards"][0]["device_id"] == new.id
+    assert registry.async_get("light.stue_loft").platform == "mqtt"
+    assert registry.async_get("light.stue_loft_2") is None
+
+    await client.send_json_auto_id({"type": "replace_device/undo", "batch": result["batch"]})
+    assert (await client.receive_json())["result"] == {"undone": 2}
+    await hass.async_block_till_done()
+    assert notes.data == {"device_id": old.id}
+    assert registry.async_get("light.stue_loft_2").platform == "mqtt"

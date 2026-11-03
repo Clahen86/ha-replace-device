@@ -24,7 +24,7 @@ from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.storage import Store
 from homeassistant.util.file import write_utf8_file_atomic
 
-from . import ai, triggers
+from . import ai, references, triggers
 from .const import AUTOMATIONS_FILE, CHECK_AFTER, DOMAIN, SCENES_FILE, SCRIPTS_FILE, TEXTS, Z2M_BASE_TOPIC
 from .hardware import z2m_ieee, z2m_name
 from .matching import match
@@ -176,6 +176,10 @@ class Replacer:
             changed = sorted(set(changed) | {"automation"})
         record["triggers"] = translation
         record["files"] = changed
+        # Dashboards made in the UI and other integrations (Battery Notes, Powercalc …) that store the device id.
+        skip = {d for d in (old_domain, new_domain) if d}
+        record["dashboards"] = await references.async_rewrite_dashboards(hass, record["ids"])
+        record["integrations"] = await references.async_rewrite_entries(hass, record["ids"], skip)
         if reload:
             await self.async_reload(set(changed))
         renamed = await _rename_in_z2m(hass, plan.new, device_name(plan.old)) if rename_z2m else False
@@ -194,7 +198,40 @@ class Replacer:
             "changed": changed,
             "renamed": renamed,
             "triggers": translation,
+            "dashboards": record["dashboards"],
+            "integrations": record["integrations"],
         }
+
+    async def async_replace_entity(
+        self, name: str, old: er.RegistryEntry, new: er.RegistryEntry, batch: str | None = None, reload: bool = True
+    ) -> dict[str, Any]:
+        """One entity without a device of its own takes over another, e.g. a Zigbee group made again elsewhere."""
+        hass, entities = self.hass, er.async_get(self.hass)
+        now = time.time()
+        record: dict[str, Any] = {
+            "id": str(int(now * 1000)),
+            "at": now,
+            "old_device": {"id": None, "name": name, "model": "Group"},
+            "new_device": {"id": None, "name": new.entity_id, "model": "Group"},
+            "entities": [{"entity_id": old.entity_id, "was": new.entity_id, "uuid": new.id, **_settings(new)}],
+            "ids": {old.id: new.id},
+            "files": [],
+            "batch": batch,
+            "undone": False,
+        }
+        entities.async_remove(old.entity_id)
+        await _wait_until_gone(hass, [old.entity_id])
+        temp_id = new.entity_id
+        entities.async_update_entity(temp_id, new_entity_id=old.entity_id, **_update(old))
+        for domain, options in old.options.items():
+            entities.async_update_entity_options(
+                old.entity_id, domain, dict(new.options.get(domain, {})) | dict(options)
+            )
+        record["files"] = await self._rewrite(record["ids"], reload)
+        await _clean_recorder(hass, [temp_id])
+        self.history.append(record)
+        self._save()
+        return {"id": record["id"], "moved": 1, "changed": record["files"]}
 
     async def async_undo(self, record_id: str, reload: bool = True) -> bool:
         """Give the new device its own names and entity ids back. The old device returns only if its integration
@@ -212,7 +249,7 @@ class Replacer:
             for domain in set(entry.options) | set(item["options"]):
                 entities.async_update_entity_options(new_id, domain, item["options"].get(domain, {}))
         device = record["new_device"]
-        if devices.async_get(device["id"]):
+        if device.get("id") and devices.async_get(device["id"]):
             devices.async_update_device(
                 device["id"],
                 name_by_user=device["name_by_user"],
@@ -226,7 +263,10 @@ class Replacer:
                 await self.hass.async_add_executor_job(write_utf8_file_atomic, path, record["automations_before"])
             else:
                 _LOGGER.warning("Automations were edited since; translated device triggers were not changed back")
-        await self._rewrite({new: old for old, new in record["ids"].items()}, reload=reload)
+        back = {new: old for old, new in record["ids"].items()}
+        await self._rewrite(back, reload=reload)
+        await references.async_rewrite_dashboards(self.hass, back)
+        await references.async_rewrite_entries(self.hass, back, set())
         record["undone"] = True
         self._save()
         return True
@@ -271,9 +311,14 @@ class Replacer:
         self.store.async_delay_save(lambda: {"history": self.history}, 1)
 
     async def async_reload(self, domains: set[str]) -> None:
-        for domain in domains:
-            if self.hass.services.has_service(domain, "reload"):
+        """Reload what was changed. A broken file must not stop the replacement; HA tells the user about it."""
+        for domain in sorted(domains):
+            if not self.hass.services.has_service(domain, "reload"):
+                continue
+            try:
                 await self.hass.services.async_call(domain, "reload", blocking=True)
+            except Exception:  # noqa: BLE001 - e.g. a YAML error the user made elsewhere
+                _LOGGER.warning("Could not reload %s after the replacement", domain, exc_info=True)
 
     async def _rewrite(self, ids: dict[str, str], reload: bool = True) -> list[str]:
         """Replace device and entity registry ids in the automation, script, scene and package files, then reload."""

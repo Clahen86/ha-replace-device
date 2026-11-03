@@ -51,7 +51,7 @@ def z2m_ieee(device: dr.DeviceEntry) -> str | None:
 
 def source(hass: HomeAssistant, device: dr.DeviceEntry) -> tuple[str | None, str | None]:
     """Where a device comes from, as (key, name). Zigbee2MQTT devices are told apart from other MQTT devices."""
-    if z2m_ieee(device):
+    if any(str(value).startswith("zigbee2mqtt_") for _, value in device.identifiers):
         return Z2M_SOURCE, "Zigbee2MQTT"
     entry = hass.config_entries.async_get_entry(device.config_entry_id) if device.config_entry_id else None
     if entry is None:

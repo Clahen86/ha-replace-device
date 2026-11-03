@@ -12,8 +12,10 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import area_registry as ar, device_registry as dr, entity_registry as er
 
 from .const import DOMAIN
+from . import references
+from .checks import async_checks
+from .groups import match_groups
 from .hardware import hardware_keys, source, z2m_ieee
-from .matching import match
 from .replace import Plan, Replacer, async_plan, device_name
 from .suggest import is_dead
 
@@ -129,7 +131,9 @@ async def ws_plan(hass: HomeAssistant, connection: websocket_api.ActiveConnectio
     # The AI only fills gaps in a fresh plan; a mapping the user edited is left alone.
     filled = await replacer.async_fill_with_ai(plan) if replacer and "mapping" not in msg else []
     connection.send_result(
-        msg["id"], _plan(hass, plan) | {"ai": filled, "ai_enabled": bool(replacer and replacer.ai_entity)}
+        msg["id"],
+        _plan(hass, plan)
+        | {"ai": filled, "ai_enabled": bool(replacer and replacer.ai_entity), "checks": await async_checks(hass, plan)},
     )
 
 
@@ -197,7 +201,10 @@ def _devices_from(hass: HomeAssistant, key: str) -> list[dr.DeviceEntry]:
     return [
         d
         for d in dr.async_get(hass).devices.values()
-        if d.entry_type is None and source(hass, d)[0] == key and er.async_entries_for_device(entities, d.id)
+        if d.entry_type is None
+        and source(hass, d)[0] == key
+        and (d.model or "").lower() != "group"
+        and er.async_entries_for_device(entities, d.id)
     ]
 
 
@@ -205,10 +212,10 @@ def _devices_from(hass: HomeAssistant, key: str) -> list[dr.DeviceEntry]:
 @websocket_api.websocket_command(
     {vol.Required("type"): f"{DOMAIN}/migrate_plan", vol.Required("source"): str, vol.Required("target"): str}
 )
-@callback
-def ws_migrate_plan(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
-    """Every device of one integration paired with the same physical device in another."""
-    entities = er.async_get(hass)
+@websocket_api.async_response
+async def ws_migrate_plan(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Every device of one integration paired with the same physical device in another, and their Zigbee groups."""
+    dashboards = await references.async_dashboards(hass)
     targets: dict[str, dr.DeviceEntry] = {}
     for device in _devices_from(hass, msg["target"]):
         for key in hardware_keys(device):
@@ -220,18 +227,23 @@ def ws_migrate_plan(hass: HomeAssistant, connection: websocket_api.ActiveConnect
         if new is None:
             missing.append(_device(hass, old))
             continue
-        old_entities = er.async_entries_for_device(entities, old.id, include_disabled_entities=True)
-        mapping = match(old_entities, er.async_entries_for_device(entities, new.id, include_disabled_entities=True))
+        plan = async_plan(hass, old.id, new.id)
+        checks = await async_checks(hass, plan, dashboards) if plan else {}
         pairs.append(
             {
                 "old": _device(hass, old),
                 "new": _device(hass, new),
                 "by": next(k for k in sorted(keys) if k in targets).split(":")[0],
-                "matched": sum(1 for v in mapping.values() if v),
-                "total": len(mapping),
+                "matched": len(plan.pairs) if plan else 0,
+                "total": len(plan.old_entities) if plan else 0,
+                "checks": checks,
             }
         )
-    connection.send_result(msg["id"], {"pairs": pairs, "missing": missing})
+    groups = [
+        {"name": name, "old": old.entity_id, "new": new.entity_id}
+        for name, old, new in match_groups(hass, msg["source"], msg["target"])
+    ]
+    connection.send_result(msg["id"], {"pairs": pairs, "missing": missing, "groups": groups})
 
 
 @websocket_api.require_admin
@@ -239,6 +251,9 @@ def ws_migrate_plan(hass: HomeAssistant, connection: websocket_api.ActiveConnect
     {
         vol.Required("type"): f"{DOMAIN}/migrate",
         vol.Required("pairs"): [{vol.Required("old"): str, vol.Required("new"): str}],
+        vol.Optional("groups", default=[]): [
+            {vol.Required("name"): str, vol.Required("old"): str, vol.Required("new"): str}
+        ],
         vol.Optional("remove_old", default=True): bool,
         vol.Optional("rename_z2m", default=False): bool,
     }
@@ -263,6 +278,16 @@ async def ws_migrate(hass: HomeAssistant, connection: websocket_api.ActiveConnec
         moved += result["moved"]
         reload.update(result["changed"])
         unresolved += result["triggers"]["unresolved"]
+    entities = er.async_get(hass)
+    for group in msg["groups"]:
+        old, new = entities.async_get(group["old"]), entities.async_get(group["new"])
+        if old is None or new is None:
+            failed.append(group["old"])
+            continue
+        result = await replacer.async_replace_entity(group["name"], old, new, batch=batch, reload=False)
+        done.append(result["id"])
+        moved += 1
+        reload.update(result["changed"])
     await replacer.async_reload(reload)
     connection.send_result(
         msg["id"],

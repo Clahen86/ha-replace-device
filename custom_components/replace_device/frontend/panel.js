@@ -48,6 +48,19 @@ const TEXT = {
     minutes: "{n} min",
     hours: "{n} h",
     days: "{n} days",
+    checksTitle: "Check after the move",
+    droppedUsed: "{name} has no match but is used in: {where}",
+    valuesDiffer: "{name}: the new one has no {missing} (it has {new}). Automations that use these values must be changed.",
+    unitDiffers: "{name}: unit changes from {old} to {new}.",
+    unitEnergy: "{name}: unit changes from {old} to {new} – this breaks the energy statistics. Fix it under Developer tools → Statistics afterwards.",
+    stateClassDiffers: "{name}: changes from {old} to {new} – long-term statistics may restart.",
+    deviceActions: "Device actions of the old integration can't be moved: {list}",
+    otherIntegrations: "Also updated: {list}",
+    dashboardsUpdated: "Dashboards updated: {list}",
+    warnCount: "{n} things to check",
+    groupsTitle: "Zigbee groups",
+    groupsText: "Groups made again in the new integration with the same name take over the old group's entity ID and history.",
+    noGroups: "No groups with the same name were found. Make the group again in the new integration – with the same name – and it shows up here.",
     aiTag: "AI",
     aiHint: "Some entities found no match. Connect an AI under Settings → Devices & services → Replace Device → Configure, and it will help.",
     triggersDone: "{n} button triggers were translated to the new integration.",
@@ -134,6 +147,19 @@ const TEXT = {
     minutes: "{n} min",
     hours: "{n} t",
     days: "{n} dage",
+    checksTitle: "Tjek efter flytningen",
+    droppedUsed: "{name} har ingen match, men bruges i: {where}",
+    valuesDiffer: "{name}: den nye har ikke {missing} (den har {new}). Automatiseringer, der bruger de værdier, skal rettes.",
+    unitDiffers: "{name}: enheden skifter fra {old} til {new}.",
+    unitEnergy: "{name}: enheden skifter fra {old} til {new} – det ødelægger energistatistikken. Ret det under Udviklerværktøjer → Statistik bagefter.",
+    stateClassDiffers: "{name}: skifter fra {old} til {new} – langtidsstatistikken kan starte forfra.",
+    deviceActions: "Enhedshandlinger fra den gamle integration kan ikke flyttes: {list}",
+    otherIntegrations: "Bliver også opdateret: {list}",
+    dashboardsUpdated: "Dashboards, der opdateres: {list}",
+    warnCount: "{n} ting at tjekke",
+    groupsTitle: "Zigbee-grupper",
+    groupsText: "Grupper, der er lavet igen i den nye integration med samme navn, overtager den gamle gruppes entity-id og historik.",
+    noGroups: "Der blev ikke fundet grupper med samme navn. Lav gruppen igen i den nye integration – med samme navn – så dukker den op her.",
     aiTag: "AI",
     aiHint: "Nogle entiteter fandt ingen match. Tilslut AI under Indstillinger → Enheder og tjenester → Udskift enhed → Konfigurer, så hjælper den.",
     triggersDone: "{n} knaptriggere er oversat til den nye integration.",
@@ -210,6 +236,7 @@ class ReplaceDevicePanel extends HTMLElement {
     this.migrateTarget = "";
     this.migratePlan = null;
     this.migrateSelected = new Set();
+    this.groupSelected = new Set();
   }
 
   set hass(hass) {
@@ -354,6 +381,33 @@ class ReplaceDevicePanel extends HTMLElement {
       ${history ? `<h3>${this.t("history")}</h3><div class="card list">${history}</div>` : ""}`;
   }
 
+  // What could still bite, as lines; also used to count them in "move many".
+  checkLines(c) {
+    if (!c) return [];
+    const name = (id) => id;
+    const lines = [];
+    for (const d of c.dropped_used || []) lines.push(["warn", this.t("droppedUsed", { name: name(d.entity_id), where: d.used_in.join(", ") })]);
+    for (const e of c.differences || []) {
+      for (const d of e.differences) {
+        if (d.kind === "values") lines.push(["warn", this.t("valuesDiffer", { name: name(e.entity_id), missing: d.missing.join(", "), new: d.new.join(", ") })]);
+        else if (d.kind === "unit") lines.push([e.energy ? "bad" : "warn", this.t(e.energy ? "unitEnergy" : "unitDiffers", { name: name(e.entity_id), old: d.old, new: d.new })]);
+        else lines.push(["warn", this.t("stateClassDiffers", { name: name(e.entity_id), old: d.old, new: d.new })]);
+      }
+    }
+    if (c.device_actions?.length) lines.push(["warn", this.t("deviceActions", { list: c.device_actions.join(", ") })]);
+    if (c.integrations?.length) lines.push(["info", this.t("otherIntegrations", { list: c.integrations.join(", ") })]);
+    if (c.dashboards?.length) lines.push(["info", this.t("dashboardsUpdated", { list: c.dashboards.join(", ") })]);
+    return lines;
+  }
+
+  checksCard(c) {
+    const lines = this.checkLines(c);
+    if (!lines.length) return "";
+    const icon = { bad: "mdi:alert-octagon", warn: "mdi:alert", info: "mdi:information-outline" };
+    return `<div class="card warn"><h3 class="in"><ha-icon icon="mdi:clipboard-check-outline"></ha-icon> ${this.t("checksTitle")}</h3>
+      <div class="checks">${lines.map(([k, txt]) => `<div class="check-line c-${k}"><ha-icon icon="${icon[k]}"></ha-icon><span>${esc(txt)}</span></div>`).join("")}</div></div>`;
+  }
+
   historyRow(h) {
     return `
       <div class="hist">
@@ -465,7 +519,8 @@ class ReplaceDevicePanel extends HTMLElement {
       const rows = plan.pairs.map((p) => `
         <label class="mrow"><input type="checkbox" data-pair="${p.old.id}" ${this.migrateSelected.has(p.old.id) ? "checked" : ""}><span class="box"></span>
           <span class="grow"><span class="dev-name">${esc(p.old.name)}</span>
-            <span class="muted small">→ ${esc(p.new.name)} · ${this.t("by_" + p.by)} · ${this.t("entitiesMatched", { m: p.matched, t: p.total })}</span></span>
+            <span class="muted small">→ ${esc(p.new.name)} · ${this.t("by_" + p.by)} · ${this.t("entitiesMatched", { m: p.matched, t: p.total })}</span>
+            ${this.checkLines(p.checks).filter(([k]) => k !== "info").length ? `<span class="small warn-text">⚠ ${this.t("warnCount", { n: this.checkLines(p.checks).filter(([k]) => k !== "info").length })}</span>` : ""}</span>
           ${p.old.area ? `<span class="tag">${esc(p.old.area)}</span>` : ""}</label>`).join("");
       result = plan.pairs.length ? `
         <div class="card">
@@ -474,13 +529,15 @@ class ReplaceDevicePanel extends HTMLElement {
           <div class="mrows">${rows}</div>
           ${plan.missing.length ? `<p class="muted small">${this.t("missing", { n: plan.missing.length, source: name(this.migrateSource), target: name(this.migrateTarget) })}</p>` : ""}
         </div>
+        ${this.groupsCard(plan)}
+        ${plan.pairs.filter((p) => this.migrateSelected.has(p.old.id)).map((p) => this.checkLines(p.checks).length ? `<div class="card"><b>${esc(p.old.name)}</b>${this.checksCard(p.checks)}</div>` : "").join("")}
         <div class="card">
           <label class="switch-row"><input type="checkbox" id="removeOld" ${this.removeOld ? "checked" : ""}><span class="switch"></span>
             <div class="grow"><b>${this.t("removeOld")}</b><div class="muted small">${this.t("removeOldHint")}</div></div></label>
           ${this.migrateTarget === "zigbee2mqtt" ? `<label class="switch-row sep"><input type="checkbox" id="renameZ2m" ${this.renameZ2m ? "checked" : ""}><span class="switch"></span>
             <div class="grow"><b>${this.t("renameZ2m")}</b><div class="muted small">${this.t("renameZ2mHint")}</div></div></label>` : ""}
         </div>
-        <div class="actions sticky"><button class="primary big" data-act="doMigrate" ${this.migrateSelected.size ? "" : "disabled"}><ha-icon icon="mdi:transfer"></ha-icon>${this.t("moveN", { n: this.migrateSelected.size })}</button></div>`
+        <div class="actions sticky"><button class="primary big" data-act="doMigrate" ${this.migrateSelected.size + this.groupSelected.size ? "" : "disabled"}><ha-icon icon="mdi:transfer"></ha-icon>${this.t("moveN", { n: this.migrateSelected.size + this.groupSelected.size })}</button></div>`
         : `<div class="card empty">${this.t("noPairs", { target: name(this.migrateTarget) })}</div>`;
     }
     return `
@@ -497,6 +554,14 @@ class ReplaceDevicePanel extends HTMLElement {
       ${result}`;
   }
 
+  groupsCard(plan) {
+    const groups = plan.groups || [];
+    return `<div class="card"><h3 class="in"><ha-icon icon="mdi:lightbulb-group"></ha-icon> ${this.t("groupsTitle")}</h3>
+      <p class="muted small">${groups.length ? this.t("groupsText") : this.t("noGroups")}</p>
+      ${groups.map((g) => `<label class="mrow"><input type="checkbox" data-group="${esc(g.old)}" ${this.groupSelected.has(g.old) ? "checked" : ""}><span class="box"></span>
+        <span class="grow"><span class="dev-name">${esc(g.name)}</span><span class="muted small">${esc(g.old)} ← ${esc(g.new)}</span></span></label>`).join("")}</div>`;
+  }
+
   migrateDoneView() {
     const r = this.result;
     return `
@@ -505,6 +570,8 @@ class ReplaceDevicePanel extends HTMLElement {
         <h2>${this.t("migrateDone", { d: r.devices })}</h2>
         <p class="muted">${this.t("migrateDoneText", { n: r.moved })}</p>
         ${r.triggers?.translated?.length ? `<p class="ok-text">${this.t("triggersDone", { n: r.triggers.translated.length })}</p>` : ""}
+        ${r.integrations?.length ? `<p class="ok-text">${esc(this.t("otherIntegrations", { list: r.integrations.join(", ") }))}</p>` : ""}
+        ${r.dashboards?.length ? `<p class="ok-text">${esc(this.t("dashboardsUpdated", { list: r.dashboards.join(", ") }))}</p>` : ""}
         ${(r.triggers?.unresolved || r.unresolved || []).length ? `<div class="card warn left"><b>${this.t("triggersOpen")}</b><ul>${(r.triggers?.unresolved || r.unresolved).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
         <div class="actions"><button class="ghost" data-act="undoBatch" data-batch="${r.batch}">${this.t("undoAll")}</button><button class="primary" data-act="home">${this.t("home")}</button></div>
       </div>`;
@@ -520,6 +587,7 @@ class ReplaceDevicePanel extends HTMLElement {
     try {
       this.migratePlan = await this.ws("migrate_plan", { source: this.migrateSource, target: this.migrateTarget });
       this.migrateSelected = new Set(this.migratePlan.pairs.map((p) => p.old.id));
+      this.groupSelected = new Set((this.migratePlan.groups || []).map((g) => g.old));
     } catch (e) {
       this.error = this.t("error", { e: e.message || e.code });
     }
@@ -528,10 +596,11 @@ class ReplaceDevicePanel extends HTMLElement {
 
   async doMigrate() {
     const pairs = this.migratePlan.pairs.filter((p) => this.migrateSelected.has(p.old.id)).map((p) => ({ old: p.old.id, new: p.new.id }));
+    const groups = (this.migratePlan.groups || []).filter((g) => this.groupSelected.has(g.old));
     this.view = "working";
     this.render();
     try {
-      this.result = await this.ws("migrate", { pairs, remove_old: this.removeOld, rename_z2m: this.migrateTarget === "zigbee2mqtt" && this.renameZ2m });
+      this.result = await this.ws("migrate", { pairs, groups, remove_old: this.removeOld, rename_z2m: this.migrateTarget === "zigbee2mqtt" && this.renameZ2m });
       this.view = "migrated";
       this.migratePlan = null;
     } catch (e) {
@@ -589,6 +658,7 @@ class ReplaceDevicePanel extends HTMLElement {
         ${!p.ai_enabled && p.old_entities.some((o) => !this.mapping[o.entity_id]) ? `<p class="hint"><ha-icon icon="mdi:robot-outline"></ha-icon><span>${this.t("aiHint")}</span></p>` : ""}
       </div>
       ${own.length ? `<div class="card"><h3 class="in">${this.t("keepsOwn")}</h3><div class="chips">${own.map((n) => `<span class="chip"><ha-icon icon="${this.icon(n)}"></ha-icon>${esc(n.name || n.entity_id)}</span>`).join("")}</div></div>` : ""}
+      ${this.checksCard(p.checks)}
       ${p.uses_device.length ? `<div class="card warn"><h3 class="in"><ha-icon icon="mdi:robot"></ha-icon> ${this.t("usesDevice")}</h3><ul>${p.uses_device.map((n) => `<li>${esc(n)}</li>`).join("")}</ul><p class="muted small">${this.t("usesDeviceHint")}</p></div>` : ""}
       <div class="card">
         <label class="switch-row"><input type="checkbox" id="removeOld" ${this.removeOld ? "checked" : ""}><span class="switch"></span>
@@ -613,6 +683,8 @@ class ReplaceDevicePanel extends HTMLElement {
         <p class="muted">${this.t("doneText", { n: r.moved })}</p>
         ${this.removeOld && !r.removed ? `<p class="warn-text">${this.t("keptOld")}</p>` : ""}
         ${r.triggers?.translated?.length ? `<p class="ok-text">${this.t("triggersDone", { n: r.triggers.translated.length })}</p>` : ""}
+        ${r.integrations?.length ? `<p class="ok-text">${esc(this.t("otherIntegrations", { list: r.integrations.join(", ") }))}</p>` : ""}
+        ${r.dashboards?.length ? `<p class="ok-text">${esc(this.t("dashboardsUpdated", { list: r.dashboards.join(", ") }))}</p>` : ""}
         ${(r.triggers?.unresolved || r.unresolved || []).length ? `<div class="card warn left"><b>${this.t("triggersOpen")}</b><ul>${(r.triggers?.unresolved || r.unresolved).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
 
         <div class="actions"><button class="ghost" data-act="undo" data-id="${r.id}">${this.t("undo")}</button><button class="primary" data-act="home">${this.t("home")}</button></div>
@@ -675,6 +747,12 @@ class ReplaceDevicePanel extends HTMLElement {
         this.render();
       });
     }
+    this.shadowRoot.querySelectorAll("input[data-group]").forEach((el) =>
+      el.addEventListener("change", () => {
+        if (el.checked) this.groupSelected.add(el.dataset.group);
+        else this.groupSelected.delete(el.dataset.group);
+        this.render();
+      }));
     this.shadowRoot.querySelectorAll("input[data-pair]").forEach((el) =>
       el.addEventListener("change", () => {
         if (el.checked) this.migrateSelected.add(el.dataset.pair);
@@ -795,6 +873,7 @@ input:checked+.switch{background:var(--rd-blue)}input:checked+.switch:after{left
 .check path{fill:none;stroke:var(--rd-green);stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
 @keyframes pop{from{transform:scale(.5)}}
 .warn-text{color:var(--rd-amber)}
+.checks{display:flex;flex-direction:column;gap:8px;margin-top:8px}.check-line{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.4}.check-line ha-icon{flex:none;--mdc-icon-size:18px}.check-line.c-warn ha-icon{color:var(--rd-amber)}.check-line.c-bad ha-icon{color:var(--rd-red)}.check-line.c-info ha-icon{color:var(--rd-blue)}.card .card.warn{box-shadow:none;margin:8px 0 0;padding:10px}
 .ok-text{color:var(--rd-green)}.tag.ai{background:rgba(156,39,176,.14);color:#8e24aa;font-size:11px;padding:1px 7px}.card.left{text-align:left;margin-top:12px}
 .btns{display:flex;gap:10px;flex-wrap:wrap}
 .hint{display:flex;gap:10px;align-items:flex-start;margin:14px 0 0;padding:12px;border-radius:10px;background:rgba(3,169,244,.08)}.hint ha-icon{color:var(--rd-blue);flex:none}

@@ -69,6 +69,10 @@ The same is available without the panel: **Settings → Devices & services → R
 - Button triggers that can't be translated are listed when it's done, so you can fix them by hand.
 - `automations.yaml`, `scripts.yaml`, `scenes.yaml` and everything in `packages/` are updated. Other YAML keeps working through the entity IDs.
 - **Undo all** undoes a whole "move many" in one go.
+- Before you replace, it shows what could still bite: entities only the old one had that are used somewhere, values the new one doesn't have (e.g. `On` vs `on` in a select), unit changes (Wh → kWh breaks energy statistics), and device actions of the old integration that can't be moved.
+- Dashboards made in the UI and other integrations that store the device (e.g. Battery Notes) are updated too.
+- **Zigbee groups**: make the group again in the new integration with the same name, and "move many" lets it take over the old group's entity ID and history.
+- Not moved: Zigbee bindings (a remote bound directly to a bulb) and calibration set in ZHA or Zigbee2MQTT.
 - Everything is local. Nothing leaves your Home Assistant.
 
 ## Dansk
@@ -121,6 +125,10 @@ Det samme kan gøres uden panelet: **Indstillinger → Enheder og tjenester → 
 - Knaptriggere, der ikke kan oversættes, bliver vist bagefter, så du kan rette dem selv.
 - `automations.yaml`, `scripts.yaml`, `scenes.yaml` og alt i `packages/` bliver opdateret. Anden YAML virker videre via entity-id'erne.
 - **Fortryd alle** fortryder en hel "flyt mange" på én gang.
+- Før du udskifter, viser den, hvad der stadig kan drille. Det gælder entiteter, som kun den gamle havde, og som bruges et sted, værdier den nye ikke har (fx `On` mod `on` i en select), skift af enhed (Wh → kWh ødelægger energistatistikken) og enhedshandlinger fra den gamle integration, som ikke kan flyttes.
+- Dashboards lavet i brugerfladen og andre integrationer, der gemmer enheden (fx Battery Notes), bliver også opdateret.
+- **Zigbee-grupper:** Lav gruppen igen i den nye integration med samme navn. Så kan "flyt mange" lade den overtage den gamle gruppes entity-id og historik.
+- Det flyttes ikke: Zigbee-bindinger (en fjernbetjening bundet direkte til en pære) og kalibrering sat i ZHA eller Zigbee2MQTT.
 - Alt foregår lokalt. Intet forlader din Home Assistant.
 
 ## License
