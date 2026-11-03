@@ -13,14 +13,16 @@ import json
 import logging
 import os
 import time
+from collections.abc import Awaitable
 from typing import Any
+import uuid
 
 from homeassistant import loader
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
-from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
+from homeassistant.core import CALLBACK_TYPE, Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr, entity_registry as er, issue_registry as ir
-from homeassistant.helpers.event import async_call_later
+from homeassistant.helpers.event import async_call_later, async_track_state_change_event
 from homeassistant.helpers.storage import Store
 from homeassistant.util.file import write_utf8_file_atomic
 
@@ -64,7 +66,9 @@ def async_plan(
         return None
     old_entities = er.async_entries_for_device(entities, old_id, include_disabled_entities=True)
     new_entities = er.async_entries_for_device(entities, new_id, include_disabled_entities=True)
-    plan = Plan(old, new, old_entities, new_entities, mapping or match(old_entities, new_entities))
+    plan = Plan(
+        old, new, old_entities, new_entities, mapping if mapping is not None else match(old_entities, new_entities)
+    )
     plan.uses_device = _users_of_device(hass, old_id)
     return plan
 
@@ -118,7 +122,7 @@ class Replacer:
         pairs = plan.pairs
         now = time.time()
         record: dict[str, Any] = {
-            "id": str(int(now * 1000)),
+            "id": uuid.uuid4().hex,
             "at": now,
             "old_device": {"id": plan.old.id, "name": device_name(plan.old), "model": plan.old.model},
             # How the new device looked before, so it can be given back.
@@ -150,11 +154,27 @@ class Replacer:
         await _wait_until_gone(hass, old_ids)
 
         # 2. The new entities take over the old entity ids and everything the user set on them.
+        failed = []
         for old_entry, new_entry in pairs:
-            entities.async_update_entity(new_entry.entity_id, new_entity_id=old_entry.entity_id, **_update(old_entry))
-            for domain, options in old_entry.options.items():
-                merged = dict(new_entry.options.get(domain, {})) | dict(options)
-                entities.async_update_entity_options(old_entry.entity_id, domain, merged)
+            try:
+                entities.async_update_entity(
+                    new_entry.entity_id, new_entity_id=old_entry.entity_id, **_update(old_entry)
+                )
+                for domain, options in old_entry.options.items():
+                    merged = dict(new_entry.options.get(domain, {})) | dict(options)
+                    entities.async_update_entity_options(old_entry.entity_id, domain, merged)
+            except (KeyError, ValueError):
+                _LOGGER.warning("%s could not take over %s", new_entry.entity_id, old_entry.entity_id, exc_info=True)
+                failed.append(old_entry.entity_id)
+        if failed:
+            pairs = [(o, n) for o, n in pairs if o.entity_id not in failed]
+            old_ids, temp_ids = [o.entity_id for o, _ in pairs], [n.entity_id for _, n in pairs]
+            record["entities"] = [e for e in record["entities"] if e["entity_id"] not in failed]
+            record["ids"] = {plan.old.id: plan.new.id} | {o.id: n.id for o, n in pairs}
+        record["failed"] = failed
+        # From here on the replacement can be undone, whatever happens in the steps below.
+        self.history.append(record)
+        self._save()
 
         # 3. The new device gets the old one's name and area.
         devices.async_update_device(
@@ -166,10 +186,14 @@ class Replacer:
 
         # 4. Automations and scripts that point at the old device or its entities by id, and device triggers that
         #    have other names in the new integration (a ZHA button press is an "action" in Zigbee2MQTT).
-        changed = await self._rewrite(record["ids"], reload=False)
+        changed = await _safely("updating automations and scripts", self._rewrite(record["ids"], reload=False), [])
         path = hass.config.path(AUTOMATIONS_FILE)
         before = await hass.async_add_executor_job(_read, path)
-        translation = await triggers.async_translate(hass, plan.new.id, old_domain, new_domain, self.ai_entity)
+        translation = await _safely(
+            "translating device triggers",
+            triggers.async_translate(hass, plan.new.id, old_domain, new_domain, self.ai_entity),
+            {"translated": [], "unresolved": []},
+        )
         if translation["translated"]:
             record["automations_before"] = before
             record["automations_after"] = await hass.async_add_executor_job(_read, path)
@@ -178,18 +202,24 @@ class Replacer:
         record["files"] = changed
         # Dashboards made in the UI and other integrations (Battery Notes, Powercalc …) that store the device id.
         skip = {d for d in (old_domain, new_domain) if d}
-        record["dashboards"] = await references.async_rewrite_dashboards(hass, record["ids"])
-        record["integrations"] = await references.async_rewrite_entries(hass, record["ids"], skip)
+        record["dashboards"] = await _safely(
+            "updating dashboards", references.async_rewrite_dashboards(hass, record["ids"]), []
+        )
+        record["integrations"] = await _safely(
+            "updating other integrations", references.async_rewrite_entries(hass, record["ids"], skip), []
+        )
         if reload:
             await self.async_reload(set(changed))
-        renamed = await _rename_in_z2m(hass, plan.new, device_name(plan.old)) if rename_z2m else False
+        renamed = False
+        if rename_z2m:
+            renamed = await _safely(
+                "renaming in Zigbee2MQTT", _rename_in_z2m(hass, plan.new, device_name(plan.old)), False
+            )
 
         # 5. The new entities' first minutes under their own ids are not needed.
-        await _clean_recorder(hass, temp_ids)
-        await _logbook(hass, plan, old_ids)
+        await _safely("cleaning up history", _clean_recorder(hass, temp_ids), None)
+        await _safely("writing the logbook", _logbook(hass, plan, old_ids), None)
         self._timers.append(_check_later(hass, plan, old_ids))
-
-        self.history.append(record)
         self._save()
         return {
             "id": record["id"],
@@ -200,6 +230,7 @@ class Replacer:
             "triggers": translation,
             "dashboards": record["dashboards"],
             "integrations": record["integrations"],
+            "failed": failed,
         }
 
     async def async_replace_entity(
@@ -209,7 +240,7 @@ class Replacer:
         hass, entities = self.hass, er.async_get(self.hass)
         now = time.time()
         record: dict[str, Any] = {
-            "id": str(int(now * 1000)),
+            "id": uuid.uuid4().hex,
             "at": now,
             "old_device": {"id": None, "name": name, "model": "Group"},
             "new_device": {"id": None, "name": new.entity_id, "model": "Group"},
@@ -424,6 +455,15 @@ def _config_files(config_dir: str) -> list[tuple[tuple[str, ...], str]]:
     return files
 
 
+async def _safely[T](what: str, job: Awaitable[T], default: T) -> T:
+    """Run a step after the core replacement; if it fails, log it and carry on with the rest."""
+    try:
+        return await job
+    except Exception:  # noqa: BLE001 - one broken dashboard or file must not stop the replacement
+        _LOGGER.warning("Replace Device: %s failed", what, exc_info=True)
+        return default
+
+
 def _read(path: str) -> str | None:
     try:
         with open(path, encoding="utf-8") as file:
@@ -483,8 +523,22 @@ async def _logbook(hass: HomeAssistant, plan: Plan, entity_ids: list[str]) -> No
 
 
 def _check_later(hass: HomeAssistant, plan: Plan, entity_ids: list[str]) -> CALLBACK_TYPE:
-    """Ten minutes later: if none of the new entities has a value, say so."""
+    """Ten minutes later: if none of the new entities has a value, say so – until one has."""
     name = device_name(plan.old)
+    issue_id = f"silent_{plan.new.id}"
+    unsubs: list[CALLBACK_TYPE] = []
+
+    @callback
+    def _stop() -> None:
+        while unsubs:
+            unsubs.pop()()
+
+    @callback
+    def _reported(event: Event[EventStateChangedData]) -> None:
+        state = event.data["new_state"]
+        if state is not None and state.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN):
+            ir.async_delete_issue(hass, DOMAIN, issue_id)
+            _stop()
 
     async def _check(_now) -> None:
         if not entity_ids or any(
@@ -495,11 +549,13 @@ def _check_later(hass: HomeAssistant, plan: Plan, entity_ids: list[str]) -> CALL
         ir.async_create_issue(
             hass,
             DOMAIN,
-            f"silent_{plan.new.id}",
+            issue_id,
             is_fixable=False,
             severity=ir.IssueSeverity.WARNING,
             translation_key="silent",
             translation_placeholders={"name": name},
         )
+        unsubs.append(async_track_state_change_event(hass, entity_ids, _reported))
 
-    return async_call_later(hass, CHECK_AFTER, _check)
+    unsubs.append(async_call_later(hass, CHECK_AFTER, _check))
+    return _stop

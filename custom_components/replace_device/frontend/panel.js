@@ -66,6 +66,7 @@ const TEXT = {
     triggersDone: "{n} button triggers were translated to the new integration.",
     triggersOpen: "Check these button triggers – no match was found:",
     undoAll: "Undo all",
+    notMoved: "Could not be moved (see the log): {list}",
     batchRow: "{n} devices moved",
     pickOld: "Which device is replaced?",
     pickNew: "Which device takes over?",
@@ -165,6 +166,7 @@ const TEXT = {
     triggersDone: "{n} knaptriggere er oversat til den nye integration.",
     triggersOpen: "Tjek disse knaptriggere – der blev ikke fundet et match:",
     undoAll: "Fortryd alle",
+    notMoved: "Kunne ikke flyttes (se loggen): {list}",
     batchRow: "{n} enheder flyttet",
     pickOld: "Hvilken enhed skal udskiftes?",
     pickNew: "Hvilken enhed overtager?",
@@ -586,7 +588,7 @@ class ReplaceDevicePanel extends HTMLElement {
     }
     try {
       this.migratePlan = await this.ws("migrate_plan", { source: this.migrateSource, target: this.migrateTarget });
-      this.migrateSelected = new Set(this.migratePlan.pairs.map((p) => p.old.id));
+      this.migrateSelected = new Set(this.migratePlan.pairs.filter((p) => p.matched > 0).map((p) => p.old.id));
       this.groupSelected = new Set((this.migratePlan.groups || []).map((g) => g.old));
     } catch (e) {
       this.error = this.t("error", { e: e.message || e.code });
@@ -682,6 +684,7 @@ class ReplaceDevicePanel extends HTMLElement {
         <h2>${esc(this.t("doneTitle", { name: r.name }))}</h2>
         <p class="muted">${this.t("doneText", { n: r.moved })}</p>
         ${this.removeOld && !r.removed ? `<p class="warn-text">${this.t("keptOld")}</p>` : ""}
+        ${r.failed?.length ? `<p class="warn-text">${esc(this.t("notMoved", { list: r.failed.join(", ") }))}</p>` : ""}
         ${r.triggers?.translated?.length ? `<p class="ok-text">${this.t("triggersDone", { n: r.triggers.translated.length })}</p>` : ""}
         ${r.integrations?.length ? `<p class="ok-text">${esc(this.t("otherIntegrations", { list: r.integrations.join(", ") }))}</p>` : ""}
         ${r.dashboards?.length ? `<p class="ok-text">${esc(this.t("dashboardsUpdated", { list: r.dashboards.join(", ") }))}</p>` : ""}

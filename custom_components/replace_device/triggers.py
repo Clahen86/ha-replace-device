@@ -94,7 +94,11 @@ async def async_translate(
     if old_domain == new_domain:
         return {"translated": [], "unresolved": []}
     path = hass.config.path(AUTOMATIONS_FILE)
-    automations = await hass.async_add_executor_job(_load, path)
+    try:
+        automations = await hass.async_add_executor_job(_load, path)
+    except Exception:  # noqa: BLE001 - e.g. !secret in automations.yaml: don't rewrite what we can't read back
+        _LOGGER.warning("Could not read %s; device triggers were not translated", path, exc_info=True)
+        return {"translated": [], "unresolved": []}
     if not isinstance(automations, list):
         return {"translated": [], "unresolved": []}
     found = []

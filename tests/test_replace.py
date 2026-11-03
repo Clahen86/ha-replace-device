@@ -618,3 +618,59 @@ async def test_checks_other_places_and_groups(hass: HomeAssistant, hass_ws_clien
     await hass.async_block_till_done()
     assert notes.data == {"device_id": old.id}
     assert registry.async_get("light.stue_loft_2").platform == "mqtt"
+
+
+async def test_robust_and_unambiguous(hass: HomeAssistant, hass_ws_client, tmp_path, freezer) -> None:
+    """A failing step doesn't stop a replacement, shared hardware ids are not guessed, the silent repair goes away."""
+    from unittest.mock import patch
+
+    hass.config.config_dir = str(tmp_path)
+    # automations.yaml that can't be read back (a !secret) and a dashboard step that blows up.
+    (tmp_path / "automations.yaml").write_text("- id: '1'\n  alias: A\n  triggers: []\n  actions:\n  - x: !secret y\n")
+    old = _device(hass, "zha", "old", "Kitchen", OLD_SENSORS)
+    new = _device(hass, "mqtt", "new", "0x00158d0001", NEW_SENSORS)
+    # Two Shelly channels sharing one serial number on each side.
+    shelly_old = MockConfigEntry(domain="shelly", title="Shelly")
+    shelly_old.add_to_hass(hass)
+    shelly_new = MockConfigEntry(domain="matter", title="Matter")
+    shelly_new.add_to_hass(hass)
+    devices, registry = dr.async_get(hass), er.async_get(hass)
+    for n in (1, 2):
+        for entry, platform in ((shelly_old, "shelly"), (shelly_new, "matter")):
+            d = devices.async_get_or_create(
+                config_entry_id=entry.entry_id,
+                identifiers={(platform, f"aabbcc-{n}")},
+                serial_number="SHELLY123456",
+                name=f"{platform} {n}",
+            )
+            registry.async_get_or_create("switch", platform, f"{platform}{n}", device_id=d.id, config_entry=entry)
+    await _setup(hass)
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": "replace_device/migrate_plan", "source": "shelly", "target": "matter"})
+    plan = (await client.receive_json())["result"]
+    assert plan["pairs"] == [] and len(plan["missing"]) == 2
+
+    with patch(
+        "custom_components.replace_device.references.async_rewrite_dashboards", side_effect=RuntimeError("boom")
+    ):
+        await client.send_json_auto_id(
+            {
+                "type": "replace_device/replace",
+                "old": old.id,
+                "new": new.id,
+                "mapping": {"sensor.kitchen_temperature": "sensor.0x00158d0001_temperature"},
+            }
+        )
+        result = (await client.receive_json())["result"]
+    await hass.async_block_till_done()
+    assert result["moved"] == 1 and result["dashboards"] == [] and result["failed"] == []
+    assert er.async_get(hass).async_get("sensor.kitchen_temperature").platform == "mqtt"
+
+    # Ten minutes without a value: a repair. A value: it goes away.
+    freezer.tick(timedelta(minutes=11))
+    async_fire_time_changed(hass, dt_util.utcnow())
+    await hass.async_block_till_done()
+    assert ir.async_get(hass).async_get_issue(DOMAIN, f"silent_{new.id}") is not None
+    hass.states.async_set("sensor.kitchen_temperature", "21.5")
+    await hass.async_block_till_done()
+    assert ir.async_get(hass).async_get_issue(DOMAIN, f"silent_{new.id}") is None

@@ -72,6 +72,8 @@ The same is available without the panel: **Settings → Devices & services → R
 - Before you replace, it shows what could still bite: entities only the old one had that are used somewhere, values the new one doesn't have (e.g. `On` vs `on` in a select), unit changes (Wh → kWh breaks energy statistics), and device actions of the old integration that can't be moved.
 - Dashboards made in the UI and other integrations that store the device (e.g. Battery Notes) are updated too.
 - **Zigbee groups**: make the group again in the new integration with the same name, and "move many" lets it take over the old group's entity ID and history.
+- Dead devices are found by being unavailable for an hour. In Zigbee2MQTT that needs **availability** turned on (Settings → Availability); without it, a dead device keeps its last value.
+- If one step fails (a broken dashboard, a file it can't read), the rest still runs and the replacement can still be undone; the log says what was skipped.
 - Not moved: Zigbee bindings (a remote bound directly to a bulb) and calibration set in ZHA or Zigbee2MQTT.
 - Everything is local. Nothing leaves your Home Assistant.
 
@@ -128,6 +130,8 @@ Det samme kan gøres uden panelet: **Indstillinger → Enheder og tjenester → 
 - Før du udskifter, viser den, hvad der stadig kan drille. Det gælder entiteter, som kun den gamle havde, og som bruges et sted, værdier den nye ikke har (fx `On` mod `on` i en select), skift af enhed (Wh → kWh ødelægger energistatistikken) og enhedshandlinger fra den gamle integration, som ikke kan flyttes.
 - Dashboards lavet i brugerfladen og andre integrationer, der gemmer enheden (fx Battery Notes), bliver også opdateret.
 - **Zigbee-grupper:** Lav gruppen igen i den nye integration med samme navn. Så kan "flyt mange" lade den overtage den gamle gruppes entity-id og historik.
+- Døde enheder findes ved, at de har været utilgængelige i en time. I Zigbee2MQTT kræver det, at **availability** er slået til (Settings → Availability). Uden den beholder en død enhed sin sidste værdi.
+- Fejler ét trin, fx et ødelagt dashboard eller en fil den ikke kan læse, kører resten alligevel, og udskiftningen kan stadig fortrydes. Loggen viser, hvad der blev sprunget over.
 - Det flyttes ikke: Zigbee-bindinger (en fjernbetjening bundet direkte til en pære) og kalibrering sat i ZHA eller Zigbee2MQTT.
 - Alt foregår lokalt. Intet forlader din Home Assistant.
 

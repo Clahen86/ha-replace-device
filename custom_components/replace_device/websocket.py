@@ -196,6 +196,14 @@ async def ws_undo(hass: HomeAssistant, connection: websocket_api.ActiveConnectio
     connection.send_result(msg["id"], {"undone": count})
 
 
+def _by_key(devices: list[dr.DeviceEntry]) -> dict[str, list[dr.DeviceEntry]]:
+    index: dict[str, list[dr.DeviceEntry]] = {}
+    for device in devices:
+        for key in hardware_keys(device):
+            index.setdefault(key, []).append(device)
+    return index
+
+
 def _devices_from(hass: HomeAssistant, key: str) -> list[dr.DeviceEntry]:
     entities = er.async_get(hass)
     return [
@@ -204,6 +212,7 @@ def _devices_from(hass: HomeAssistant, key: str) -> list[dr.DeviceEntry]:
         if d.entry_type is None
         and source(hass, d)[0] == key
         and (d.model or "").lower() != "group"
+        and not any(str(v).startswith("zigbee2mqtt_bridge_") for _, v in d.identifiers)
         and er.async_entries_for_device(entities, d.id)
     ]
 
@@ -216,24 +225,24 @@ def _devices_from(hass: HomeAssistant, key: str) -> list[dr.DeviceEntry]:
 async def ws_migrate_plan(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     """Every device of one integration paired with the same physical device in another, and their Zigbee groups."""
     dashboards = await references.async_dashboards(hass)
-    targets: dict[str, dr.DeviceEntry] = {}
-    for device in _devices_from(hass, msg["target"]):
-        for key in hardware_keys(device):
-            targets.setdefault(key, device)
-    pairs, missing = [], []
-    for old in _devices_from(hass, msg["source"]):
-        keys = hardware_keys(old)
-        new = next((targets[k] for k in sorted(keys) if k in targets), None)
+    source_devices = _devices_from(hass, msg["source"])
+    sources, targets = _by_key(source_devices), _by_key(_devices_from(hass, msg["target"]))
+    pairs, missing, used = [], [], set()
+    for old in source_devices:
+        # Only keys that point at exactly one device on each side: Shelly channels share their MAC, for one.
+        keys = [k for k in sorted(hardware_keys(old)) if len(sources.get(k, [])) == 1 and len(targets.get(k, [])) == 1]
+        new = next((targets[k][0] for k in keys if targets[k][0].id not in used), None)
         if new is None:
             missing.append(_device(hass, old))
             continue
+        used.add(new.id)
         plan = async_plan(hass, old.id, new.id)
         checks = await async_checks(hass, plan, dashboards) if plan else {}
         pairs.append(
             {
                 "old": _device(hass, old),
                 "new": _device(hass, new),
-                "by": next(k for k in sorted(keys) if k in targets).split(":")[0],
+                "by": next(k for k in keys if targets[k][0].id == new.id).split(":")[0],
                 "matched": len(plan.pairs) if plan else 0,
                 "total": len(plan.old_entities) if plan else 0,
                 "checks": checks,

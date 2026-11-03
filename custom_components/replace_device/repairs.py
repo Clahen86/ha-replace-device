@@ -55,8 +55,10 @@ class SuggestFlow(RepairsFlow):
         if plan is None:
             return self.async_abort(reason="unknown_device")
         if user_input is not None:
-            entry = self.hass.config_entries.async_entries(DOMAIN)[0]
-            await entry.runtime_data.async_replace(plan, user_input[CONF_REMOVE_OLD])
+            entries = self.hass.config_entries.async_loaded_entries(DOMAIN)
+            if not entries:
+                return self.async_abort(reason="unknown_device")
+            await entries[0].runtime_data.async_replace(plan, user_input[CONF_REMOVE_OLD])
             return self.async_create_entry(data={})
         return self.async_show_form(
             step_id="confirm",
