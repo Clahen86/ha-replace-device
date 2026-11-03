@@ -24,6 +24,7 @@ from .suggest import is_dead
 def async_setup(hass: HomeAssistant) -> None:
     for command in (
         ws_devices,
+        ws_hide,
         ws_plan,
         ws_replace,
         ws_history,
@@ -94,20 +95,23 @@ def _plan(hass: HomeAssistant, plan: Plan) -> dict[str, Any]:
 
 @websocket_api.require_admin
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/devices"})
-@callback
-def ws_devices(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
-    """All devices with entities, dead ones flagged, and for each dead one the likely replacements."""
+@websocket_api.async_response
+async def ws_devices(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """All devices with entities; for the ones without contact, the last battery level and likely replacements."""
+    replacer = _replacer(hass)
+    hidden = set(replacer.hidden) if replacer else set()
     devices = [
         _device(hass, d)
         for d in dr.async_get(hass).devices.values()
         if d.entry_type is None and er.async_entries_for_device(er.async_get(hass), d.id)
     ]
-    by_id = {d["id"]: d for d in devices}
     registry = dr.async_get(hass)
     for item in devices:
+        item["hidden"] = item["id"] in hidden
         if not item["dead"]:
             continue
         dead = registry.async_get(item["id"])
+        item["battery"] = await _last_battery(hass, item["id"])
         item["twins"] = [
             d["id"]
             for d in devices
@@ -118,9 +122,49 @@ def ws_devices(hass: HomeAssistant, connection: websocket_api.ActiveConnection, 
             and (other.model or other.model_id) == (dead.model or dead.model_id)
             and d["created"] > (item["dead_since"] or 0) - 86400
         ]
-    connection.send_result(
-        msg["id"], {"devices": sorted(by_id.values(), key=lambda d: d["name"].lower()), "now": time.time()}
+    connection.send_result(msg["id"], {"devices": sorted(devices, key=lambda d: d["name"].lower()), "now": time.time()})
+
+
+async def _last_battery(hass: HomeAssistant, device_id: str) -> float | None:
+    """The last battery level a device reported before it lost contact (None if it has no battery or no history)."""
+    battery = next(
+        (
+            e.entity_id
+            for e in er.async_entries_for_device(er.async_get(hass), device_id)
+            if e.domain == "sensor" and (e.device_class or e.original_device_class) == "battery"
+        ),
+        None,
     )
+    if battery is None or "recorder" not in hass.config.components:
+        return None
+    from homeassistant.components.recorder import get_instance, history
+
+    try:
+        states = await get_instance(hass).async_add_executor_job(history.get_last_state_changes, hass, 5, battery)
+    except Exception:  # noqa: BLE001 - no history is no answer, not an error
+        return None
+    # Newest first: the last number before it went unavailable.
+    for state in reversed(states.get(battery, [])):
+        try:
+            return float(state.state)
+        except ValueError:
+            continue
+    return None
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {vol.Required("type"): f"{DOMAIN}/hide", vol.Required("device"): str, vol.Required("hidden"): bool}
+)
+@callback
+def ws_hide(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Keep a device that is only switched off (a bulb on a wall switch) out of the list."""
+    replacer = _replacer(hass)
+    if replacer is None:
+        connection.send_error(msg["id"], "not_loaded", "Replace Device is not set up")
+        return
+    replacer.set_hidden(msg["device"], msg["hidden"])
+    connection.send_result(msg["id"], {"ok": True})
 
 
 @websocket_api.require_admin

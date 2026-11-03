@@ -71,7 +71,9 @@ def async_watch(hass: HomeAssistant) -> CALLBACK_TYPE:
 
 @callback
 def async_suggest(hass: HomeAssistant, new_id: str) -> None:
-    twins = dead_twins(hass, new_id)
+    entries = hass.config_entries.async_loaded_entries(DOMAIN)
+    hidden = set(entries[0].runtime_data.hidden) if entries else set()
+    twins = [d for d in dead_twins(hass, new_id) if d.id not in hidden]
     new = dr.async_get(hass).async_get(new_id)
     if not twins or new is None:
         return

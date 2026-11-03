@@ -6,8 +6,16 @@ const TEXT = {
     heroTitle: "A device died?",
     heroText: "Pair the new one first. It then takes over the old one's name, entity IDs and history – your automations and dashboards keep working.",
     start: "Replace a device",
-    dead: "Dead devices",
-    noDead: "No dead devices. Everything is reporting.",
+    dead: "No contact",
+    deadHint: "Not necessarily broken – often an empty battery, a bulb switched off at the wall, or out of range.",
+    batteryLast: "Battery last: {n} %",
+    batteryLow: "Battery last: {n} % – change the battery first",
+    maybeOff: "Switched off at the wall, or out of range?",
+    hide: "Hide – it's only switched off",
+    unhide: "Show again",
+    showHidden: "{n} hidden – show",
+    hideHidden: "Hide the hidden ones",
+    noDead: "Everything is reporting.",
     deadFor: "No contact for {t}",
     twin: "Possible replacement",
     replaceWith: "Replace with {name}",
@@ -20,13 +28,13 @@ const TEXT = {
     old: "Old device",
     new: "New device",
     choose: "Choose…",
-    deadGroup: "Dead",
+    deadGroup: "No contact",
     allGroup: "All devices",
     newestGroup: "Newest first",
     next: "Next",
     back: "Back",
     tookOver: "takes over",
-    deadTag: "dead",
+    deadTag: "no contact",
     matchTitle: "What goes where",
     matchText: "Each old entity has its match picked. Change it if it's wrong.",
     removed: "— removed",
@@ -119,8 +127,16 @@ const TEXT = {
     heroTitle: "Er en enhed død?",
     heroText: "Par den nye først. Så overtager den den gamles navn, entity-id'er og historik – dine automatiseringer og dashboards virker videre.",
     start: "Udskift en enhed",
-    dead: "Døde enheder",
-    noDead: "Ingen døde enheder. Alt melder sig.",
+    dead: "Uden kontakt",
+    deadHint: "Ikke nødvendigvis i stykker – ofte fladt batteri, en pære slukket på kontakten eller for langt væk.",
+    batteryLast: "Batteri sidst: {n} %",
+    batteryLow: "Batteri sidst: {n} % – skift batteriet først",
+    maybeOff: "Slukket på kontakten, eller for langt væk?",
+    hide: "Skjul – den er bare slukket",
+    unhide: "Vis igen",
+    showHidden: "{n} skjulte – vis",
+    hideHidden: "Skjul de skjulte",
+    noDead: "Alt melder sig.",
     deadFor: "Ingen kontakt i {t}",
     twin: "Mulig afløser",
     replaceWith: "Udskift med {name}",
@@ -133,13 +149,13 @@ const TEXT = {
     old: "Gammel enhed",
     new: "Ny enhed",
     choose: "Vælg…",
-    deadGroup: "Døde",
+    deadGroup: "Uden kontakt",
     allGroup: "Alle enheder",
     newestGroup: "Nyeste først",
     next: "Næste",
     back: "Tilbage",
     tookOver: "overtager",
-    deadTag: "død",
+    deadTag: "uden kontakt",
     matchTitle: "Hvad hører sammen",
     matchText: "For hver gammel entitet er den matchende valgt. Ret den, hvis den er forkert.",
     removed: "— fjernes",
@@ -378,27 +394,42 @@ class ReplaceDevicePanel extends HTMLElement {
   // ---------- views ----------
 
   homeView() {
-    const dead = this.devices.filter((d) => d.dead).sort((a, b) => (b.twins?.length || 0) - (a.twins?.length || 0));
-    const deadCards = dead.length
-      ? dead.map((d) => {
-          const twin = d.twins?.length ? this.device(d.twins[0]) : null;
-          return `
-          <div class="card dead-card">
-            <div class="dev-head">
-              <div class="dot red"></div>
-              <div class="grow">
-                <div class="dev-name">${esc(d.name)}</div>
-                <div class="muted">${esc([d.area, d.model, d.integration_title].filter(Boolean).join(" · "))}</div>
-                <div class="muted small">${esc(this.t("deadFor", { t: d.dead_since ? this.ago(d.dead_since) : "?" }))}</div>
-              </div>
+    const quiet = this.devices.filter((d) => d.dead).sort((a, b) => (b.twins?.length || 0) - (a.twins?.length || 0));
+    const shown = quiet.filter((d) => !d.hidden);
+    const hidden = quiet.filter((d) => d.hidden);
+    const card = (d) => {
+      const twin = d.twins?.length ? this.device(d.twins[0]) : null;
+      const low = d.battery != null && d.battery <= 20;
+      const why = d.battery != null
+        ? `<div class="why ${low ? "low" : ""}"><ha-icon icon="${low ? "mdi:battery-alert-variant-outline" : "mdi:battery-50"}"></ha-icon><span>${this.t(low ? "batteryLow" : "batteryLast", { n: Math.round(d.battery) })}</span></div>`
+        : `<div class="why"><ha-icon icon="mdi:power-plug-off-outline"></ha-icon><span>${this.t("maybeOff")}</span></div>`;
+      return `
+        <div class="card dead-card ${d.hidden ? "is-hidden" : ""}">
+          <div class="dev-head">
+            <div class="dot ${d.hidden ? "grey" : "red"}"></div>
+            <div class="grow">
+              <div class="dev-name">${esc(d.name)}</div>
+              <div class="muted">${esc([d.area, d.model, d.integration_title].filter(Boolean).join(" · "))}</div>
+              <div class="muted small">${esc(this.t("deadFor", { t: d.dead_since ? this.ago(d.dead_since) : "?" }))}</div>
             </div>
-            ${twin ? `
-              <div class="twin"><ha-icon icon="mdi:auto-fix"></ha-icon><div class="grow"><div class="small muted">${this.t("twin")}</div><b>${esc(twin.name)}</b></div></div>
-              <button class="primary full" data-act="plan" data-old="${d.id}" data-new="${twin.id}">${esc(this.t("replaceWith", { name: twin.name }))}</button>`
-            : `<button class="ghost full" data-act="pick" data-old="${d.id}">${this.t("pickReplacement")}</button>`}
-          </div>`;
-        }).join("")
+          </div>
+          ${why}
+          ${twin ? `
+            <div class="twin"><ha-icon icon="mdi:auto-fix"></ha-icon><div class="grow"><div class="small muted">${this.t("twin")}</div><b>${esc(twin.name)}</b></div></div>
+            <button class="primary full" data-act="plan" data-old="${d.id}" data-new="${twin.id}">${esc(this.t("replaceWith", { name: twin.name }))}</button>` : ""}
+          <div class="card-links">
+            ${twin ? "" : `<button class="link" data-act="pick" data-old="${d.id}">${this.t("pickReplacement")}</button>`}
+            <button class="link" data-act="${d.hidden ? "unhide" : "hide"}" data-id="${d.id}">${this.t(d.hidden ? "unhide" : "hide")}</button>
+          </div>
+        </div>`;
+    };
+    const deadCards = shown.length
+      ? shown.map(card).join("")
       : `<div class="card empty"><ha-icon icon="mdi:check-circle"></ha-icon>${this.t("noDead")}</div>`;
+    const hiddenPart = hidden.length
+      ? `<p class="center-link"><button class="link" data-act="toggleHidden">${this.t(this.showHidden ? "hideHidden" : "showHidden", { n: hidden.length })}</button></p>
+         ${this.showHidden ? `<div class="grid">${hidden.map(card).join("")}</div>` : ""}`
+      : "";
     const rows = [];
     for (const h of this.historyItems) {
       const last = rows[rows.length - 1];
@@ -413,8 +444,10 @@ class ReplaceDevicePanel extends HTMLElement {
         <div class="btns"><button class="primary" data-act="pick">${this.t("start")}</button>
         <button class="ghost" data-act="migrate"><ha-icon icon="mdi:transfer"></ha-icon>${this.t("migrateStart")}</button></div></div>
       </div>
-      <h3>${this.t("dead")} ${dead.length ? `<span class="count">${dead.length}</span>` : ""}</h3>
+      <h3>${this.t("dead")} ${shown.length ? `<span class="count">${shown.length}</span>` : ""}</h3>
+      <p class="muted small section-hint">${this.t("deadHint")}</p>
       <div class="grid">${deadCards}</div>
+      ${hiddenPart}
       ${history ? `<h3>${this.t("history")}</h3><div class="card list">${history}</div>` : ""}`;
   }
 
@@ -914,6 +947,11 @@ class ReplaceDevicePanel extends HTMLElement {
       this.undo(data.id);
     } else if (data.act === "undoBatch") {
       this.undo(null, data.batch);
+    } else if (data.act === "hide" || data.act === "unhide") {
+      this.ws("hide", { device: data.id, hidden: data.act === "hide" }).then(() => this.load());
+    } else if (data.act === "toggleHidden") {
+      this.showHidden = !this.showHidden;
+      this.render();
     } else if (data.act === "edit") {
       this.openEdit(data.id);
     } else if (data.act === "saveEdit") {
@@ -984,6 +1022,8 @@ input:checked+.switch{background:var(--rd-blue)}input:checked+.switch:after{left
 .check path{fill:none;stroke:var(--rd-green);stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
 @keyframes pop{from{transform:scale(.5)}}
 .warn-text{color:var(--rd-amber)}
+.why{display:flex;gap:8px;align-items:center;margin-top:10px;font-size:14px;color:var(--secondary-text-color)}.why ha-icon{--mdc-icon-size:18px}.why.low{color:var(--rd-amber);font-weight:500}
+.card-links{display:flex;justify-content:space-between;gap:8px;margin-top:8px}.dot.grey{background:var(--disabled-text-color,#9aa3ad);box-shadow:none}.is-hidden{opacity:.7}.section-hint{margin:-4px 4px 12px}
 .batch-items{padding-left:22px;border-left:2px solid var(--divider-color,#e3e7ec);margin:0 0 6px 10px}.batch-head{border-bottom:0}
 button.link{background:none;border:0;color:var(--secondary-text-color);text-decoration:underline;font-size:13px;padding:6px}.center-link{text-align:center;margin-top:18px}
 button.danger{background:var(--rd-red);color:#fff}.give-back{margin-top:16px}

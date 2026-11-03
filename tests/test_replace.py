@@ -881,3 +881,28 @@ async def test_edit_pairs_afterwards(hass: HomeAssistant, hass_ws_client) -> Non
     bad = {"sensor.kitchen_temperature": pressure, "sensor.kitchen_humidity": pressure}
     await client.send_json_auto_id({"type": "replace_device/edit", "record": record, "mapping": bad})
     assert not (await client.receive_json())["success"]
+
+
+async def test_hide_device_without_contact(hass: HomeAssistant, hass_ws_client, monkeypatch) -> None:
+    """A bulb switched off at the wall can be hidden: it leaves the list and gets no replacement suggestions."""
+    from custom_components.replace_device import suggest
+
+    monkeypatch.setattr("custom_components.replace_device.suggest.DEAD_AFTER", 0)
+    old = _device(hass, "zha", "old", "Kitchen", OLD_SENSORS)
+    for key, *_ in OLD_SENSORS:
+        hass.states.async_set(f"sensor.kitchen_{key}", "unavailable")
+    await _setup(hass)
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": "replace_device/hide", "device": old.id, "hidden": True})
+    assert (await client.receive_json())["success"]
+    await client.send_json_auto_id({"type": "replace_device/devices"})
+    devices = {d["id"]: d for d in (await client.receive_json())["result"]["devices"]}
+    assert devices[old.id]["dead"] and devices[old.id]["hidden"] and devices[old.id]["battery"] is None
+
+    new = _device(hass, "mqtt", "new", "0x00158d0001", NEW_SENSORS)
+    suggest.async_suggest(hass, new.id)
+    assert ir.async_get(hass).async_get_issue(DOMAIN, f"suggest_{new.id}") is None
+    await client.send_json_auto_id({"type": "replace_device/hide", "device": old.id, "hidden": False})
+    assert (await client.receive_json())["success"]
+    suggest.async_suggest(hass, new.id)
+    assert ir.async_get(hass).async_get_issue(DOMAIN, f"suggest_{new.id}") is not None

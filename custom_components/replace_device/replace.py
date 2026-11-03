@@ -99,6 +99,8 @@ class Replacer:
         # Optional AI Task entity, set from the integration's options.
         self.ai_entity: str | None = None
         self._ai_cache: dict[tuple[str, str], dict[str, str]] = {}
+        # Devices the user said are only switched off, not gone.
+        self.hidden: list[str] = []
 
     @callback
     def async_stop(self) -> None:
@@ -107,7 +109,9 @@ class Replacer:
 
     async def async_load(self) -> None:
         cutoff = time.time() - _KEEP_DAYS * 86400
-        self.history = [h for h in (await self.store.async_load() or {}).get("history", []) if h["at"] >= cutoff]
+        data = await self.store.async_load() or {}
+        self.history = [h for h in data.get("history", []) if h["at"] >= cutoff]
+        self.hidden = data.get("hidden", [])
 
     async def async_replace(
         self,
@@ -519,8 +523,13 @@ class Replacer:
                 filled.append(old_id)
         return filled
 
+    @callback
+    def set_hidden(self, device_id: str, hidden: bool) -> None:
+        self.hidden = [d for d in self.hidden if d != device_id] + ([device_id] if hidden else [])
+        self._save()
+
     def _save(self) -> None:
-        self.store.async_delay_save(lambda: {"history": self.history}, 1)
+        self.store.async_delay_save(lambda: {"history": self.history, "hidden": self.hidden}, 1)
 
     async def async_reload(self, domains: set[str]) -> None:
         """Reload what was changed. A broken file must not stop the replacement; HA tells the user about it."""
