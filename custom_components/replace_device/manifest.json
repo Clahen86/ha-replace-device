@@ -4,6 +4,8 @@
   "after_dependencies": [
     "automation",
     "logbook",
+    "lovelace",
+    "mqtt",
     "recorder",
     "script"
   ],
