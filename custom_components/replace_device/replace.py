@@ -106,6 +106,8 @@ class Replacer:
         # Optional AI Task entity, set from the integration's options.
         self.ai_entity: str | None = None
         self._ai_cache: dict[tuple[str, str], dict[str, str]] = {}
+        # Why the AI couldn't answer the last time it was asked ("quota", …), None when it did.
+        self.ai_error: str | None = None
         # Devices the user said are only switched off, not gone.
         self.hidden: list[str] = []
 
@@ -175,6 +177,7 @@ class Replacer:
             else None,
             new_base=z2m_base_topic(hass, plan.new, Z2M_BASE_TOPIC) if z2m_ieee(plan.new) else None,
             new_z2m_ieee=z2m_ieee(plan.new),
+            context=_context(hass, plan),
         )
         old_ids = [o.entity_id for o, _ in pairs]
         temp_ids = [n.entity_id for _, n in pairs]
@@ -521,28 +524,53 @@ class Replacer:
         await self.async_reload({"automation", "script", "scene"})
         return len(records)
 
+    def _question(self, plan: Plan) -> tuple[ai.Question, list, list] | None:
+        """What to ask the AI about one device: old entities without a (sure) match, new ones still free."""
+        doubtful = set(plan.unsure)
+        taken = {v for k, v in plan.mapping.items() if v and k not in doubtful}
+        old = [o for o in plan.old_entities if not plan.mapping.get(o.entity_id) or o.entity_id in doubtful]
+        new = [n for n in plan.new_entities if n.entity_id not in taken and any(n.domain == o.domain for o in old)]
+        if not old or not new:
+            return None
+        question = ai.Question(_context(self.hass, plan), [_describe(e) for e in old], [_describe(e) for e in new])
+        return question, old, new
+
+    async def async_fill_many(self, plans: list[Plan]) -> None:
+        """Ask the AI about every device not asked before, in one call. A failure is kept in ai_error."""
+        if not self.ai_entity:
+            return
+        todo = []
+        for plan in plans:
+            key = (plan.old.id, plan.new.id)
+            if key in self._ai_cache:
+                continue
+            if (asked := self._question(plan)) is None:
+                self._ai_cache[key] = {}
+                continue
+            todo.append((key, *asked))
+        if not todo:
+            return
+        try:
+            await ai.async_ask_many(self.hass, self.ai_entity, "entities", [question for _, question, _, _ in todo])
+        except ai.AiError as err:
+            # Not remembered, so it is tried again next time (e.g. when the quota is back).
+            self.ai_error = str(err)
+            return
+        self.ai_error = None
+        for key, question, old, new in todo:
+            self._ai_cache[key] = {
+                old[i].entity_id: new[j].entity_id for i, j in question.answer.items() if old[i].domain == new[j].domain
+            }
+
     async def async_fill_with_ai(self, plan: Plan) -> list[str]:
-        """Ask the AI about old entities that found no match, when the new device has unused ones of the same kind."""
+        """Use the AI's answer for a plan's gaps and close calls; returns the old entities it filled."""
         if not self.ai_entity:
             return []
-        key = (plan.old.id, plan.new.id)
-        if key not in self._ai_cache:
-            doubtful = set(plan.unsure)
-            taken = {v for k, v in plan.mapping.items() if v and k not in doubtful}
-            old = [o for o in plan.old_entities if not plan.mapping.get(o.entity_id) or o.entity_id in doubtful]
-            new = [n for n in plan.new_entities if n.entity_id not in taken and any(n.domain == o.domain for o in old)]
-            picks = (
-                await ai.async_pick_entities(
-                    self.hass, self.ai_entity, [_describe(e) for e in old], [_describe(e) for e in new]
-                )
-                if old and new
-                else {}
-            )
-            self._ai_cache[key] = {
-                old[i].entity_id: new[j].entity_id for i, j in picks.items() if old[i].domain == new[j].domain
-            }
+        await self.async_fill_many([plan])
+        answer = self._ai_cache.get((plan.old.id, plan.new.id))
+        if answer is None:
+            return []
         filled = []
-        answer = self._ai_cache[key]
         # The AI's answer for a close call wins; whatever it gives up becomes free for others.
         for old_id in plan.unsure:
             if old_id in answer:
@@ -660,6 +688,17 @@ async def _rename_in_z2m(hass: HomeAssistant, device: dr.DeviceEntry, name: str)
         {"topic": f"{z2m_base_topic(hass, device, Z2M_BASE_TOPIC)}/bridge/request/device/rename", "payload": payload},
     )
     return True
+
+
+def _context(hass: HomeAssistant, plan: Plan) -> str:
+    """'Aqara WSDCGQ11LM in ZHA → Aqara WSDCGQ11LM in Zigbee2MQTT', so the AI knows what it is looking at."""
+    from .hardware import source
+
+    def one(device: dr.DeviceEntry) -> str:
+        what = " ".join(p for p in (device.manufacturer, device.model) if p) or device_name(device)
+        return f"{what} in {source(hass, device)[1] or 'its integration'}"
+
+    return f"{one(plan.old)} → {one(plan.new)}"
 
 
 def _describe(entry: er.RegistryEntry) -> str:

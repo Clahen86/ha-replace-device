@@ -52,7 +52,7 @@ Moving from **ZHA to Zigbee2MQTT** (or any integration to another)? Pair the dev
 
 ### Optional AI help
 
-Connect any AI Task entity (e.g. Google Gemini, free) under **Settings → Devices & services → Replace Device → Configure**. It is only asked when something can't be matched by itself: entities named differently on the old and the new device ("Analog input" ↔ "Local temperature"), and button triggers with no obvious twin. Suggestions are marked **AI** in the panel, and you can change them. Tip: give it its own free Gemini key in its own project, so it doesn't share the daily quota.
+Connect any AI Task entity (e.g. Google Gemini, free) under **Settings → Devices & services → Replace Device → Configure**. It is only asked when something can't be matched by itself: entities named differently on the old and the new device ("Analog input" ↔ "Local temperature"), and button triggers with no obvious twin. Suggestions are marked **AI** in the panel, and you can change them. It is told what each device is (make, model, from and to which integration), and a move of many devices is one AI call, not one per device. If the AI can't answer (e.g. its daily quota is used up), the panel says so and the open items are marked to check. Tip: give it its own free Gemini key in its own project, so it doesn't share the daily quota.
 
 ### Installation
 
@@ -123,7 +123,7 @@ Skal du flytte fra **ZHA til Zigbee2MQTT** eller mellem to andre integrationer? 
 
 ### Valgfri AI-hjælp
 
-Tilslut en AI Task-enhed, fx Google Gemini, som er gratis, under **Indstillinger → Enheder og tjenester → Udskift enhed → Konfigurer**. Den bliver kun spurgt, når noget ikke kan matches af sig selv. Det gælder entiteter med forskellige navne på den gamle og den nye enhed ("Analog input" ↔ "Local temperature") og knaptriggere uden en oplagt tvilling. Forslagene er markeret med **AI** i panelet, og du kan ændre dem. Tip: Giv den sin egen gratis Gemini-nøgle i sit eget projekt, så den ikke deler dagskvoten med andet.
+Tilslut en AI Task-enhed, fx Google Gemini, som er gratis, under **Indstillinger → Enheder og tjenester → Udskift enhed → Konfigurer**. Den bliver kun spurgt, når noget ikke kan matches af sig selv. Det gælder entiteter med forskellige navne på den gamle og den nye enhed ("Analog input" ↔ "Local temperature") og knaptriggere uden en oplagt tvilling. Forslagene er markeret med **AI** i panelet, og du kan ændre dem. Den får at vide, hvad hver enhed er (mærke, model og fra hvilken integration til hvilken), og en flytning af mange enheder er ét AI-kald i stedet for ét pr. enhed. Kan AI'en ikke svare, fx fordi dagens kvote er brugt op, står det i panelet, og det, den skulle have hjulpet med, er markeret til at tjekke. Tip: Giv den sin egen gratis Gemini-nøgle i sit eget projekt, så den ikke deler dagskvoten med andet.
 
 ### Installation
 

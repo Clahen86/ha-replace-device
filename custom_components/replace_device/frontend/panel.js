@@ -77,6 +77,8 @@ const TEXT = {
     groupsText: "Groups made again in the new integration with the same name take over the old group's entity ID and history.",
     noGroups: "No groups with the same name were found. Make the group again in the new integration – with the same name – and it shows up here.",
     unsureTag: "check",
+    aiFailed: "The AI couldn't answer ({e}) – what it would have helped with is marked to check.",
+    aiQuota: "The AI's daily quota is used up – what it would have helped with is marked to check. It works again tomorrow.",
     rememberedTag: "{n} names remembered",
     eventTypesDiffer: "{name}: the presses are called differently now ({missing} → {new}). Automations that check the press type must be changed.",
     unsureLine: "Not sure: {name} → {new}. Check that it is the same thing.",
@@ -212,6 +214,8 @@ const TEXT = {
     groupsText: "Grupper, der er lavet igen i den nye integration med samme navn, overtager den gamle gruppes entity-id og historik.",
     noGroups: "Der blev ikke fundet grupper med samme navn. Lav gruppen igen i den nye integration – med samme navn – så dukker den op her.",
     unsureTag: "tjek",
+    aiFailed: "AI'en kunne ikke svare ({e}) – det, den skulle have hjulpet med, er markeret til at tjekke.",
+    aiQuota: "AI'ens kvote for i dag er brugt op – det, den skulle have hjulpet med, er markeret til at tjekke. Den virker igen i morgen.",
     rememberedTag: "{n} navne huskes",
     eventTypesDiffer: "{name}: trykkene hedder noget andet nu ({missing} → {new}). Automatiseringer, der tjekker typen af tryk, skal rettes.",
     unsureLine: "Usikkert: {name} → {new}. Tjek at det er det samme.",
@@ -536,6 +540,12 @@ class ReplaceDevicePanel extends HTMLElement {
     this.load();
   }
 
+  aiNote(error) {
+    if (!error) return "";
+    const text = error === "quota" ? this.t("aiQuota") : this.t("aiFailed", { e: error });
+    return `<p class="hint left-hint"><ha-icon icon="mdi:robot-confused-outline"></ha-icon><span>${esc(text)}</span></p>`;
+  }
+
   historyRow(h) {
     return `
       <div class="hist">
@@ -700,6 +710,7 @@ class ReplaceDevicePanel extends HTMLElement {
         <h2>${this.t("migrateDone", { d: r.devices })}</h2>
         <p class="muted">${this.t("migrateDoneText", { n: r.moved })}</p>
         ${r.triggers?.translated?.length ? `<p class="ok-text">${this.t("triggersDone", { n: r.triggers.translated.length })}</p>` : ""}
+        ${this.aiNote(r.ai_error || r.triggers?.ai_error)}
         ${r.triggers?.translated?.length || r.translated ? `<p class="hint left-hint"><ha-icon icon="mdi:gesture-tap-button"></ha-icon><span>${this.t("pressOnce")}</span></p>` : ""}
         ${r.integrations?.length ? `<p class="ok-text">${esc(this.t("otherIntegrations", { list: r.integrations.join(", ") }))}</p>` : ""}
         ${r.dashboards?.length ? `<p class="ok-text">${esc(this.t("dashboardsUpdated", { list: r.dashboards.join(", ") }))}</p>` : ""}
@@ -786,6 +797,7 @@ class ReplaceDevicePanel extends HTMLElement {
         <h3 class="in">${this.t("matchTitle")}</h3>
         <p class="muted">${this.t("matchText")}</p>
         <div class="rows">${rows}</div>
+        ${this.aiNote(p.ai_error)}
         ${!p.ai_enabled && p.old_entities.some((o) => !this.mapping[o.entity_id]) ? `<p class="hint"><ha-icon icon="mdi:robot-outline"></ha-icon><span>${this.t("aiHint")}</span></p>` : ""}
       </div>
       ${own.length ? `<div class="card"><h3 class="in">${this.t("keepsOwn")}</h3><div class="chips">${own.map((n) => `<span class="chip"><ha-icon icon="${this.icon(n)}"></ha-icon>${esc(n.name || n.entity_id)}</span>`).join("")}</div></div>` : ""}
@@ -883,6 +895,7 @@ class ReplaceDevicePanel extends HTMLElement {
         ${this.removeOld && !r.removed ? `<p class="warn-text">${this.t("keptOld")}</p>` : ""}
         ${r.failed?.length ? `<p class="warn-text">${esc(this.t("notMoved", { list: r.failed.join(", ") }))}</p>` : ""}
         ${r.triggers?.translated?.length ? `<p class="ok-text">${this.t("triggersDone", { n: r.triggers.translated.length })}</p>` : ""}
+        ${this.aiNote(r.ai_error || r.triggers?.ai_error)}
         ${r.triggers?.translated?.length || r.translated ? `<p class="hint left-hint"><ha-icon icon="mdi:gesture-tap-button"></ha-icon><span>${this.t("pressOnce")}</span></p>` : ""}
         ${r.integrations?.length ? `<p class="ok-text">${esc(this.t("otherIntegrations", { list: r.integrations.join(", ") }))}</p>` : ""}
         ${r.dashboards?.length ? `<p class="ok-text">${esc(this.t("dashboardsUpdated", { list: r.dashboards.join(", ") }))}</p>` : ""}

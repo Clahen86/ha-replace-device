@@ -118,6 +118,8 @@ class Moved:
     new_z2m_name: str | None = None
     new_base: str | None = None
     new_z2m_ieee: str | None = None
+    # "IKEA SOMRIG in ZHA → IKEA SOMRIG in Zigbee2MQTT", for the AI.
+    context: str = ""
 
 
 async def async_translate(hass: HomeAssistant, moved: Moved, ai_entity: str | None) -> dict[str, list[str]]:
@@ -137,6 +139,7 @@ async def async_translate(hass: HomeAssistant, moved: Moved, ai_entity: str | No
 
     translated: list[str] = []
     unresolved: list[str] = []
+    ai_error: str | None = None
     found = []
     for automation in automations:
         if not isinstance(automation, dict):
@@ -167,10 +170,18 @@ async def async_translate(hass: HomeAssistant, moved: Moved, ai_entity: str | No
             ]
         choices: dict[int, dict[str, Any] | None] = {i: best(m, candidates) for i, (_, _, m) in enumerate(found)}
         open_items = [i for i, choice in choices.items() if choice is None]
+        answer: dict[int, int] = {}
         if open_items and candidates and ai_entity:
-            answer = await ai.async_pick_triggers(
-                hass, ai_entity, [label(found[i][2]) for i in open_items], [label(c) for c in candidates]
-            )
+            try:
+                answer = await ai.async_pick_triggers(
+                    hass,
+                    ai_entity,
+                    [label(found[i][2]) for i in open_items],
+                    [label(c) for c in candidates],
+                    moved.context,
+                )
+            except ai.AiError as err:
+                ai_error = str(err)
             for n, i in enumerate(open_items):
                 if (pick := answer.get(n)) is not None and same_button(found[i][2], candidates[pick]):
                     choices[i] = candidates[pick]
@@ -195,7 +206,10 @@ async def async_translate(hass: HomeAssistant, moved: Moved, ai_entity: str | No
 
     if translated:
         await hass.async_add_executor_job(_save, path, automations)
-    return {"translated": translated, "unresolved": unresolved}
+    result: dict[str, Any] = {"translated": translated, "unresolved": unresolved}
+    if ai_error:
+        result["ai_error"] = ai_error
+    return result
 
 
 def _old_meaning(trigger: dict[str, Any], moved: Moved) -> dict[str, Any] | None:

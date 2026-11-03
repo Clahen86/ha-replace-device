@@ -412,8 +412,8 @@ async def test_translate_triggers_ai_and_undo_all(hass: HomeAssistant, hass_ws_c
     async def generate_data(call):
         asked.append(call.data["instructions"])
         if "triggers" in call.data["task_name"]:
-            return {"data": '{"answers": [{"n": 1, "pick": 3}, {"n": 2, "pick": 0}]}'}
-        return {"data": {"answers": [{"n": 1, "pick": 1}]}}
+            return {"data": '{"devices": [{"device": 1, "answers": [{"n": 1, "pick": 3}, {"n": 2, "pick": 0}]}]}'}
+        return {"data": {"devices": [{"device": 1, "answers": [{"n": 1, "pick": 1}]}]}}
 
     hass.services.async_register("ai_task", "generate_data", generate_data, supports_response=SupportsResponse.ONLY)
     entry = MockConfigEntry(domain=DOMAIN, data={}, options={"ai_task": "ai_task.gemini"})
@@ -1232,3 +1232,129 @@ def test_statistics_gone() -> None:
     old = SimpleNamespace(domain="sensor", capabilities={"state_class": "measurement"}, unit_of_measurement=None)
     new = SimpleNamespace(domain="sensor", capabilities=None, unit_of_measurement=None)
     assert differences(old, new) == [{"kind": "statistics_gone", "old": "measurement"}]
+
+
+async def test_ai_one_call_context_and_quota(hass: HomeAssistant, hass_ws_client) -> None:
+    """Move many asks the AI once for all devices, says what each device is, and a used-up quota is shown."""
+    from homeassistant.core import SupportsResponse
+    from homeassistant.exceptions import HomeAssistantError
+
+    asked = []
+    quota = {"used": False}
+
+    async def generate_data(call):
+        if quota["used"]:
+            raise HomeAssistantError("429 RESOURCE_EXHAUSTED: quota per day")
+        asked.append(call.data["instructions"])
+        return {
+            "data": {
+                "devices": [
+                    {"device": 1, "answers": [{"n": 1, "pick": 1}]},
+                    {"device": 2, "answers": [{"n": 1, "pick": 1}]},
+                ]
+            }
+        }
+
+    hass.services.async_register("ai_task", "generate_data", generate_data, supports_response=SupportsResponse.ONLY)
+    zha_entry = MockConfigEntry(domain="zha", title="ZHA")
+    zha_entry.add_to_hass(hass)
+    mqtt_entry = MockConfigEntry(domain="mqtt", title="Mosquitto broker")
+    mqtt_entry.add_to_hass(hass)
+    devices, registry = dr.async_get(hass), er.async_get(hass)
+    pairs = []
+    for n in (1, 2):
+        ieee = f"00:15:8d:00:01:a2:b3:c{n}"
+        old = devices.async_get_or_create(
+            config_entry_id=zha_entry.entry_id,
+            identifiers={("zha", ieee)},
+            connections={(dr.CONNECTION_ZIGBEE, ieee)},
+            name=f"Sensor {n}",
+            manufacturer="LUMI",
+            model="lumi.weather",
+        )
+        new = devices.async_get_or_create(
+            config_entry_id=mqtt_entry.entry_id,
+            identifiers={("mqtt", f"zigbee2mqtt_0x00158d0001a2b3c{n}")},
+            name=f"0x{n}",
+            manufacturer="Aqara",
+            model="WSDCGQ11LM",
+        )
+        registry.async_get_or_create(
+            "sensor",
+            "zha",
+            f"{ieee}-a",
+            suggested_object_id=f"sensor_{n}_analog",
+            device_id=old.id,
+            config_entry=zha_entry,
+            original_name="Analog input",
+        )
+        registry.async_get_or_create(
+            "sensor",
+            "mqtt",
+            f"z{n}-t",
+            suggested_object_id=f"z{n}_local_temperature",
+            device_id=new.id,
+            config_entry=mqtt_entry,
+            original_name="Local temperature",
+        )
+        for device, platform, entry_ in ((old, "zha", zha_entry), (new, "mqtt", mqtt_entry)):
+            registry.async_get_or_create(
+                "sensor",
+                platform,
+                f"{device.id}-b",
+                suggested_object_id=f"{device.name}_battery".lower(),
+                device_id=device.id,
+                config_entry=entry_,
+                original_device_class="battery",
+                unit_of_measurement="%",
+            )
+        pairs.append({"old": old.id, "new": new.id})
+    entry = MockConfigEntry(domain=DOMAIN, data={}, options={"ai_task": "ai_task.gemini"})
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    client = await hass_ws_client(hass)
+
+    await client.send_json_auto_id({"type": "replace_device/migrate", "pairs": pairs})
+    result = (await client.receive_json())["result"]
+    assert result["moved"] == 4 and result["ai_error"] is None
+    assert len(asked) == 1 and "Device 2: Aqara" not in asked[0]
+    assert "LUMI lumi.weather in ZHA → Aqara WSDCGQ11LM in Zigbee2MQTT" in asked[0]
+    assert registry.async_get("sensor.sensor_1_analog").platform == "mqtt"
+
+    # The quota is used up: the panel is told, and nothing is guessed.
+    quota["used"] = True
+    third = devices.async_get_or_create(config_entry_id=zha_entry.entry_id, identifiers={("zha", "x")}, name="Gammel")
+    registry.async_get_or_create(
+        "sensor",
+        "zha",
+        "x-a",
+        suggested_object_id="gammel_analog",
+        device_id=third.id,
+        config_entry=zha_entry,
+        original_name="Analog input",
+    )
+    fresh = devices.async_get_or_create(config_entry_id=mqtt_entry.entry_id, identifiers={("mqtt", "y")}, name="Ny")
+    registry.async_get_or_create(
+        "sensor",
+        "mqtt",
+        "y-t",
+        suggested_object_id="ny_local_temperature",
+        device_id=fresh.id,
+        config_entry=mqtt_entry,
+        original_name="Local temperature",
+    )
+    for device, platform, entry_ in ((third, "zha", zha_entry), (fresh, "mqtt", mqtt_entry)):
+        registry.async_get_or_create(
+            "sensor",
+            platform,
+            f"{device.id}-b",
+            suggested_object_id=f"{device.name}_battery".lower(),
+            device_id=device.id,
+            config_entry=entry_,
+            original_device_class="battery",
+            unit_of_measurement="%",
+        )
+    await client.send_json_auto_id({"type": "replace_device/plan", "old": third.id, "new": fresh.id})
+    plan = (await client.receive_json())["result"]
+    assert plan["ai_error"] == "quota" and plan["mapping"]["sensor.gammel_analog"] is None

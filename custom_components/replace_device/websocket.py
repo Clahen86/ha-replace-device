@@ -204,12 +204,19 @@ async def ws_plan(hass: HomeAssistant, connection: websocket_api.ActiveConnectio
         connection.send_error(msg["id"], "unknown_device", "Pick two different devices that exist")
         return
     replacer = _replacer(hass)
+    if replacer:
+        replacer.ai_error = None
     # The AI only fills gaps in a fresh plan; a mapping the user edited is left alone.
     filled = await replacer.async_fill_with_ai(plan) if replacer and "mapping" not in msg else []
     connection.send_result(
         msg["id"],
         _plan(hass, plan)
-        | {"ai": filled, "ai_enabled": bool(replacer and replacer.ai_entity), "checks": await async_checks(hass, plan)},
+        | {
+            "ai": filled,
+            "ai_enabled": bool(replacer and replacer.ai_entity),
+            "ai_error": replacer.ai_error if replacer else None,
+            "checks": await async_checks(hass, plan),
+        },
     )
 
 
@@ -438,8 +445,13 @@ async def ws_migrate(hass: HomeAssistant, connection: websocket_api.ActiveConnec
         return
     batch = str(int(time.time() * 1000))
     done, failed, moved, reload, unresolved, translated = [], [], 0, set(), [], 0
+    plans = {pair["old"]: async_plan(hass, pair["old"], pair["new"]) for pair in msg["pairs"]}
+    # One AI call for every device that needs help, not one per device.
+    replacer.ai_error = None
+    await replacer.async_fill_many([p for p in plans.values() if p is not None])
+    ai_error = replacer.ai_error
     for pair in msg["pairs"]:
-        plan = async_plan(hass, pair["old"], pair["new"])
+        plan = plans[pair["old"]]
         if plan is None:
             failed.append(pair["old"])
             continue
@@ -449,6 +461,7 @@ async def ws_migrate(hass: HomeAssistant, connection: websocket_api.ActiveConnec
         moved += result["moved"]
         reload.update(result["changed"])
         unresolved += result["triggers"]["unresolved"]
+        ai_error = ai_error or result["triggers"].get("ai_error")
         translated += len(result["triggers"]["translated"])
     entities = er.async_get(hass)
     for group in msg["groups"]:
@@ -470,5 +483,6 @@ async def ws_migrate(hass: HomeAssistant, connection: websocket_api.ActiveConnec
             "batch": batch,
             "unresolved": unresolved,
             "translated": translated,
+            "ai_error": ai_error,
         },
     )
