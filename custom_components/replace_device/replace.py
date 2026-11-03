@@ -15,7 +15,7 @@ import os
 import time
 from collections.abc import Awaitable
 from typing import Any
-import uuid
+from uuid import uuid4
 
 from homeassistant import loader
 from homeassistant.config_entries import ConfigEntryState
@@ -122,7 +122,7 @@ class Replacer:
         pairs = plan.pairs
         now = time.time()
         record: dict[str, Any] = {
-            "id": uuid.uuid4().hex,
+            "id": uuid4().hex,
             "at": now,
             "old_device": {
                 "id": plan.old.id,
@@ -262,7 +262,7 @@ class Replacer:
         hass, entities = self.hass, er.async_get(self.hass)
         now = time.time()
         record: dict[str, Any] = {
-            "id": uuid.uuid4().hex,
+            "id": uuid4().hex,
             "at": now,
             "old_device": {"id": None, "name": name, "model": "Group"},
             "new_device": {"id": None, "name": new.entity_id, "model": "Group"},
@@ -336,6 +336,103 @@ class Replacer:
         self._save()
         return True
 
+    def edit_plan(self, record_id: str) -> dict[str, Any] | None:
+        """The names a replacement moved, which of the new device's entities has each one now, and the choices."""
+        record = next((r for r in self.history if r["id"] == record_id and not r["undone"]), None)
+        device_id = record and record["new_device"].get("id")
+        if record is None or not device_id:
+            return None
+        hass, entities = self.hass, er.async_get(self.hass)
+        slots = []
+        for item in record["entities"]:
+            holder = entities.async_get(item["entity_id"])
+            state = hass.states.get(item["entity_id"])
+            name = (state and state.attributes.get("friendly_name")) or (item.get("old") or {}).get("name")
+            slots.append(
+                {
+                    "entity_id": item["entity_id"],
+                    "name": name or item["entity_id"],
+                    "holder": holder.id if holder and holder.device_id == device_id else None,
+                }
+            )
+        choices = []
+        for entry in er.async_entries_for_device(entities, device_id, include_disabled_entities=True):
+            state = hass.states.get(entry.entity_id)
+            choices.append(
+                {
+                    "uuid": entry.id,
+                    "entity_id": entry.entity_id,
+                    "domain": entry.domain,
+                    "name": entry.original_name or entry.name or entry.entity_id,
+                    "state": state.state if state else None,
+                    "unit": entry.unit_of_measurement,
+                }
+            )
+        return {
+            "id": record_id,
+            "device_id": device_id,
+            "old_name": record["old_device"]["name"],
+            "slots": slots,
+            "choices": choices,
+        }
+
+    async def async_edit(self, record_id: str, mapping: dict[str, str | None]) -> bool:
+        """Change which of the new device's entities carries each moved name (e.g. temperature and battery mixed up).
+
+        Only names change; the device stays where it is. An entity that loses its name gets its own one back."""
+        record = next((r for r in self.history if r["id"] == record_id and not r["undone"]), None)
+        if record is None or not record["new_device"].get("id"):
+            return False
+        entities = er.async_get(self.hass)
+        items = {item["entity_id"]: item for item in record["entities"]}
+        current = {slot: getattr(entities.async_get(slot), "id", None) for slot in items}
+        wanted = current | {slot: uuid for slot, uuid in mapping.items() if slot in items}
+        picked = [uuid for uuid in wanted.values() if uuid]
+        if len(picked) != len(set(picked)) or any(entities.async_get(uuid) is None for uuid in picked):
+            return False
+        changes = {slot: uuid for slot, uuid in wanted.items() if uuid != current[slot]}
+        if not changes:
+            return True
+
+        # What each name carries now (the old device's settings and changes since), and each entity's own id/settings.
+        carried = {
+            slot: _settings(entities.async_get(slot)) if current[slot] else items[slot].get("old") for slot in changes
+        }
+        own: dict[str, dict[str, Any]] = {}
+        for uuid in {current[slot] for slot in changes} | set(changes.values()):
+            if not uuid:
+                continue
+            item = next((i for i in record["entities"] if i["uuid"] == uuid), None)
+            entry = entities.async_get(uuid)
+            own[uuid] = (
+                {k: item[k] for k in (*_SETTINGS, "was")} if item else _settings(entry) | {"was": entry.entity_id}
+            )
+
+        # 1. Entities that lose a name get their own id and settings back, so the names are free.
+        for slot in changes:
+            if (uuid := current[slot]) is None:
+                continue
+            entry = entities.async_get(uuid)
+            target = own[uuid]["was"]
+            if entities.async_get(target):
+                target = entities.async_generate_entity_id(entry.domain, target.split(".", 1)[1])
+            entities.async_update_entity(entry.entity_id, new_entity_id=target, **_restore(own[uuid]))
+
+        # 2. The chosen entities take the names, with everything the name carried.
+        for slot, uuid in changes.items():
+            item = items[slot]
+            if uuid is None:
+                record["entities"].remove(item)
+                continue
+            entry = entities.async_get(uuid)
+            settings = carried[slot] or _EMPTY_SETTINGS
+            entities.async_update_entity(entry.entity_id, new_entity_id=slot, **_restore(settings))
+            for domain, options in settings["options"].items():
+                entities.async_update_entity_options(slot, domain, dict(entry.options.get(domain, {})) | dict(options))
+            item.update(own[uuid], uuid=uuid, old=settings)
+        self._save()
+        return True
+
     async def async_redo(self, record_id: str, reload: bool = True) -> bool:
         """Do an undone replacement again: the new entities take the old ids back, also when the old device is gone."""
         record = next((r for r in self.history if r["id"] == record_id and r["undone"]), None)
@@ -348,17 +445,7 @@ class Replacer:
             if entry is None or entities.async_get(item["entity_id"]):
                 continue
             hass.states.async_remove(item["entity_id"])
-            old = item.get("old") or {
-                "name": None,
-                "icon": None,
-                "area_id": None,
-                "labels": [],
-                "aliases": [],
-                "categories": {},
-                "device_class": None,
-                "hidden_by": None,
-                "options": {},
-            }
+            old = item.get("old") or _EMPTY_SETTINGS
             entities.async_update_entity(entry.entity_id, new_entity_id=item["entity_id"], **_restore(old))
             for domain, options in old["options"].items():
                 entities.async_update_entity_options(
@@ -477,6 +564,20 @@ def _settings(entry: er.RegistryEntry) -> dict[str, Any]:
         "hidden_by": entry.hidden_by,
         "options": {domain: dict(options) for domain, options in entry.options.items()},
     }
+
+
+_SETTINGS = ("name", "icon", "area_id", "labels", "aliases", "categories", "device_class", "hidden_by", "options")
+_EMPTY_SETTINGS: dict[str, Any] = {
+    "name": None,
+    "icon": None,
+    "area_id": None,
+    "labels": [],
+    "aliases": [],
+    "categories": {},
+    "device_class": None,
+    "hidden_by": None,
+    "options": {},
+}
 
 
 def _update(entry: er.RegistryEntry) -> dict[str, Any]:

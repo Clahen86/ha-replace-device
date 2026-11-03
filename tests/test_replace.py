@@ -836,3 +836,48 @@ async def test_undo_then_do_again(hass: HomeAssistant, tmp_path) -> None:
     assert dr.async_get(hass).async_get(new.id).name_by_user == "Kitchen"
     assert new.id in (tmp_path / "automations.yaml").read_text()
     assert not await replacer.async_redo(result["id"])
+
+
+async def test_edit_pairs_afterwards(hass: HomeAssistant, hass_ws_client) -> None:
+    """Temperature and humidity got mixed up: "change" swaps the names afterwards, without moving the device."""
+    old = _device(hass, "zha", "old", "Kitchen", OLD_SENSORS)
+    new = _device(hass, "mqtt", "new", "0x00158d0001", NEW_SENSORS)
+    registry = er.async_get(hass)
+    registry.async_update_entity("sensor.kitchen_temperature", name="Køkken temp")
+    await _setup(hass)
+    client = await hass_ws_client(hass)
+    wrong = {
+        "sensor.kitchen_temperature": "sensor.0x00158d0001_humidity",
+        "sensor.kitchen_humidity": "sensor.0x00158d0001_temperature",
+        "sensor.kitchen_battery": "sensor.0x00158d0001_battery",
+        "sensor.kitchen_rssi": None,
+    }
+    await client.send_json_auto_id({"type": "replace_device/replace", "old": old.id, "new": new.id, "mapping": wrong})
+    record = (await client.receive_json())["result"]["id"]
+    await hass.async_block_till_done()
+    assert registry.async_get("sensor.kitchen_temperature").unique_id == "new-humidity"
+
+    await client.send_json_auto_id({"type": "replace_device/edit_plan", "record": record})
+    plan = (await client.receive_json())["result"]
+    by_id = {c["entity_id"]: c["uuid"] for c in plan["choices"]}
+    slots = {s["entity_id"]: s["holder"] for s in plan["slots"]}
+    assert slots["sensor.kitchen_temperature"] == by_id["sensor.kitchen_temperature"]
+    pressure = by_id["sensor.0x00158d0001_pressure"]
+    # Swap temperature and humidity, and give the battery name to nothing.
+    mapping = {
+        "sensor.kitchen_temperature": slots["sensor.kitchen_humidity"],
+        "sensor.kitchen_humidity": slots["sensor.kitchen_temperature"],
+        "sensor.kitchen_battery": None,
+    }
+    await client.send_json_auto_id({"type": "replace_device/edit", "record": record, "mapping": mapping})
+    assert (await client.receive_json())["success"]
+    await hass.async_block_till_done()
+    temp = registry.async_get("sensor.kitchen_temperature")
+    assert temp.unique_id == "new-temperature" and temp.name == "Køkken temp" and temp.device_id == new.id
+    assert registry.async_get("sensor.kitchen_humidity").unique_id == "new-humidity"
+    assert registry.async_get("sensor.kitchen_battery") is None
+    assert registry.async_get("sensor.0x00158d0001_battery") is not None
+    # A name can't go to two entities.
+    bad = {"sensor.kitchen_temperature": pressure, "sensor.kitchen_humidity": pressure}
+    await client.send_json_auto_id({"type": "replace_device/edit", "record": record, "mapping": bad})
+    assert not (await client.receive_json())["success"]

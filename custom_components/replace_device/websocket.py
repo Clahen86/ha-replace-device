@@ -22,7 +22,18 @@ from .suggest import is_dead
 
 @callback
 def async_setup(hass: HomeAssistant) -> None:
-    for command in (ws_devices, ws_plan, ws_replace, ws_history, ws_undo, ws_redo, ws_migrate_plan, ws_migrate):
+    for command in (
+        ws_devices,
+        ws_plan,
+        ws_replace,
+        ws_history,
+        ws_undo,
+        ws_redo,
+        ws_edit_plan,
+        ws_edit,
+        ws_migrate_plan,
+        ws_migrate,
+    ):
         websocket_api.async_register_command(hass, command)
 
 
@@ -174,6 +185,35 @@ def ws_history(hass: HomeAssistant, connection: websocket_api.ActiveConnection, 
         for r in (replacer.history if replacer else [])
     ]
     connection.send_result(msg["id"], {"history": list(reversed(history))})
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/edit_plan", vol.Required("record"): str})
+@callback
+def ws_edit_plan(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    replacer = _replacer(hass)
+    plan = replacer.edit_plan(msg["record"]) if replacer else None
+    if plan is None:
+        connection.send_error(msg["id"], "not_found", "Nothing to change")
+        return
+    connection.send_result(msg["id"], plan)
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/edit",
+        vol.Required("record"): str,
+        vol.Required("mapping"): {str: vol.Any(str, None)},
+    }
+)
+@websocket_api.async_response
+async def ws_edit(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    replacer = _replacer(hass)
+    if replacer is None or not await replacer.async_edit(msg["record"], msg["mapping"]):
+        connection.send_error(msg["id"], "invalid", "Not a valid change")
+        return
+    connection.send_result(msg["id"], {"ok": True})
 
 
 @websocket_api.require_admin

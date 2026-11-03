@@ -66,6 +66,16 @@ const TEXT = {
     aiHint: "Some entities found no match. Connect an AI under Settings → Devices & services → Replace Device → Configure, and it will help.",
     triggersDone: "{n} button triggers were translated to the new integration.",
     triggersOpen: "Check these button triggers – no match was found:",
+    edit: "Change",
+    editTitle: "Change names",
+    editIntro: "Change which entity of the new device has each name. The device itself is not moved – it stays in {integration}.",
+    noneOption: "— none (the name disappears)",
+    save: "Save",
+    giveBack: "Give the new device its own names back",
+    giveBackWarn: "The old device doesn't come back, and automations that use the old names stop working. Want to go back to the old integration? Pair the device there and make a new replacement.",
+    cancel: "Cancel",
+    giveBackYes: "Yes, give the names back",
+    namesBack: "Names given back",
     undoAll: "Undo all",
     redo: "Do again",
     redoAll: "Do all again",
@@ -169,6 +179,16 @@ const TEXT = {
     aiHint: "Nogle entiteter fandt ingen match. Tilslut AI under Indstillinger → Enheder og tjenester → Udskift enhed → Konfigurer, så hjælper den.",
     triggersDone: "{n} knaptriggere er oversat til den nye integration.",
     triggersOpen: "Tjek disse knaptriggere – der blev ikke fundet et match:",
+    edit: "Ret",
+    editTitle: "Ret navne",
+    editIntro: "Ret hvilken entitet på den nye enhed der har hvert navn. Selve enheden flyttes ikke – den bliver i {integration}.",
+    noneOption: "— ingen (navnet forsvinder)",
+    save: "Gem",
+    giveBack: "Giv den nye enhed dens egne navne tilbage",
+    giveBackWarn: "Den gamle enhed kommer ikke tilbage, og automatiseringer, der bruger de gamle navne, holder op med at virke. Vil du tilbage til den gamle integration? Par enheden dér og lav en ny udskiftning.",
+    cancel: "Annullér",
+    giveBackYes: "Ja, giv navnene tilbage",
+    namesBack: "Navne givet tilbage",
     undoAll: "Fortryd alle",
     redo: "Gentag",
     redoAll: "Gentag alle",
@@ -432,20 +452,19 @@ class ReplaceDevicePanel extends HTMLElement {
         <ha-icon icon="mdi:swap-horizontal"></ha-icon>
         <div class="grow"><b>${esc(h.old_device.name)}</b> → ${esc(h.new_device.model || h.new_device.name)}
           <div class="muted small">${new Date(h.at * 1000).toLocaleString(this._hass.language)} · ${this.t("moved", { n: h.moved })}</div></div>
-        ${h.undone ? `<span class="tag">${this.t("undone")}</span><button class="ghost small-btn" data-act="redo" data-id="${h.id}">${this.t("redo")}</button>` : `<button class="ghost small-btn" data-act="undo" data-id="${h.id}">${this.t("undo")}</button>`}
+        ${h.undone ? `<span class="tag">${this.t("namesBack")}</span><button class="ghost small-btn" data-act="redo" data-id="${h.id}">${this.t("redo")}</button>` : h.new_device?.id ? `<button class="ghost small-btn" data-act="edit" data-id="${h.id}">${this.t("edit")}</button>` : ""}
       </div>`;
   }
 
-  // One "move many" shown as one row, undone as one.
+  // One "move many": a header with when and how many, then each device with its own "Change".
   batchRow(g) {
-    const names = g.items.slice(0, 3).map((h) => h.old_device.name).join(", ") + (g.items.length > 3 ? " …" : "");
     return `
-      <div class="hist">
+      <div class="hist batch-head">
         <ha-icon icon="mdi:transfer"></ha-icon>
         <div class="grow"><b>${this.t("batchRow", { n: g.items.length })}</b>
-          <div class="muted small">${new Date(g.items[0].at * 1000).toLocaleString(this._hass.language)} · ${esc(names)}</div></div>
-        ${g.items.every((h) => h.undone) ? `<span class="tag">${this.t("undone")}</span><button class="ghost small-btn" data-act="redoBatch" data-batch="${g.batch}">${this.t("redoAll")}</button>` : `<button class="ghost small-btn" data-act="undoBatch" data-batch="${g.batch}">${this.t("undoAll")}</button>`}
-      </div>`;
+          <div class="muted small">${new Date(g.items[0].at * 1000).toLocaleString(this._hass.language)}</div></div>
+      </div>
+      <div class="batch-items">${g.items.map((h) => this.historyRow(h)).join("")}</div>`;
   }
 
   pickView() {
@@ -591,7 +610,7 @@ class ReplaceDevicePanel extends HTMLElement {
         ${r.integrations?.length ? `<p class="ok-text">${esc(this.t("otherIntegrations", { list: r.integrations.join(", ") }))}</p>` : ""}
         ${r.dashboards?.length ? `<p class="ok-text">${esc(this.t("dashboardsUpdated", { list: r.dashboards.join(", ") }))}</p>` : ""}
         ${(r.triggers?.unresolved || r.unresolved || []).length ? `<div class="card warn left"><b>${this.t("triggersOpen")}</b><ul>${(r.triggers?.unresolved || r.unresolved).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
-        <div class="actions"><button class="ghost" data-act="undoBatch" data-batch="${r.batch}">${this.t("undoAll")}</button><button class="primary" data-act="home">${this.t("home")}</button></div>
+        <div class="actions"><button class="primary" data-act="home">${this.t("home")}</button></div>
       </div>`;
   }
 
@@ -688,6 +707,62 @@ class ReplaceDevicePanel extends HTMLElement {
         <button class="primary big" data-act="replace"><ha-icon icon="mdi:swap-horizontal"></ha-icon>${esc(this.t("replace", { name: p.old.name }))}</button></div>`;
   }
 
+  editView() {
+    const p = this.editPlan;
+    const dev = this.device(p.device_id) || {};
+    const rows = p.slots.map((slot) => {
+      const domain = slot.entity_id.split(".")[0];
+      const choice = this.editMapping[slot.entity_id];
+      return `
+        <div class="row ${choice ? "ok" : "gone"}">
+          <div class="side"><div class="grow"><div class="ename">${esc(slot.name)}</div><code>${esc(slot.entity_id)}</code></div></div>
+          <div class="mid"><ha-icon icon="${choice ? "mdi:arrow-left-bold" : "mdi:close"}"></ha-icon></div>
+          <div class="side"><select data-slot="${esc(slot.entity_id)}">
+            <option value="">${this.t("noneOption")}</option>
+            ${p.choices.filter((c) => c.domain === domain).map((c) => `<option value="${c.uuid}" ${c.uuid === choice ? "selected" : ""}>${esc(c.name)}${c.state && c.state !== "unavailable" ? ` · ${esc(c.state)}${c.unit ? ` ${esc(c.unit)}` : ""}` : ""}</option>`).join("")}
+          </select></div>
+        </div>`;
+    }).join("");
+    return `
+      <div class="card">
+        <h2>${this.t("editTitle")}: ${esc(p.old_name)}</h2>
+        <p class="hint"><ha-icon icon="mdi:information-outline"></ha-icon><span>${esc(this.t("editIntro", { integration: dev.integration_title || dev.integration || "" }))}</span></p>
+        <div class="rows">${rows}</div>
+      </div>
+      <div class="actions"><button class="ghost" data-act="home">${this.t("back")}</button><button class="primary big" data-act="saveEdit">${this.t("save")}</button></div>
+      ${this.confirmGiveBack ? `
+        <div class="card warn give-back"><p>${this.t("giveBackWarn")}</p>
+          <div class="actions"><button class="ghost" data-act="cancelGiveBack">${this.t("cancel")}</button><button class="danger" data-act="giveBack">${this.t("giveBackYes")}</button></div></div>`
+      : `<p class="center-link"><button class="link" data-act="askGiveBack">${this.t("giveBack")}</button></p>`}`;
+  }
+
+  async openEdit(id) {
+    try {
+      this.editPlan = await this.ws("edit_plan", { record: id });
+      this.editMapping = Object.fromEntries(this.editPlan.slots.map((slot) => [slot.entity_id, slot.holder]));
+      this.confirmGiveBack = false;
+      this.view = "edit";
+    } catch (e) {
+      this.error = this.t("error", { e: e.message || e.code });
+    }
+    this.render();
+  }
+
+  async saveEdit() {
+    const picked = Object.values(this.editMapping).filter(Boolean);
+    if (picked.length !== new Set(picked).size) {
+      this.error = this.t("duplicate");
+      return this.render();
+    }
+    try {
+      await this.ws("edit", { record: this.editPlan.id, mapping: this.editMapping });
+      this.view = "home";
+    } catch (e) {
+      this.error = this.t("error", { e: e.message || e.code });
+    }
+    this.load();
+  }
+
   workingView() {
     return `<div class="card center"><div class="spinner"></div><h2>${this.t("working")}</h2></div>`;
   }
@@ -706,8 +781,7 @@ class ReplaceDevicePanel extends HTMLElement {
         ${r.dashboards?.length ? `<p class="ok-text">${esc(this.t("dashboardsUpdated", { list: r.dashboards.join(", ") }))}</p>` : ""}
         ${(r.triggers?.unresolved || r.unresolved || []).length ? `<div class="card warn left"><b>${this.t("triggersOpen")}</b><ul>${(r.triggers?.unresolved || r.unresolved).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
 
-        <div class="actions"><button class="ghost" data-act="undo" data-id="${r.id}">${this.t("undo")}</button><button class="primary" data-act="home">${this.t("home")}</button></div>
-        <p class="muted small">${this.t("undoHint")}</p>
+        <div class="actions"><button class="ghost" data-act="edit" data-id="${r.id}">${this.t("edit")}</button><button class="primary" data-act="home">${this.t("home")}</button></div>
       </div>`;
   }
 
@@ -716,6 +790,7 @@ class ReplaceDevicePanel extends HTMLElement {
     const body = {
       home: () => this.homeView(), pick: () => this.pickView(), match: () => this.matchView(), working: () => this.workingView(),
       done: () => this.doneView(), migrate: () => this.migrateView(), migrated: () => this.migrateDoneView(),
+      edit: () => this.editView(),
     }[this.view]();
     this.shadowRoot.innerHTML = `<style>${STYLE}</style>
       <div class="toolbar">${customElements.get("ha-menu-button") ? "<ha-menu-button></ha-menu-button>" : ""}<div class="tb-title">${this.t("title")}</div></div>
@@ -766,6 +841,12 @@ class ReplaceDevicePanel extends HTMLElement {
         this.render();
       });
     }
+    this.shadowRoot.querySelectorAll("select[data-slot]").forEach((el) =>
+      el.addEventListener("change", () => {
+        this.editMapping[el.dataset.slot] = el.value || null;
+        this.error = "";
+        this.render();
+      }));
     this.shadowRoot.querySelectorAll("input[data-group]").forEach((el) =>
       el.addEventListener("change", () => {
         if (el.checked) this.groupSelected.add(el.dataset.group);
@@ -833,6 +914,15 @@ class ReplaceDevicePanel extends HTMLElement {
       this.undo(data.id);
     } else if (data.act === "undoBatch") {
       this.undo(null, data.batch);
+    } else if (data.act === "edit") {
+      this.openEdit(data.id);
+    } else if (data.act === "saveEdit") {
+      this.saveEdit();
+    } else if (data.act === "askGiveBack" || data.act === "cancelGiveBack") {
+      this.confirmGiveBack = data.act === "askGiveBack";
+      this.render();
+    } else if (data.act === "giveBack") {
+      this.undo(this.editPlan.id);
     } else if (data.act === "redo" || data.act === "redoBatch") {
       this.redo(data.id, data.batch);
     }
@@ -894,6 +984,9 @@ input:checked+.switch{background:var(--rd-blue)}input:checked+.switch:after{left
 .check path{fill:none;stroke:var(--rd-green);stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
 @keyframes pop{from{transform:scale(.5)}}
 .warn-text{color:var(--rd-amber)}
+.batch-items{padding-left:22px;border-left:2px solid var(--divider-color,#e3e7ec);margin:0 0 6px 10px}.batch-head{border-bottom:0}
+button.link{background:none;border:0;color:var(--secondary-text-color);text-decoration:underline;font-size:13px;padding:6px}.center-link{text-align:center;margin-top:18px}
+button.danger{background:var(--rd-red);color:#fff}.give-back{margin-top:16px}
 .checks{display:flex;flex-direction:column;gap:8px;margin-top:8px}.check-line{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.4}.check-line ha-icon{flex:none;--mdc-icon-size:18px}.check-line.c-warn ha-icon{color:var(--rd-amber)}.check-line.c-bad ha-icon{color:var(--rd-red)}.check-line.c-info ha-icon{color:var(--rd-blue)}.card .card.warn{box-shadow:none;margin:8px 0 0;padding:10px}
 .ok-text{color:var(--rd-green)}.tag.ai{background:rgba(156,39,176,.14);color:#8e24aa;font-size:11px;padding:1px 7px}.card.left{text-align:left;margin-top:12px}
 .btns{display:flex;gap:10px;flex-wrap:wrap}
