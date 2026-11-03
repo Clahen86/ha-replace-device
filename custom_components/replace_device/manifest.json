@@ -1,0 +1,15 @@
+{
+  "domain": "replace_device",
+  "name": "Replace Device",
+  "after_dependencies": ["automation", "logbook", "recorder", "script"],
+  "codeowners": ["@Clahen86"],
+  "config_flow": true,
+  "dependencies": ["repairs"],
+  "documentation": "https://github.com/Clahen86/ha-replace-device",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/Clahen86/ha-replace-device/issues",
+  "requirements": [],
+  "single_config_entry": true,
+  "version": "0.1.0"
+}

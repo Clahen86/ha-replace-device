@@ -1,0 +1,118 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Replace Device",
+        "description": "Replace a dead or old device with a new one. The new device takes over the names, entity IDs, area and history, so your automations and dashboards keep working. Afterwards, find **Replace a device** on this integration's page."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Replace Device is already set up."
+    }
+  },
+  "config_subentries": {
+    "replace": {
+      "entry_type": "Replacement",
+      "initiate_flow": {
+        "user": "Replace a device"
+      },
+      "step": {
+        "user": {
+          "title": "Replace a device",
+          "description": "Pair the new device first, as you normally would. Then pick the old and the new one.",
+          "data": {
+            "old_device": "Old device",
+            "new_device": "New device"
+          },
+          "data_description": {
+            "old_device": "The one that is dead or being replaced.",
+            "new_device": "The one that takes over."
+          }
+        },
+        "match": {
+          "title": "Which is which?",
+          "description": "**{old}** → **{new}**\n\nFor each entity of the old device, the matching entity of the new one is picked. Change it if it's wrong, or pick — to remove it."
+        },
+        "confirm": {
+          "title": "Replace {old}?",
+          "description": "**{old}** → **{new}**\n\n{summary}\n\nThe new device is renamed to **{old}** and moved to its area.",
+          "data": {
+            "remove_old": "Remove the old device"
+          },
+          "data_description": {
+            "remove_old": "Needed for the new one to get the old names. If it's still in your Zigbee network, also remove it there."
+          }
+        }
+      },
+      "error": {
+        "same_device": "Pick two different devices.",
+        "duplicate": "One new entity can only take over one old entity."
+      },
+      "abort": {
+        "replaced": "Done – {old} was replaced and {moved} entities moved over with their history. Automations and dashboards keep working.",
+        "replaced_keep_old": "Done – {moved} entities moved over. The old device's integration didn't allow removing it here: remove it in that integration, so it doesn't come back.",
+        "unknown_device": "The device no longer exists."
+      }
+    }
+  },
+  "issues": {
+    "suggest": {
+      "title": "New {new} found – replace {old}?",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Replace {old}?",
+            "description": "**{old}** → **{new}**\n\n{summary}\n\nThe new device is renamed to **{old}** and moved to its area.",
+            "data": {
+              "remove_old": "Remove the old device"
+            },
+            "data_description": {
+              "remove_old": "Needed for the new one to get the old names. If it's still in your Zigbee network, also remove it there."
+            }
+          },
+          "pick": {
+            "title": "Which device is replaced?",
+            "description": "More than one dead device of this model was found.",
+            "data": {
+              "old_device": "Old device"
+            }
+          }
+        },
+        "abort": {
+          "unknown_device": "The device no longer exists."
+        }
+      }
+    },
+    "suggest_many": {
+      "title": "New {new} found – replace one of {count} dead devices of the same model?",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Replace {old}?",
+            "description": "**{old}** → **{new}**\n\n{summary}\n\nThe new device is renamed to **{old}** and moved to its area.",
+            "data": {
+              "remove_old": "Remove the old device"
+            },
+            "data_description": {
+              "remove_old": "Needed for the new one to get the old names. If it's still in your Zigbee network, also remove it there."
+            }
+          },
+          "pick": {
+            "title": "Which device is replaced?",
+            "description": "More than one dead device of this model was found.",
+            "data": {
+              "old_device": "Old device"
+            }
+          }
+        },
+        "abort": {
+          "unknown_device": "The device no longer exists."
+        }
+      }
+    },
+    "silent": {
+      "title": "{name} sends no values",
+      "description": "The new device took over **{name}** 10 minutes ago, but none of its entities has a value yet. Check that it is paired and within range. This goes away when it reports."
+    }
+  }
+}

@@ -1,0 +1,118 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Udskift enhed",
+        "description": "Udskift en død eller gammel enhed med en ny. Den nye overtager navne, entity-id'er, område og historik, så dine automatiseringer og dashboards virker videre. Bagefter finder du **Udskift en enhed** på denne integrations side."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Udskift enhed er allerede sat op."
+    }
+  },
+  "config_subentries": {
+    "replace": {
+      "entry_type": "Udskiftning",
+      "initiate_flow": {
+        "user": "Udskift en enhed"
+      },
+      "step": {
+        "user": {
+          "title": "Udskift en enhed",
+          "description": "Par først den nye enhed, som du plejer. Vælg derefter den gamle og den nye.",
+          "data": {
+            "old_device": "Gammel enhed",
+            "new_device": "Ny enhed"
+          },
+          "data_description": {
+            "old_device": "Den, der er død eller skal skiftes ud.",
+            "new_device": "Den, der overtager."
+          }
+        },
+        "match": {
+          "title": "Hvad hører sammen?",
+          "description": "**{old}** → **{new}**\n\nFor hver entitet på den gamle enhed er den matchende på den nye valgt. Ret den, hvis den er forkert, eller vælg — for at fjerne den."
+        },
+        "confirm": {
+          "title": "Udskift {old}?",
+          "description": "**{old}** → **{new}**\n\n{summary}\n\nDen nye enhed får navnet **{old}** og flyttes til dens område.",
+          "data": {
+            "remove_old": "Fjern den gamle enhed"
+          },
+          "data_description": {
+            "remove_old": "Nødvendigt, for at den nye kan få de gamle navne. Er den stadig i dit Zigbee-netværk, så fjern den også der."
+          }
+        }
+      },
+      "error": {
+        "same_device": "Vælg to forskellige enheder.",
+        "duplicate": "Én ny entitet kan kun overtage én gammel."
+      },
+      "abort": {
+        "replaced": "Færdig – {old} er udskiftet, og {moved} entiteter er flyttet med deres historik. Automatiseringer og dashboards virker videre.",
+        "replaced_keep_old": "Færdig – {moved} entiteter er flyttet. Den gamle enheds integration tillod ikke at fjerne den her: fjern den i integrationen, så den ikke kommer igen.",
+        "unknown_device": "Enheden findes ikke længere."
+      }
+    }
+  },
+  "issues": {
+    "suggest": {
+      "title": "Ny {new} fundet – skal den erstatte {old}?",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Udskift {old}?",
+            "description": "**{old}** → **{new}**\n\n{summary}\n\nDen nye enhed får navnet **{old}** og flyttes til dens område.",
+            "data": {
+              "remove_old": "Fjern den gamle enhed"
+            },
+            "data_description": {
+              "remove_old": "Nødvendigt, for at den nye kan få de gamle navne. Er den stadig i dit Zigbee-netværk, så fjern den også der."
+            }
+          },
+          "pick": {
+            "title": "Hvilken enhed skal udskiftes?",
+            "description": "Der er fundet mere end én død enhed af denne model.",
+            "data": {
+              "old_device": "Gammel enhed"
+            }
+          }
+        },
+        "abort": {
+          "unknown_device": "Enheden findes ikke længere."
+        }
+      }
+    },
+    "suggest_many": {
+      "title": "Ny {new} fundet – skal den erstatte en af {count} døde enheder af samme model?",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Udskift {old}?",
+            "description": "**{old}** → **{new}**\n\n{summary}\n\nDen nye enhed får navnet **{old}** og flyttes til dens område.",
+            "data": {
+              "remove_old": "Fjern den gamle enhed"
+            },
+            "data_description": {
+              "remove_old": "Nødvendigt, for at den nye kan få de gamle navne. Er den stadig i dit Zigbee-netværk, så fjern den også der."
+            }
+          },
+          "pick": {
+            "title": "Hvilken enhed skal udskiftes?",
+            "description": "Der er fundet mere end én død enhed af denne model.",
+            "data": {
+              "old_device": "Gammel enhed"
+            }
+          }
+        },
+        "abort": {
+          "unknown_device": "Enheden findes ikke længere."
+        }
+      }
+    },
+    "silent": {
+      "title": "{name} sender ingen værdier",
+      "description": "Den nye enhed overtog **{name}** for 10 minutter siden, men ingen af dens entiteter har en værdi endnu. Tjek, at den er parret og inden for rækkevidde. Det forsvinder, når den melder sig."
+    }
+  }
+}
