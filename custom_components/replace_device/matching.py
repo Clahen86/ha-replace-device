@@ -47,7 +47,80 @@ def match(old: list[er.RegistryEntry], new: list[er.RegistryEntry]) -> dict[str,
             continue
         result[old_id] = new_id
         taken.add(new_id)
+    return _in_channel_order(old, new, result)
+
+
+def _in_channel_order(
+    old: list[er.RegistryEntry], new: list[er.RegistryEntry], result: dict[str, str | None]
+) -> dict[str, str | None]:
+    """Several channels of the same kind (L1/L2, button 1-3) pair in order: the lowest with the lowest.
+
+    Their names only differ by a number, so the scores can't tell them apart – and the numbers themselves
+    may differ between integrations (HomeKit buttons 1-3 are Matter buttons 3-5)."""
+    old_by_id, new_by_id = {e.entity_id: e for e in old}, {e.entity_id: e for e in new}
+    old_common, new_common = _common_words(old), _common_words(new)
+    groups: dict[tuple, list[str]] = {}
+    for old_id, new_id in result.items():
+        if new_id:
+            o, n = old_by_id[old_id], new_by_id[new_id]
+            groups.setdefault((_kind(o, old_common), _kind(n, new_common)), []).append(old_id)
+    for members in groups.values():
+        if len(members) < 2:
+            continue
+        olds = sorted(members, key=lambda i: _channel(old_by_id[i]))
+        news = sorted((result[i] for i in members), key=lambda i: _channel(new_by_id[i]))
+        if len({_channel(old_by_id[i]) for i in olds}) == len(olds) and len(
+            {_channel(new_by_id[i]) for i in news}
+        ) == len(news):
+            result.update(zip(olds, news, strict=True))
+    # Channels whose names are only numbers ("switch.dobbelt_kontakt_2" ↔ "Switch (l2)") don't score at all:
+    # when both devices have the same number of them left, of one kind each, they pair in order too.
+    taken = set(result.values())
+    for domain in {e.domain for e in old}:
+        olds = [o for o in old if o.domain == domain and result[o.entity_id] is None]
+        news = [n for n in new if n.domain == domain and n.entity_id not in taken]
+        if (
+            len(olds) >= 2
+            and len(olds) == len(news)
+            and len({_kind(o, old_common)[1:] for o in olds}) == 1
+            and len({_kind(n, new_common)[1:] for n in news}) == 1
+            and len({_channel(o) for o in olds}) == len(olds)
+            and len({_channel(n) for n in news}) == len(news)
+        ):
+            result.update(
+                zip(
+                    [o.entity_id for o in sorted(olds, key=_channel)],
+                    [n.entity_id for n in sorted(news, key=_channel)],
+                    strict=True,
+                )
+            )
     return result
+
+
+def _kind(entry: er.RegistryEntry, common: set[str]) -> tuple:
+    """What an entity is, without its channel number: domain, class and name words."""
+    label = names(entry, common)
+    # "button1" and "button2" are the same kind; "l1"/"ch2" are only channel numbers.
+    words = frozenset(
+        stem
+        for w in (label[0].split() if label else [])
+        if not re.fullmatch(r"l\d+|ch\d+", w) and (stem := re.sub(r"\d+$", "", w))
+    )
+    return entry.domain, entry.device_class or entry.original_device_class, words
+
+
+def _channel(entry: er.RegistryEntry) -> int:
+    """The channel number of an entity: "Kontakt 2", "Button (3)", "…_l2", ZHA/Matter endpoint "-2-"; else 0."""
+    if entry.original_name and (found := re.search(r"(\d+)\D*$", entry.original_name)):
+        return int(found[1])
+    tail = _feature(entry.unique_id) + " " + entry.entity_id
+    if found := re.search(r"(?:^|[_\s-])(?:l|ch|channel|button|endpoint)_?(\d+)(?:$|[_\s-])", tail.lower()):
+        return int(found[1])
+    if found := re.search(r"-(\d+)-", entry.unique_id or ""):
+        return int(found[1])
+    if found := re.search(r"_(\d+)$", entry.entity_id):
+        return int(found[1])
+    return 0
 
 
 def unsure(old: list[er.RegistryEntry], new: list[er.RegistryEntry], mapping: dict[str, str | None]) -> list[str]:

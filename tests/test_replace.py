@@ -1358,3 +1358,61 @@ async def test_ai_one_call_context_and_quota(hass: HomeAssistant, hass_ws_client
     await client.send_json_auto_id({"type": "replace_device/plan", "old": third.id, "new": fresh.id})
     plan = (await client.receive_json())["result"]
     assert plan["ai_error"] == "quota" and plan["mapping"]["sensor.gammel_analog"] is None
+
+
+async def test_channels_pair_in_order(hass: HomeAssistant) -> None:
+    """A double switch ZHA -> Z2M keeps L1/L2 apart, and HomeKit buttons 1-3 become Matter buttons 3-5 in order."""
+    from custom_components.replace_device.matching import match
+
+    devices, registry = dr.async_get(hass), er.async_get(hass)
+    entries = {}
+    for domain in ("zha", "mqtt", "homekit_controller", "matter"):
+        entries[domain] = MockConfigEntry(domain=domain)
+        entries[domain].add_to_hass(hass)
+
+    def device(domain, name, items):
+        d = devices.async_get_or_create(
+            config_entry_id=entries[domain].entry_id, identifiers={(domain, name)}, name=name
+        )
+        for entity_domain, uid, object_id, original in items:
+            registry.async_get_or_create(
+                entity_domain,
+                domain,
+                uid,
+                suggested_object_id=object_id,
+                device_id=d.id,
+                config_entry=entries[domain],
+                original_name=original,
+            )
+        return er.async_entries_for_device(registry, d.id)
+
+    zha = device(
+        "zha",
+        "Dobbelt",
+        [
+            ("switch", "aa:bb:cc:dd:ee:ff:00:11-2-6", "dobbelt_kontakt_2", None),
+            ("switch", "aa:bb:cc:dd:ee:ff:00:11-1-6", "dobbelt_kontakt", None),
+        ],
+    )
+    z2m = device(
+        "mqtt",
+        "0x",
+        [
+            ("switch", "0xaabbccddeeff0011_switch_l1_zigbee2mqtt", "x_switch_l1", "Switch (l1)"),
+            ("switch", "0xaabbccddeeff0011_switch_l2_zigbee2mqtt", "x_switch_l2", "Switch (l2)"),
+        ],
+    )
+    assert match(zha, z2m) == {
+        "switch.dobbelt_kontakt": "switch.x_switch_l1",
+        "switch.dobbelt_kontakt_2": "switch.x_switch_l2",
+    }
+
+    hk = device("homekit_controller", "W100", [("event", f"C3_65_{n}", f"sensor_button{n}", None) for n in (3, 1, 2)])
+    mt = device(
+        "matter", "W100m", [("event", f"775E-{n}-button", f"w100_button_{n}", f"Button ({n})") for n in (5, 3, 4)]
+    )
+    assert match(hk, mt) == {
+        "event.sensor_button1": "event.w100_button_3",
+        "event.sensor_button2": "event.w100_button_4",
+        "event.sensor_button3": "event.w100_button_5",
+    }
