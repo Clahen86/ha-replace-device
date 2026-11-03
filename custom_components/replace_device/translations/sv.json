@@ -1,0 +1,132 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Replace Device",
+        "description": "Byt ut en död eller gammal enhet mot en ny. Den nya tar över namn, entitets-ID:n, område och historik, så att dina automationer och instrumentpaneler fortsätter att fungera. Hitta sedan **Byt en enhet** på integrationens sida."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Replace Device är redan konfigurerad."
+    }
+  },
+  "config_subentries": {
+    "replace": {
+      "entry_type": "Byte",
+      "initiate_flow": {
+        "user": "Byt en enhet"
+      },
+      "step": {
+        "user": {
+          "title": "Byt en enhet",
+          "description": "Para den nya enheten först, som du brukar. Välj sedan den gamla och den nya.",
+          "data": {
+            "old_device": "Gammal enhet",
+            "new_device": "Ny enhet"
+          },
+          "data_description": {
+            "old_device": "Den som är död eller byts ut.",
+            "new_device": "Den som tar över."
+          }
+        },
+        "match": {
+          "title": "Vad är vad?",
+          "description": "**{old}** → **{new}**\n\nFör varje entitet på den gamla enheten är motsvarande entitet på den nya vald. Ändra den om den är fel, eller välj — för att ta bort den."
+        },
+        "confirm": {
+          "title": "Byt ut {old}?",
+          "description": "**{old}** → **{new}**\n\n{summary}\n\nDen nya enheten döps om till **{old}** och flyttas till dess område.",
+          "data": {
+            "remove_old": "Ta bort den gamla enheten"
+          },
+          "data_description": {
+            "remove_old": "Behövs för att den nya ska få de gamla namnen. Om den fortfarande finns i ditt Zigbee-nät, ta bort den där också."
+          }
+        }
+      },
+      "error": {
+        "same_device": "Välj två olika enheter.",
+        "duplicate": "En ny entitet kan bara ta över en gammal entitet."
+      },
+      "abort": {
+        "replaced": "Klart – {old} byttes ut och {moved} entiteter flyttades över med sin historik. Automationer och instrumentpaneler fortsätter att fungera.",
+        "replaced_keep_old": "Klart – {moved} entiteter flyttades över. Den gamla enhetens integration tillät inte att den togs bort här: ta bort den där, så att den inte kommer tillbaka.",
+        "unknown_device": "Enheten finns inte längre."
+      }
+    }
+  },
+  "issues": {
+    "suggest": {
+      "title": "Ny {new} hittad – byt ut {old}?",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Byt ut {old}?",
+            "description": "**{old}** → **{new}**\n\n{summary}\n\nDen nya enheten döps om till **{old}** och flyttas till dess område.",
+            "data": {
+              "remove_old": "Ta bort den gamla enheten"
+            },
+            "data_description": {
+              "remove_old": "Behövs för att den nya ska få de gamla namnen. Om den fortfarande finns i ditt Zigbee-nät, ta bort den där också."
+            }
+          },
+          "pick": {
+            "title": "Vilken enhet byts ut?",
+            "description": "Mer än en död enhet av denna modell hittades.",
+            "data": {
+              "old_device": "Gammal enhet"
+            }
+          }
+        },
+        "abort": {
+          "unknown_device": "Enheten finns inte längre."
+        }
+      }
+    },
+    "suggest_many": {
+      "title": "Ny {new} hittad – byt ut en av {count} döda enheter av samma modell?",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Byt ut {old}?",
+            "description": "**{old}** → **{new}**\n\n{summary}\n\nDen nya enheten döps om till **{old}** och flyttas till dess område.",
+            "data": {
+              "remove_old": "Ta bort den gamla enheten"
+            },
+            "data_description": {
+              "remove_old": "Behövs för att den nya ska få de gamla namnen. Om den fortfarande finns i ditt Zigbee-nät, ta bort den där också."
+            }
+          },
+          "pick": {
+            "title": "Vilken enhet byts ut?",
+            "description": "Mer än en död enhet av denna modell hittades.",
+            "data": {
+              "old_device": "Gammal enhet"
+            }
+          }
+        },
+        "abort": {
+          "unknown_device": "Enheten finns inte längre."
+        }
+      }
+    },
+    "silent": {
+      "title": "{name} skickar inga värden",
+      "description": "Den nya enheten tog över **{name}** för 10 minuter sedan, men ingen av dess entiteter har något värde än. Kontrollera att den är parad och inom räckvidd. Detta försvinner när den rapporterar."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "AI-hjälp (valfritt)",
+        "description": "Välj en AI-uppgiftsentitet, t.ex. Google Gemini. Den tillfrågas bara när Replace Device inte kan matcha något själv: entiteter med olika namn på den gamla och nya enheten, och knapputlösare som heter något annat i den nya integrationen. Bara namn och typer skickas, aldrig tillstånd eller din konfiguration.",
+        "data": {
+          "ai_task": "AI-uppgiftsentitet"
+        },
+        "data_description": {
+          "ai_task": "Lämna tomt för att inte använda AI. Tips: ge den en egen gratis Gemini-nyckel, så att den inte delar den dagliga kvoten med annat."
+        }
+      }
+    }
+  }
+}

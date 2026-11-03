@@ -84,6 +84,7 @@ The same is available without the panel: **Settings → Devices & services → R
 - A replacement can't move a device back to its old integration – that takes pairing it there again (and then a new replacement the other way). Under **Change** you can give the new device its own names back, but the old device doesn't return and automations using the old names stop working, so you're warned first. **Do again** redoes it.
 - Not moved: Zigbee bindings (a remote bound directly to a bulb) and calibration set in ZHA or Zigbee2MQTT. Code outside Home Assistant is only reported, not changed.
 - Everything runs locally. Only with the AI help turned on are names and types of the entities and triggers sent to the AI you picked.
+- Available in English, Danish, German, Swedish and Dutch – it follows your Home Assistant language. Better wording or a new language is very welcome as a pull request.
 
 ## Dansk
 
@@ -155,6 +156,7 @@ Det samme kan gøres uden panelet: **Indstillinger → Enheder og tjenester → 
 - En udskiftning kan ikke flytte en enhed tilbage til dens gamle integration. Det kræver, at den parres der igen, og derefter en ny udskiftning den anden vej. Under **Ret** kan du give den nye enhed dens egne navne tilbage, men den gamle enhed kommer ikke igen, og automatiseringer med de gamle navne holder op med at virke. Derfor bliver du advaret først. **Gentag** laver det igen.
 - Det flyttes ikke: Zigbee-bindinger (en fjernbetjening bundet direkte til en pære) og kalibrering sat i ZHA eller Zigbee2MQTT. Kode uden for Home Assistant bliver kun vist, ikke ændret.
 - Alt kører lokalt. Kun hvis AI-hjælpen er slået til, sendes navne og typer på entiteter og triggere til den AI, du har valgt.
+- Findes på engelsk, dansk, tysk, svensk og hollandsk og følger sproget i din Home Assistant.
 
 ## License
 

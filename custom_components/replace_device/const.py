@@ -45,4 +45,31 @@ TEXTS = {
         "den nye enhed bruger en anden integration):",
         "nothing": "Der er intet at flytte.",
     },
+    "de": {
+        "logbook": "ersetzt durch {new}",
+        "moves": "Wird auf das neue Gerät übertragen (behält Entitäts-ID, Namen und Verlauf):",
+        "dropped": "Wird entfernt, kein Gegenstück auf dem neuen Gerät:",
+        "own": "Neu, behalten ihre eigene Entitäts-ID:",
+        "users": "Automationen und Skripte, die das alte Gerät selbst verwenden (werden angepasst – prüfe "
+        "Geräte-Auslöser, wenn das neue Gerät eine andere Integration nutzt):",
+        "nothing": "Nichts zu übertragen.",
+    },
+    "sv": {
+        "logbook": "ersatt av {new}",
+        "moves": "Flyttas till den nya enheten (behåller entitets-ID, namn och historik):",
+        "dropped": "Tas bort, ingen motsvarighet på den nya enheten:",
+        "own": "Nya, behåller sitt eget entitets-ID:",
+        "users": "Automationer och skript som använder själva den gamla enheten (uppdateras – kontrollera "
+        "enhetsutlösare om den nya enheten använder en annan integration):",
+        "nothing": "Inget att flytta.",
+    },
+    "nl": {
+        "logbook": "vervangen door {new}",
+        "moves": "Gaat naar het nieuwe apparaat (behoudt entiteit-ID, naam en geschiedenis):",
+        "dropped": "Wordt verwijderd, geen tegenhanger op het nieuwe apparaat:",
+        "own": "Nieuw, houden hun eigen entiteit-ID:",
+        "users": "Automatiseringen en scripts die het oude apparaat zelf gebruiken (worden bijgewerkt – controleer "
+        "apparaattriggers als het nieuwe apparaat een andere integratie gebruikt):",
+        "nothing": "Niets om over te zetten.",
+    },
 }

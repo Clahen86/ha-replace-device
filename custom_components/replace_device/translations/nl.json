@@ -1,0 +1,132 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Replace Device",
+        "description": "Vervang een kapot of oud apparaat door een nieuw. Het nieuwe neemt namen, entiteit-ID's, ruimte en geschiedenis over, zodat je automatiseringen en dashboards blijven werken. Daarna vind je **Een apparaat vervangen** op de pagina van deze integratie."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Replace Device is al ingesteld."
+    }
+  },
+  "config_subentries": {
+    "replace": {
+      "entry_type": "Vervanging",
+      "initiate_flow": {
+        "user": "Een apparaat vervangen"
+      },
+      "step": {
+        "user": {
+          "title": "Een apparaat vervangen",
+          "description": "Koppel eerst het nieuwe apparaat zoals je gewend bent. Kies daarna het oude en het nieuwe.",
+          "data": {
+            "old_device": "Oud apparaat",
+            "new_device": "Nieuw apparaat"
+          },
+          "data_description": {
+            "old_device": "Het apparaat dat kapot is of wordt vervangen.",
+            "new_device": "Het apparaat dat het overneemt."
+          }
+        },
+        "match": {
+          "title": "Wat is wat?",
+          "description": "**{old}** → **{new}**\n\nVoor elke entiteit van het oude apparaat is de bijpassende entiteit van het nieuwe gekozen. Pas het aan als het niet klopt, of kies — om het te verwijderen."
+        },
+        "confirm": {
+          "title": "{old} vervangen?",
+          "description": "**{old}** → **{new}**\n\n{summary}\n\nHet nieuwe apparaat wordt hernoemd naar **{old}** en naar diens ruimte verplaatst.",
+          "data": {
+            "remove_old": "Het oude apparaat verwijderen"
+          },
+          "data_description": {
+            "remove_old": "Nodig zodat het nieuwe de oude namen krijgt. Zit het nog in je Zigbee-netwerk, verwijder het daar dan ook."
+          }
+        }
+      },
+      "error": {
+        "same_device": "Kies twee verschillende apparaten.",
+        "duplicate": "Eén nieuwe entiteit kan maar één oude entiteit overnemen."
+      },
+      "abort": {
+        "replaced": "Klaar – {old} is vervangen en {moved} entiteiten zijn met hun geschiedenis overgezet. Automatiseringen en dashboards blijven werken.",
+        "replaced_keep_old": "Klaar – {moved} entiteiten overgezet. De integratie van het oude apparaat liet verwijderen hier niet toe: verwijder het daar, zodat het niet terugkomt.",
+        "unknown_device": "Het apparaat bestaat niet meer."
+      }
+    }
+  },
+  "issues": {
+    "suggest": {
+      "title": "Nieuwe {new} gevonden – {old} vervangen?",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "{old} vervangen?",
+            "description": "**{old}** → **{new}**\n\n{summary}\n\nHet nieuwe apparaat wordt hernoemd naar **{old}** en naar diens ruimte verplaatst.",
+            "data": {
+              "remove_old": "Het oude apparaat verwijderen"
+            },
+            "data_description": {
+              "remove_old": "Nodig zodat het nieuwe de oude namen krijgt. Zit het nog in je Zigbee-netwerk, verwijder het daar dan ook."
+            }
+          },
+          "pick": {
+            "title": "Welk apparaat wordt vervangen?",
+            "description": "Er is meer dan één kapot apparaat van dit model gevonden.",
+            "data": {
+              "old_device": "Oud apparaat"
+            }
+          }
+        },
+        "abort": {
+          "unknown_device": "Het apparaat bestaat niet meer."
+        }
+      }
+    },
+    "suggest_many": {
+      "title": "Nieuwe {new} gevonden – een van {count} kapotte apparaten van hetzelfde model vervangen?",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "{old} vervangen?",
+            "description": "**{old}** → **{new}**\n\n{summary}\n\nHet nieuwe apparaat wordt hernoemd naar **{old}** en naar diens ruimte verplaatst.",
+            "data": {
+              "remove_old": "Het oude apparaat verwijderen"
+            },
+            "data_description": {
+              "remove_old": "Nodig zodat het nieuwe de oude namen krijgt. Zit het nog in je Zigbee-netwerk, verwijder het daar dan ook."
+            }
+          },
+          "pick": {
+            "title": "Welk apparaat wordt vervangen?",
+            "description": "Er is meer dan één kapot apparaat van dit model gevonden.",
+            "data": {
+              "old_device": "Oud apparaat"
+            }
+          }
+        },
+        "abort": {
+          "unknown_device": "Het apparaat bestaat niet meer."
+        }
+      }
+    },
+    "silent": {
+      "title": "{name} stuurt geen waarden",
+      "description": "Het nieuwe apparaat heeft **{name}** 10 minuten geleden overgenomen, maar geen van zijn entiteiten heeft nog een waarde. Controleer of het gekoppeld en binnen bereik is. Dit verdwijnt zodra het zich meldt."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "AI-hulp (optioneel)",
+        "description": "Kies een AI-taakentiteit, bijv. Google Gemini. Die wordt alleen gevraagd als Replace Device iets niet zelf kan koppelen: entiteiten met verschillende namen op het oude en nieuwe apparaat, en knoptriggers die in de nieuwe integratie anders heten. Alleen namen en typen worden verstuurd, nooit statussen of je configuratie.",
+        "data": {
+          "ai_task": "AI-taakentiteit"
+        },
+        "data_description": {
+          "ai_task": "Leeg laten om geen AI te gebruiken. Tip: geef hem een eigen gratis Gemini-sleutel, zodat hij het dagquotum niet met andere dingen deelt."
+        }
+      }
+    }
+  }
+}

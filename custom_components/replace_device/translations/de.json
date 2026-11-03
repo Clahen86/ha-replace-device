@@ -1,0 +1,132 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Replace Device",
+        "description": "Ersetze ein ausgefallenes oder altes Gerät durch ein neues. Das neue übernimmt Namen, Entitäts-IDs, Bereich und Verlauf, sodass deine Automationen und Dashboards weiter funktionieren. Danach findest du **Ein Gerät ersetzen** auf der Seite dieser Integration."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Replace Device ist bereits eingerichtet."
+    }
+  },
+  "config_subentries": {
+    "replace": {
+      "entry_type": "Ersatz",
+      "initiate_flow": {
+        "user": "Ein Gerät ersetzen"
+      },
+      "step": {
+        "user": {
+          "title": "Ein Gerät ersetzen",
+          "description": "Kopple zuerst das neue Gerät wie gewohnt. Wähle dann das alte und das neue.",
+          "data": {
+            "old_device": "Altes Gerät",
+            "new_device": "Neues Gerät"
+          },
+          "data_description": {
+            "old_device": "Das ausgefallene oder zu ersetzende Gerät.",
+            "new_device": "Das Gerät, das übernimmt."
+          }
+        },
+        "match": {
+          "title": "Was ist was?",
+          "description": "**{old}** → **{new}**\n\nFür jede Entität des alten Geräts ist die passende Entität des neuen gewählt. Ändere sie, wenn sie falsch ist, oder wähle —, um sie zu entfernen."
+        },
+        "confirm": {
+          "title": "{old} ersetzen?",
+          "description": "**{old}** → **{new}**\n\n{summary}\n\nDas neue Gerät wird in **{old}** umbenannt und in dessen Bereich verschoben.",
+          "data": {
+            "remove_old": "Altes Gerät entfernen"
+          },
+          "data_description": {
+            "remove_old": "Nötig, damit das neue die alten Namen bekommt. Ist es noch in deinem Zigbee-Netz, entferne es dort auch."
+          }
+        }
+      },
+      "error": {
+        "same_device": "Wähle zwei verschiedene Geräte.",
+        "duplicate": "Eine neue Entität kann nur eine alte Entität übernehmen."
+      },
+      "abort": {
+        "replaced": "Fertig – {old} wurde ersetzt und {moved} Entitäten mit ihrem Verlauf übernommen. Automationen und Dashboards funktionieren weiter.",
+        "replaced_keep_old": "Fertig – {moved} Entitäten übernommen. Die Integration des alten Geräts erlaubt das Entfernen hier nicht: entferne es dort, damit es nicht zurückkommt.",
+        "unknown_device": "Das Gerät existiert nicht mehr."
+      }
+    }
+  },
+  "issues": {
+    "suggest": {
+      "title": "Neues {new} gefunden – {old} ersetzen?",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "{old} ersetzen?",
+            "description": "**{old}** → **{new}**\n\n{summary}\n\nDas neue Gerät wird in **{old}** umbenannt und in dessen Bereich verschoben.",
+            "data": {
+              "remove_old": "Altes Gerät entfernen"
+            },
+            "data_description": {
+              "remove_old": "Nötig, damit das neue die alten Namen bekommt. Ist es noch in deinem Zigbee-Netz, entferne es dort auch."
+            }
+          },
+          "pick": {
+            "title": "Welches Gerät wird ersetzt?",
+            "description": "Es wurde mehr als ein ausgefallenes Gerät dieses Modells gefunden.",
+            "data": {
+              "old_device": "Altes Gerät"
+            }
+          }
+        },
+        "abort": {
+          "unknown_device": "Das Gerät existiert nicht mehr."
+        }
+      }
+    },
+    "suggest_many": {
+      "title": "Neues {new} gefunden – eines von {count} ausgefallenen Geräten desselben Modells ersetzen?",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "{old} ersetzen?",
+            "description": "**{old}** → **{new}**\n\n{summary}\n\nDas neue Gerät wird in **{old}** umbenannt und in dessen Bereich verschoben.",
+            "data": {
+              "remove_old": "Altes Gerät entfernen"
+            },
+            "data_description": {
+              "remove_old": "Nötig, damit das neue die alten Namen bekommt. Ist es noch in deinem Zigbee-Netz, entferne es dort auch."
+            }
+          },
+          "pick": {
+            "title": "Welches Gerät wird ersetzt?",
+            "description": "Es wurde mehr als ein ausgefallenes Gerät dieses Modells gefunden.",
+            "data": {
+              "old_device": "Altes Gerät"
+            }
+          }
+        },
+        "abort": {
+          "unknown_device": "Das Gerät existiert nicht mehr."
+        }
+      }
+    },
+    "silent": {
+      "title": "{name} sendet keine Werte",
+      "description": "Das neue Gerät hat **{name}** vor 10 Minuten übernommen, aber noch keine seiner Entitäten hat einen Wert. Prüfe, ob es gekoppelt und in Reichweite ist. Diese Meldung verschwindet, sobald es sich meldet."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "KI-Hilfe (optional)",
+        "description": "Wähle eine KI-Aufgaben-Entität, z. B. Google Gemini. Sie wird nur gefragt, wenn Replace Device etwas nicht selbst zuordnen kann: Entitäten mit unterschiedlichen Namen auf altem und neuem Gerät, und Tasten-Auslöser, die in der neuen Integration anders heißen. Es werden nur Namen und Typen gesendet, nie Zustände oder deine Einrichtung.",
+        "data": {
+          "ai_task": "KI-Aufgaben-Entität"
+        },
+        "data_description": {
+          "ai_task": "Leer lassen, um keine KI zu nutzen. Tipp: Gib ihr einen eigenen kostenlosen Gemini-Schlüssel, damit sie das Tageskontingent nicht mit anderem teilt."
+        }
+      }
+    }
+  }
+}
