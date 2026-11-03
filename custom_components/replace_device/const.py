@@ -22,6 +22,8 @@ Z2M_BASE_TOPIC = "zigbee2mqtt"
 # The files the automation and script editors write.
 AUTOMATIONS_FILE = "automations.yaml"
 SCRIPTS_FILE = "scripts.yaml"
+SCENES_FILE = "scenes.yaml"
+CONF_AI = "ai_task"
 
 # Texts written from code (logbook), in the user's language.
 TEXTS = {

@@ -310,3 +310,166 @@ async def test_move_many_zha_to_z2m(hass: HomeAssistant, hass_ws_client) -> None
     assert topics == {"zigbee2mqtt/bridge/request/device/rename"}
     assert '"to": "Stue sensor"' in " ".join(c.data["payload"] for c in published)
     assert all('"homeassistant_rename": false' in c.data["payload"] for c in published)
+
+
+def test_trigger_words() -> None:
+    from custom_components.replace_device.triggers import best
+
+    ikea = [
+        {"type": "action", "subtype": s}
+        for s in ("on", "off", "brightness_move_up", "brightness_move_down", "brightness_stop")
+    ]
+    assert best({"type": "remote_button_short_press", "subtype": "turn_on"}, ikea)["subtype"] == "on"
+    assert best({"type": "remote_button_long_press", "subtype": "dim_up"}, ikea)["subtype"] == "brightness_move_up"
+    assert best({"type": "remote_button_long_release", "subtype": "dim_up"}, ikea)["subtype"] == "brightness_stop"
+    aqara = [{"type": "action", "subtype": s} for s in ("single", "double", "hold", "release")]
+    assert best({"type": "remote_button_short_press", "subtype": "remote_button"}, aqara)["subtype"] == "single"
+    assert best({"type": "remote_button_double_press", "subtype": "remote_button"}, aqara)["subtype"] == "double"
+    assert best({"type": "device_rotated", "subtype": "left"}, aqara) is None
+    # And back: Zigbee2MQTT -> ZHA.
+    zha = [
+        {"type": "remote_button_short_press", "subtype": "turn_on"},
+        {"type": "remote_button_short_press", "subtype": "turn_off"},
+    ]
+    assert best({"type": "action", "subtype": "off"}, zha)["subtype"] == "turn_off"
+
+
+async def test_translate_triggers_ai_and_undo_all(hass: HomeAssistant, hass_ws_client, tmp_path) -> None:
+    """ZHA button triggers become Zigbee2MQTT ones; the AI answers what the words can't; one tap undoes it all."""
+    from unittest.mock import patch
+
+    from homeassistant.core import SupportsResponse
+
+    hass.config.config_dir = str(tmp_path)
+    zha_entry = MockConfigEntry(domain="zha", title="ZHA")
+    zha_entry.add_to_hass(hass)
+    mqtt_entry = MockConfigEntry(domain="mqtt", title="Mosquitto broker")
+    mqtt_entry.add_to_hass(hass)
+    devices, registry = dr.async_get(hass), er.async_get(hass)
+    ieee = "00:15:8d:00:01:a2:b3:c4"
+    old = devices.async_get_or_create(
+        config_entry_id=zha_entry.entry_id,
+        identifiers={("zha", ieee)},
+        connections={(dr.CONNECTION_ZIGBEE, ieee)},
+        name="Gang knap",
+    )
+    new = devices.async_get_or_create(
+        config_entry_id=mqtt_entry.entry_id,
+        identifiers={("mqtt", "zigbee2mqtt_0x00158d0001a2b3c4")},
+        name="0x00158d0001a2b3c4",
+    )
+    registry.async_get_or_create(
+        "sensor",
+        "zha",
+        "b",
+        suggested_object_id="gang_knap_batteri",
+        device_id=old.id,
+        config_entry=zha_entry,
+        original_device_class="battery",
+        unit_of_measurement="%",
+    )
+    registry.async_get_or_create(
+        "sensor",
+        "zha",
+        "x",
+        suggested_object_id="gang_knap_analog",
+        device_id=old.id,
+        config_entry=zha_entry,
+        original_name="Analog input",
+    )
+    registry.async_get_or_create(
+        "sensor",
+        "mqtt",
+        "b2",
+        suggested_object_id="0x00158d0001a2b3c4_battery",
+        device_id=new.id,
+        config_entry=mqtt_entry,
+        original_device_class="battery",
+        unit_of_measurement="%",
+    )
+    registry.async_get_or_create(
+        "sensor",
+        "mqtt",
+        "x2",
+        suggested_object_id="0x00158d0001a2b3c4_local_temperature",
+        device_id=new.id,
+        config_entry=mqtt_entry,
+        original_name="Local temperature",
+    )
+    (tmp_path / "automations.yaml").write_text(
+        "- id: '1'\n  alias: Gang lys\n  triggers:\n"
+        f"  - trigger: device\n    device_id: {old.id}\n    domain: zha\n    type: remote_button_short_press\n"
+        "    subtype: remote_button\n    id: kort\n"
+        f"  - trigger: device\n    device_id: {old.id}\n    domain: zha\n    type: device_shaken\n"
+        "    subtype: device_shaken\n"
+        f"  - trigger: device\n    device_id: {old.id}\n    domain: zha\n    type: device_rotated\n    subtype: left\n"
+        "  actions: []\n"
+    )
+    (tmp_path / "packages").mkdir()
+    (tmp_path / "packages" / "gang.yaml").write_text(f"automation:\n  - triggers:\n    - device_id: {old.id}\n")
+    asked = []
+
+    async def generate_data(call):
+        asked.append(call.data["instructions"])
+        if "triggers" in call.data["task_name"]:
+            return {"data": '{"answers": [{"n": 1, "pick": 3}, {"n": 2, "pick": 0}]}'}
+        return {"data": {"answers": [{"n": 1, "pick": 1}]}}
+
+    hass.services.async_register("ai_task", "generate_data", generate_data, supports_response=SupportsResponse.ONLY)
+    entry = MockConfigEntry(domain=DOMAIN, data={}, options={"ai_task": "ai_task.gemini"})
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    client = await hass_ws_client(hass)
+
+    # The AI pairs "Analog input" with "Local temperature", which the words can't.
+    await client.send_json_auto_id({"type": "replace_device/plan", "old": old.id, "new": new.id})
+    plan = (await client.receive_json())["result"]
+    assert plan["mapping"]["sensor.gang_knap_analog"] == "sensor.0x00158d0001a2b3c4_local_temperature"
+    assert plan["ai"] == ["sensor.gang_knap_analog"] and plan["ai_enabled"]
+
+    available = [
+        {
+            "platform": "device",
+            "domain": "mqtt",
+            "device_id": new.id,
+            "type": "action",
+            "subtype": s,
+            "discovery_id": f"0x00158d0001a2b3c4 action_{s}",
+            "metadata": {},
+        }
+        for s in ("single", "double", "shake")
+    ]
+    with patch(
+        "custom_components.replace_device.triggers.async_get_device_automations", return_value={new.id: available}
+    ):
+        await client.send_json_auto_id({"type": "replace_device/migrate", "pairs": [{"old": old.id, "new": new.id}]})
+        result = (await client.receive_json())["result"]
+    await hass.async_block_till_done()
+    assert result["devices"] == 1 and result["moved"] == 2
+    assert result["unresolved"] == ["Gang lys: device_rotated / left"]
+
+    from homeassistant.util.yaml import load_yaml
+
+    trigger_single, trigger_shake, trigger_rotated = load_yaml(str(tmp_path / "automations.yaml"))[0]["triggers"]
+    assert trigger_single == {
+        "trigger": "device",
+        "domain": "mqtt",
+        "device_id": new.id,
+        "type": "action",
+        "subtype": "single",
+        "discovery_id": "0x00158d0001a2b3c4 action_single",
+        "id": "kort",
+    }
+    assert trigger_shake["subtype"] == "shake"  # answered by the AI
+    assert trigger_rotated["domain"] == "zha" and trigger_rotated["device_id"] == new.id
+    assert new.id in (tmp_path / "packages" / "gang.yaml").read_text()
+
+    # Undo all: the automation is as before, with the old device.
+    await client.send_json_auto_id({"type": "replace_device/undo", "batch": result["batch"]})
+    assert (await client.receive_json())["result"] == {"undone": 1}
+    await hass.async_block_till_done()
+    automations = (tmp_path / "automations.yaml").read_text()
+    assert "remote_button_short_press" in automations and "discovery_id" not in automations
+    assert old.id in automations and new.id not in automations
+    assert old.id in (tmp_path / "packages" / "gang.yaml").read_text()

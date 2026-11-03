@@ -119,13 +119,18 @@ def ws_devices(hass: HomeAssistant, connection: websocket_api.ActiveConnection, 
         vol.Optional("mapping"): {str: vol.Any(str, None)},
     }
 )
-@callback
-def ws_plan(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+@websocket_api.async_response
+async def ws_plan(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     plan = async_plan(hass, msg["old"], msg["new"], msg.get("mapping"))
     if plan is None:
         connection.send_error(msg["id"], "unknown_device", "Pick two different devices that exist")
         return
-    connection.send_result(msg["id"], _plan(hass, plan))
+    replacer = _replacer(hass)
+    # The AI only fills gaps in a fresh plan; a mapping the user edited is left alone.
+    filled = await replacer.async_fill_with_ai(plan) if replacer and "mapping" not in msg else []
+    connection.send_result(
+        msg["id"], _plan(hass, plan) | {"ai": filled, "ai_enabled": bool(replacer and replacer.ai_entity)}
+    )
 
 
 @websocket_api.require_admin
@@ -156,21 +161,35 @@ async def ws_replace(hass: HomeAssistant, connection: websocket_api.ActiveConnec
 def ws_history(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     replacer = _replacer(hass)
     history = [
-        {k: r[k] for k in ("id", "at", "old_device", "new_device", "undone")} | {"moved": len(r["entities"])}
+        {k: r[k] for k in ("id", "at", "old_device", "new_device", "undone")}
+        | {
+            "moved": len(r["entities"]),
+            "batch": r.get("batch"),
+            "unresolved": r.get("triggers", {}).get("unresolved", []),
+        }
         for r in (replacer.history if replacer else [])
     ]
     connection.send_result(msg["id"], {"history": list(reversed(history))})
 
 
 @websocket_api.require_admin
-@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/undo", vol.Required("record"): str})
+@websocket_api.websocket_command(
+    {vol.Required("type"): f"{DOMAIN}/undo", vol.Exclusive("record", "what"): str, vol.Exclusive("batch", "what"): str}
+)
 @websocket_api.async_response
 async def ws_undo(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     replacer = _replacer(hass)
-    if replacer is None or not await replacer.async_undo(msg["record"]):
+    if replacer is None:
         connection.send_error(msg["id"], "not_found", "Nothing to undo")
         return
-    connection.send_result(msg["id"], {"ok": True})
+    if "batch" in msg:
+        count = await replacer.async_undo_batch(msg["batch"])
+    else:
+        count = int(await replacer.async_undo(msg.get("record", "")))
+    if not count:
+        connection.send_error(msg["id"], "not_found", "Nothing to undo")
+        return
+    connection.send_result(msg["id"], {"undone": count})
 
 
 def _devices_from(hass: HomeAssistant, key: str) -> list[dr.DeviceEntry]:
@@ -231,15 +250,21 @@ async def ws_migrate(hass: HomeAssistant, connection: websocket_api.ActiveConnec
     if replacer is None:
         connection.send_error(msg["id"], "not_loaded", "Replace Device is not set up")
         return
-    done, failed, moved, reload = [], [], 0, set()
+    batch = str(int(time.time() * 1000))
+    done, failed, moved, reload, unresolved = [], [], 0, set(), []
     for pair in msg["pairs"]:
         plan = async_plan(hass, pair["old"], pair["new"])
         if plan is None:
             failed.append(pair["old"])
             continue
-        result = await replacer.async_replace(plan, msg["remove_old"], msg["rename_z2m"], reload=False)
+        await replacer.async_fill_with_ai(plan)
+        result = await replacer.async_replace(plan, msg["remove_old"], msg["rename_z2m"], reload=False, batch=batch)
         done.append(result["id"])
         moved += result["moved"]
         reload.update(result["changed"])
+        unresolved += result["triggers"]["unresolved"]
     await replacer.async_reload(reload)
-    connection.send_result(msg["id"], {"devices": len(done), "moved": moved, "failed": failed, "ids": done})
+    connection.send_result(
+        msg["id"],
+        {"devices": len(done), "moved": moved, "failed": failed, "batch": batch, "unresolved": unresolved},
+    )

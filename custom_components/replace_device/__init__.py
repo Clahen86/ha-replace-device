@@ -13,7 +13,7 @@ from homeassistant.helpers.typing import ConfigType
 from homeassistant.loader import async_get_integration
 
 from . import suggest, websocket
-from .const import DOMAIN
+from .const import CONF_AI, DOMAIN
 from .replace import Replacer
 
 type ReplaceDeviceConfigEntry = ConfigEntry[Replacer]
@@ -40,10 +40,12 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ReplaceDeviceConfigEntry) -> bool:
     replacer = Replacer(hass)
+    replacer.ai_entity = entry.options.get(CONF_AI)
     await replacer.async_load()
     entry.runtime_data = replacer
     entry.async_on_unload(suggest.async_watch(hass))
     entry.async_on_unload(replacer.async_stop)
+    entry.async_on_unload(entry.add_update_listener(_options_changed))
     version = (await async_get_integration(hass, DOMAIN)).version
     await panel_custom.async_register_panel(
         hass,
@@ -55,6 +57,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ReplaceDeviceConfigEntry
         require_admin=True,
     )
     return True
+
+
+async def _options_changed(hass: HomeAssistant, entry: ReplaceDeviceConfigEntry) -> None:
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ReplaceDeviceConfigEntry) -> bool:

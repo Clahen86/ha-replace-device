@@ -48,6 +48,12 @@ const TEXT = {
     minutes: "{n} min",
     hours: "{n} h",
     days: "{n} days",
+    aiTag: "AI",
+    aiHint: "Some entities found no match. Connect an AI under Settings → Devices & services → Replace Device → Configure, and it will help.",
+    triggersDone: "{n} button triggers were translated to the new integration.",
+    triggersOpen: "Check these button triggers – no match was found:",
+    undoAll: "Undo all",
+    batchRow: "{n} devices moved",
     pickOld: "Which device is replaced?",
     pickNew: "Which device takes over?",
     search: "Search name, area or model…",
@@ -128,6 +134,12 @@ const TEXT = {
     minutes: "{n} min",
     hours: "{n} t",
     days: "{n} dage",
+    aiTag: "AI",
+    aiHint: "Nogle entiteter fandt ingen match. Tilslut AI under Indstillinger → Enheder og tjenester → Udskift enhed → Konfigurer, så hjælper den.",
+    triggersDone: "{n} knaptriggere er oversat til den nye integration.",
+    triggersOpen: "Tjek disse knaptriggere – der blev ikke fundet et match:",
+    undoAll: "Fortryd alle",
+    batchRow: "{n} enheder flyttet",
     pickOld: "Hvilken enhed skal udskiftes?",
     pickNew: "Hvilken enhed overtager?",
     search: "Søg på navn, område eller model…",
@@ -285,9 +297,9 @@ class ReplaceDevicePanel extends HTMLElement {
     this.load();
   }
 
-  async undo(id) {
+  async undo(id, batch) {
     try {
-      await this.ws("undo", { record: id });
+      await this.ws("undo", batch ? { batch } : { record: id });
       this.view = "home";
     } catch (e) {
       this.error = this.t("error", { e: e.message || e.code });
@@ -323,13 +335,13 @@ class ReplaceDevicePanel extends HTMLElement {
           </div>`;
         }).join("")
       : `<div class="card empty"><ha-icon icon="mdi:check-circle"></ha-icon>${this.t("noDead")}</div>`;
-    const history = this.historyItems.map((h) => `
-      <div class="hist">
-        <ha-icon icon="mdi:swap-horizontal"></ha-icon>
-        <div class="grow"><b>${esc(h.old_device.name)}</b> → ${esc(h.new_device.model || h.new_device.name)}
-          <div class="muted small">${new Date(h.at * 1000).toLocaleString(this._hass.language)} · ${this.t("moved", { n: h.moved })}</div></div>
-        ${h.undone ? `<span class="tag">${this.t("undone")}</span>` : `<button class="ghost small-btn" data-act="undo" data-id="${h.id}">${this.t("undo")}</button>`}
-      </div>`).join("");
+    const rows = [];
+    for (const h of this.historyItems) {
+      const last = rows[rows.length - 1];
+      if (h.batch && last?.batch === h.batch) last.items.push(h);
+      else rows.push({ batch: h.batch, items: [h] });
+    }
+    const history = rows.map((g) => (g.items.length > 1 ? this.batchRow(g) : this.historyRow(g.items[0]))).join("");
     return `
       <div class="hero card">
         <div class="hero-icon"><ha-icon icon="mdi:swap-horizontal-circle"></ha-icon></div>
@@ -340,6 +352,28 @@ class ReplaceDevicePanel extends HTMLElement {
       <h3>${this.t("dead")} ${dead.length ? `<span class="count">${dead.length}</span>` : ""}</h3>
       <div class="grid">${deadCards}</div>
       ${history ? `<h3>${this.t("history")}</h3><div class="card list">${history}</div>` : ""}`;
+  }
+
+  historyRow(h) {
+    return `
+      <div class="hist">
+        <ha-icon icon="mdi:swap-horizontal"></ha-icon>
+        <div class="grow"><b>${esc(h.old_device.name)}</b> → ${esc(h.new_device.model || h.new_device.name)}
+          <div class="muted small">${new Date(h.at * 1000).toLocaleString(this._hass.language)} · ${this.t("moved", { n: h.moved })}</div></div>
+        ${h.undone ? `<span class="tag">${this.t("undone")}</span>` : `<button class="ghost small-btn" data-act="undo" data-id="${h.id}">${this.t("undo")}</button>`}
+      </div>`;
+  }
+
+  // One "move many" shown as one row, undone as one.
+  batchRow(g) {
+    const names = g.items.slice(0, 3).map((h) => h.old_device.name).join(", ") + (g.items.length > 3 ? " …" : "");
+    return `
+      <div class="hist">
+        <ha-icon icon="mdi:transfer"></ha-icon>
+        <div class="grow"><b>${this.t("batchRow", { n: g.items.length })}</b>
+          <div class="muted small">${new Date(g.items[0].at * 1000).toLocaleString(this._hass.language)} · ${esc(names)}</div></div>
+        ${g.items.every((h) => h.undone) ? `<span class="tag">${this.t("undone")}</span>` : `<button class="ghost small-btn" data-act="undoBatch" data-batch="${g.batch}">${this.t("undoAll")}</button>`}
+      </div>`;
   }
 
   pickView() {
@@ -470,7 +504,9 @@ class ReplaceDevicePanel extends HTMLElement {
         <div class="check"><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="24"/><path d="M15 27l7 7 15-16"/></svg></div>
         <h2>${this.t("migrateDone", { d: r.devices })}</h2>
         <p class="muted">${this.t("migrateDoneText", { n: r.moved })}</p>
-        <div class="actions"><button class="primary" data-act="home">${this.t("home")}</button></div>
+        ${r.triggers?.translated?.length ? `<p class="ok-text">${this.t("triggersDone", { n: r.triggers.translated.length })}</p>` : ""}
+        ${(r.triggers?.unresolved || r.unresolved || []).length ? `<div class="card warn left"><b>${this.t("triggersOpen")}</b><ul>${(r.triggers?.unresolved || r.unresolved).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
+        <div class="actions"><button class="ghost" data-act="undoBatch" data-batch="${r.batch}">${this.t("undoAll")}</button><button class="primary" data-act="home">${this.t("home")}</button></div>
       </div>`;
   }
 
@@ -528,7 +564,7 @@ class ReplaceDevicePanel extends HTMLElement {
         <div class="row ${choice ? "ok" : "gone"}">
           <div class="side">
             <ha-icon icon="${this.icon(o)}"></ha-icon>
-            <div class="grow"><div class="ename">${esc(o.name || o.entity_id)}</div><code>${esc(o.entity_id)}</code></div>
+            <div class="grow"><div class="ename">${esc(o.name || o.entity_id)}${(p.ai || []).includes(o.entity_id) && choice === p.mapping[o.entity_id] ? ` <span class="tag ai">${this.t("aiTag")}</span>` : ""}</div><code>${esc(o.entity_id)}</code></div>
           </div>
           <div class="mid"><ha-icon icon="${choice ? "mdi:arrow-left-bold" : "mdi:close"}"></ha-icon></div>
           <div class="side">
@@ -550,6 +586,7 @@ class ReplaceDevicePanel extends HTMLElement {
         <h3 class="in">${this.t("matchTitle")}</h3>
         <p class="muted">${this.t("matchText")}</p>
         <div class="rows">${rows}</div>
+        ${!p.ai_enabled && p.old_entities.some((o) => !this.mapping[o.entity_id]) ? `<p class="hint"><ha-icon icon="mdi:robot-outline"></ha-icon><span>${this.t("aiHint")}</span></p>` : ""}
       </div>
       ${own.length ? `<div class="card"><h3 class="in">${this.t("keepsOwn")}</h3><div class="chips">${own.map((n) => `<span class="chip"><ha-icon icon="${this.icon(n)}"></ha-icon>${esc(n.name || n.entity_id)}</span>`).join("")}</div></div>` : ""}
       ${p.uses_device.length ? `<div class="card warn"><h3 class="in"><ha-icon icon="mdi:robot"></ha-icon> ${this.t("usesDevice")}</h3><ul>${p.uses_device.map((n) => `<li>${esc(n)}</li>`).join("")}</ul><p class="muted small">${this.t("usesDeviceHint")}</p></div>` : ""}
@@ -575,6 +612,9 @@ class ReplaceDevicePanel extends HTMLElement {
         <h2>${esc(this.t("doneTitle", { name: r.name }))}</h2>
         <p class="muted">${this.t("doneText", { n: r.moved })}</p>
         ${this.removeOld && !r.removed ? `<p class="warn-text">${this.t("keptOld")}</p>` : ""}
+        ${r.triggers?.translated?.length ? `<p class="ok-text">${this.t("triggersDone", { n: r.triggers.translated.length })}</p>` : ""}
+        ${(r.triggers?.unresolved || r.unresolved || []).length ? `<div class="card warn left"><b>${this.t("triggersOpen")}</b><ul>${(r.triggers?.unresolved || r.unresolved).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
+
         <div class="actions"><button class="ghost" data-act="undo" data-id="${r.id}">${this.t("undo")}</button><button class="primary" data-act="home">${this.t("home")}</button></div>
         <p class="muted small">${this.t("undoHint")}</p>
       </div>`;
@@ -694,6 +734,8 @@ class ReplaceDevicePanel extends HTMLElement {
       this.doReplace();
     } else if (data.act === "undo") {
       this.undo(data.id);
+    } else if (data.act === "undoBatch") {
+      this.undo(null, data.batch);
     }
   }
 }
@@ -753,6 +795,7 @@ input:checked+.switch{background:var(--rd-blue)}input:checked+.switch:after{left
 .check path{fill:none;stroke:var(--rd-green);stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
 @keyframes pop{from{transform:scale(.5)}}
 .warn-text{color:var(--rd-amber)}
+.ok-text{color:var(--rd-green)}.tag.ai{background:rgba(156,39,176,.14);color:#8e24aa;font-size:11px;padding:1px 7px}.card.left{text-align:left;margin-top:12px}
 .btns{display:flex;gap:10px;flex-wrap:wrap}
 .hint{display:flex;gap:10px;align-items:flex-start;margin:14px 0 0;padding:12px;border-radius:10px;background:rgba(3,169,244,.08)}.hint ha-icon{color:var(--rd-blue);flex:none}
 .chosen{border-left:4px solid var(--rd-red)}

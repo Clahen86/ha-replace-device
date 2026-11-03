@@ -114,5 +114,19 @@
       "title": "{name} sends no values",
       "description": "The new device took over **{name}** 10 minutes ago, but none of its entities has a value yet. Check that it is paired and within range. This goes away when it reports."
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "AI help (optional)",
+        "description": "Pick an AI Task entity, e.g. Google Gemini. It is only asked when Replace Device can't match something by itself: entities with different names on the old and new device, and button triggers that are called something else in the new integration. Only names and types are sent, never states or your setup.",
+        "data": {
+          "ai_task": "AI Task entity"
+        },
+        "data_description": {
+          "ai_task": "Leave empty to not use AI. Tip: give it its own free Gemini key, so it doesn't share the daily quota with other things."
+        }
+      }
+    }
   }
 }

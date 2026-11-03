@@ -20,7 +20,7 @@ When a device breaks and you buy a new one, Home Assistant sees a stranger: new 
 | **History and statistics** | Graphs and long-term statistics continue. Energy totals too – a new meter starting at 0 kWh is handled as a reset. |
 | **Your settings** | Names, icons, areas, labels, categories, voice aliases, display precision and unit settings. |
 | **The device** | The new device gets the old one's name and area. |
-| **Device triggers and actions** | Automations and scripts that point at the old device by ID are updated. |
+| **Device triggers and actions** | Automations and scripts that point at the old device by ID are updated. Button triggers that are called something else in the new integration (ZHA `remote_button_short_press` → Zigbee2MQTT `action: single`) are translated. |
 
 A note is added to the logbook, and if the new device sends no values after 10 minutes, you get a repair. Changed your mind? **Undo** gives the new device its own names back (for 30 days).
 
@@ -35,6 +35,10 @@ Moving from **ZHA to Zigbee2MQTT** (or any integration to another)? Pair the dev
 Moving to Zigbee2MQTT, it can also give each device its Home Assistant name in Zigbee2MQTT, without Zigbee2MQTT changing the entity IDs.
 
 <p><img src="docs/panel-migrate.png" alt="Move many devices from ZHA to Zigbee2MQTT" width="300"></p>
+
+### Optional AI help
+
+Connect any AI Task entity (e.g. Google Gemini, free) under **Settings → Devices & services → Replace Device → Configure**. It is only asked when something can't be matched by itself: entities named differently on the old and the new device ("Analog input" ↔ "Local temperature"), and button triggers with no obvious twin. Only names and types are sent. AI suggestions are marked **AI** in the panel, and you can change them. Tip: give it its own free Gemini key in its own project, so it doesn't share the daily quota.
 
 ### Use it for
 
@@ -62,8 +66,9 @@ The same is available without the panel: **Settings → Devices & services → R
 
 - The old device is removed, so its names are free. If its integration doesn't allow that (a device that is still connected), you're told to remove it there.
 - If the old device is still in your Zigbee network, remove it there too, so it doesn't come back.
-- Device triggers from another integration (ZHA → Zigbee2MQTT) can have different trigger types. The preview lists those automations so you can check them.
-- Only `automations.yaml` and `scripts.yaml` (the files the editors write) are updated. YAML you wrote yourself in other files keeps working through the entity IDs, but device IDs there are not changed.
+- Button triggers that can't be translated are listed when it's done, so you can fix them by hand.
+- `automations.yaml`, `scripts.yaml`, `scenes.yaml` and everything in `packages/` are updated. Other YAML keeps working through the entity IDs.
+- **Undo all** undoes a whole "move many" in one go.
 - Everything is local. Nothing leaves your Home Assistant.
 
 ## Dansk
@@ -76,7 +81,7 @@ Når en enhed går i stykker, og du køber en ny, ser Home Assistant en fremmed.
 - **Historik og statistik:** Grafer og langtidsstatistik fortsætter. Det gælder også energi. En ny måler, der starter på 0 kWh, bliver regnet som en nulstilling.
 - **Dine indstillinger:** Navne, ikoner, områder, etiketter, kategorier, stemme-aliasser, antal decimaler og enheder.
 - **Enheden:** Den nye enhed får den gamles navn og område.
-- **Enhedstriggere og -handlinger:** Automatiseringer og scripts, der peger på den gamle enhed via id, bliver opdateret.
+- **Enhedstriggere og -handlinger:** Automatiseringer og scripts, der peger på den gamle enhed via id, bliver opdateret. Knaptriggere, der hedder noget andet i den nye integration (ZHA `remote_button_short_press` → Zigbee2MQTT `action: single`), bliver oversat.
 
 Der kommer en note i logbogen. Sender den nye enhed ingen værdier efter 10 minutter, får du en reparation. Fortryder du, giver **Fortryd** den nye enhed dens egne navne tilbage (i 30 dage).
 
@@ -89,6 +94,10 @@ Parrer du en ny enhed af samme mærke og model, mens en gammel har været død i
 Skal du flytte fra **ZHA til Zigbee2MQTT** eller mellem to andre integrationer? Par først enhederne i den nye integration. Tryk så **Flyt mange enheder** i panelet, og vælg *fra* og *til*. Alle enheder, der findes begge steder, bliver parret på det, der ikke ændrer sig: **Zigbee-adressen** (IEEE), **serienummeret** (Matter) eller **MAC-adressen** (Wi-Fi). Navnene er ligegyldige. Fjern fluebenet ved dem, der skal blive, og flyt resten med ét tryk.
 
 Flytter du til Zigbee2MQTT, kan den også give hver enhed dens Home Assistant-navn i Zigbee2MQTT, uden at Zigbee2MQTT ændrer entity-id'erne.
+
+### Valgfri AI-hjælp
+
+Tilslut en AI Task-enhed, fx Google Gemini, som er gratis, under **Indstillinger → Enheder og tjenester → Udskift enhed → Konfigurer**. Den bliver kun spurgt, når noget ikke kan matches af sig selv. Det gælder entiteter med forskellige navne på den gamle og den nye enhed ("Analog input" ↔ "Local temperature") og knaptriggere uden en oplagt tvilling. Kun navne og typer sendes. AI-forslag er markeret med **AI** i panelet, og du kan ændre dem. Tip: Giv den sin egen gratis Gemini-nøgle i sit eget projekt, så den ikke deler dagskvoten med andet.
 
 ### Installation
 
@@ -109,8 +118,9 @@ Det samme kan gøres uden panelet: **Indstillinger → Enheder og tjenester → 
 
 - Den gamle enhed bliver fjernet, så dens navne bliver ledige. Tillader dens integration ikke det, fx fordi enheden stadig er forbundet, får du besked om at fjerne den der.
 - Er den gamle enhed stadig i dit Zigbee-netværk, så fjern den også der, så den ikke kommer igen.
-- Enhedstriggere fra en anden integration (ZHA → Zigbee2MQTT) kan have andre triggertyper. Forhåndsvisningen viser de automatiseringer, så du kan tjekke dem.
-- Kun `automations.yaml` og `scripts.yaml`, som editorerne skriver, bliver opdateret. YAML, du selv har skrevet i andre filer, virker videre via entity-id'erne, men device-id'er dér bliver ikke ændret.
+- Knaptriggere, der ikke kan oversættes, bliver vist bagefter, så du kan rette dem selv.
+- `automations.yaml`, `scripts.yaml`, `scenes.yaml` og alt i `packages/` bliver opdateret. Anden YAML virker videre via entity-id'erne.
+- **Fortryd alle** fortryder en hel "flyt mange" på én gang.
 - Alt foregår lokalt. Intet forlader din Home Assistant.
 
 ## License

@@ -114,5 +114,19 @@
       "title": "{name} sender ingen værdier",
       "description": "Den nye enhed overtog **{name}** for 10 minutter siden, men ingen af dens entiteter har en værdi endnu. Tjek, at den er parret og inden for rækkevidde. Det forsvinder, når den melder sig."
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "AI-hjælp (valgfri)",
+        "description": "Vælg en AI Task-enhed, fx Google Gemini. Den bliver kun spurgt, når Udskift enhed ikke selv kan matche noget: entiteter med forskellige navne på den gamle og nye enhed, og knaptriggere, der hedder noget andet i den nye integration. Kun navne og typer sendes – aldrig tilstande eller din opsætning.",
+        "data": {
+          "ai_task": "AI Task-enhed"
+        },
+        "data_description": {
+          "ai_task": "Lad den være tom for ingen AI. Tip: Giv den sin egen gratis Gemini-nøgle, så den ikke deler dagskvoten med andet."
+        }
+      }
+    }
   }
 }

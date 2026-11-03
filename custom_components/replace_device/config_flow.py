@@ -7,6 +7,7 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant.config_entries import (
+    OptionsFlow,
     ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
@@ -16,7 +17,7 @@ from homeassistant.config_entries import (
 from homeassistant.core import callback
 from homeassistant.helpers import selector
 
-from .const import CONF_NEW, CONF_OLD, CONF_REMOVE_OLD, DOMAIN, NO_MATCH, SUBENTRY_REPLACE
+from .const import CONF_AI, CONF_NEW, CONF_OLD, CONF_REMOVE_OLD, DOMAIN, NO_MATCH, SUBENTRY_REPLACE
 from .flows import confirm_schema, describe, match_schema
 from .replace import async_plan, device_name
 
@@ -29,10 +30,31 @@ class ReplaceDeviceConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_create_entry(title="Replace Device", data={})
         return self.async_show_form(step_id="user")
 
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
+        return ReplaceDeviceOptionsFlow()
+
     @classmethod
     @callback
     def async_get_supported_subentry_types(cls, config_entry: ConfigEntry) -> dict[str, type[ConfigSubentryFlow]]:
         return {SUBENTRY_REPLACE: ReplaceFlow}
+
+
+class ReplaceDeviceOptionsFlow(OptionsFlow):
+    """Optional AI: helps with entities and button triggers it can't match by itself."""
+
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        if user_input is not None:
+            return self.async_create_entry(data=user_input)
+        schema = vol.Schema(
+            {
+                vol.Optional(CONF_AI, description={"suggested_value": self.config_entry.options.get(CONF_AI)}): (
+                    selector.EntitySelector(selector.EntitySelectorConfig(domain="ai_task"))
+                )
+            }
+        )
+        return self.async_show_form(step_id="init", data_schema=schema)
 
 
 class ReplaceFlow(ConfigSubentryFlow):

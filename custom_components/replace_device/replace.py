@@ -11,6 +11,7 @@ import asyncio
 from dataclasses import dataclass, field
 import json
 import logging
+import os
 import time
 from typing import Any
 
@@ -23,7 +24,8 @@ from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.storage import Store
 from homeassistant.util.file import write_utf8_file_atomic
 
-from .const import AUTOMATIONS_FILE, CHECK_AFTER, DOMAIN, SCRIPTS_FILE, TEXTS, Z2M_BASE_TOPIC
+from . import ai, triggers
+from .const import AUTOMATIONS_FILE, CHECK_AFTER, DOMAIN, SCENES_FILE, SCRIPTS_FILE, TEXTS, Z2M_BASE_TOPIC
 from .hardware import z2m_ieee, z2m_name
 from .matching import match
 
@@ -90,6 +92,9 @@ class Replacer:
         self.store: Store[dict[str, Any]] = Store(hass, 1, f"{DOMAIN}.history")
         self.history: list[dict[str, Any]] = []
         self._timers: list[CALLBACK_TYPE] = []
+        # Optional AI Task entity, set from the integration's options.
+        self.ai_entity: str | None = None
+        self._ai_cache: dict[tuple[str, str], dict[str, str]] = {}
 
     @callback
     def async_stop(self) -> None:
@@ -101,7 +106,12 @@ class Replacer:
         self.history = [h for h in (await self.store.async_load() or {}).get("history", []) if h["at"] >= cutoff]
 
     async def async_replace(
-        self, plan: Plan, remove_old: bool, rename_z2m: bool = False, reload: bool = True
+        self,
+        plan: Plan,
+        remove_old: bool,
+        rename_z2m: bool = False,
+        reload: bool = True,
+        batch: str | None = None,
     ) -> dict[str, Any]:
         hass = self.hass
         devices, entities = dr.async_get(hass), er.async_get(hass)
@@ -125,8 +135,10 @@ class Replacer:
             ],
             "ids": {plan.old.id: plan.new.id} | {o.id: n.id for o, n in pairs},
             "files": [],
+            "batch": batch,
             "undone": False,
         }
+        old_domain, new_domain = _domain(hass, plan.old), _domain(hass, plan.new)
         old_ids = [o.entity_id for o, _ in pairs]
         temp_ids = [n.entity_id for _, n in pairs]
 
@@ -152,9 +164,20 @@ class Replacer:
             labels=set(plan.old.labels) | set(plan.new.labels),
         )
 
-        # 4. Automations and scripts that point at the old device or its entities by id.
-        changed = await self._rewrite(record["ids"], reload)
+        # 4. Automations and scripts that point at the old device or its entities by id, and device triggers that
+        #    have other names in the new integration (a ZHA button press is an "action" in Zigbee2MQTT).
+        changed = await self._rewrite(record["ids"], reload=False)
+        path = hass.config.path(AUTOMATIONS_FILE)
+        before = await hass.async_add_executor_job(_read, path)
+        translation = await triggers.async_translate(hass, plan.new.id, old_domain, new_domain, self.ai_entity)
+        if translation["translated"]:
+            record["automations_before"] = before
+            record["automations_after"] = await hass.async_add_executor_job(_read, path)
+            changed = sorted(set(changed) | {"automation"})
+        record["triggers"] = translation
         record["files"] = changed
+        if reload:
+            await self.async_reload(set(changed))
         renamed = await _rename_in_z2m(hass, plan.new, device_name(plan.old)) if rename_z2m else False
 
         # 5. The new entities' first minutes under their own ids are not needed.
@@ -164,9 +187,16 @@ class Replacer:
 
         self.history.append(record)
         self._save()
-        return {"id": record["id"], "moved": len(pairs), "removed": removed, "changed": changed, "renamed": renamed}
+        return {
+            "id": record["id"],
+            "moved": len(pairs),
+            "removed": removed,
+            "changed": changed,
+            "renamed": renamed,
+            "triggers": translation,
+        }
 
-    async def async_undo(self, record_id: str) -> bool:
+    async def async_undo(self, record_id: str, reload: bool = True) -> bool:
         """Give the new device its own names and entity ids back. The old device returns only if its integration
         finds it again; the history recorded since stays with the old entity ids."""
         record = next((r for r in self.history if r["id"] == record_id and not r["undone"]), None)
@@ -189,10 +219,53 @@ class Replacer:
                 area_id=device["area_id"],
                 labels=set(device["labels"]),
             )
-        await self._rewrite({new: old for old, new in record["ids"].items()})
+        # Translated triggers go back only if nobody edited the automations since.
+        path = self.hass.config.path(AUTOMATIONS_FILE)
+        if record.get("automations_before") is not None:
+            if await self.hass.async_add_executor_job(_read, path) == record["automations_after"]:
+                await self.hass.async_add_executor_job(write_utf8_file_atomic, path, record["automations_before"])
+            else:
+                _LOGGER.warning("Automations were edited since; translated device triggers were not changed back")
+        await self._rewrite({new: old for old, new in record["ids"].items()}, reload=reload)
         record["undone"] = True
         self._save()
         return True
+
+    async def async_undo_batch(self, batch: str) -> int:
+        """Undo every replacement of one "move many", newest first; reload once."""
+        records = [r for r in reversed(self.history) if r.get("batch") == batch and not r["undone"]]
+        for record in records:
+            await self.async_undo(record["id"], reload=False)
+        await self.async_reload({"automation", "script", "scene"})
+        return len(records)
+
+    async def async_fill_with_ai(self, plan: Plan) -> list[str]:
+        """Ask the AI about old entities that found no match, when the new device has unused ones of the same kind."""
+        if not self.ai_entity:
+            return []
+        key = (plan.old.id, plan.new.id)
+        if key not in self._ai_cache:
+            taken = {v for v in plan.mapping.values() if v}
+            old = [o for o in plan.old_entities if not plan.mapping.get(o.entity_id)]
+            new = [n for n in plan.new_entities if n.entity_id not in taken and any(n.domain == o.domain for o in old)]
+            picks = (
+                await ai.async_pick_entities(
+                    self.hass, self.ai_entity, [_describe(e) for e in old], [_describe(e) for e in new]
+                )
+                if old and new
+                else {}
+            )
+            self._ai_cache[key] = {
+                old[i].entity_id: new[j].entity_id for i, j in picks.items() if old[i].domain == new[j].domain
+            }
+        filled = []
+        taken = {v for v in plan.mapping.values() if v}
+        for old_id, new_id in self._ai_cache[key].items():
+            if not plan.mapping.get(old_id) and new_id not in taken:
+                plan.mapping[old_id] = new_id
+                taken.add(new_id)
+                filled.append(old_id)
+        return filled
 
     def _save(self) -> None:
         self.store.async_delay_save(lambda: {"history": self.history}, 1)
@@ -203,10 +276,9 @@ class Replacer:
                 await self.hass.services.async_call(domain, "reload", blocking=True)
 
     async def _rewrite(self, ids: dict[str, str], reload: bool = True) -> list[str]:
-        """Replace device and entity registry ids in the automation and script files, then reload them."""
-        changed = []
-        for domain, name in (("automation", AUTOMATIONS_FILE), ("script", SCRIPTS_FILE)):
-            path = self.hass.config.path(name)
+        """Replace device and entity registry ids in the automation, script, scene and package files, then reload."""
+        changed: set[str] = set()
+        for domains, path in await self.hass.async_add_executor_job(_config_files, self.hass.config.path()):
             text = await self.hass.async_add_executor_job(_read, path)
             if text is None:
                 continue
@@ -216,10 +288,10 @@ class Replacer:
             if new == text:
                 continue
             await self.hass.async_add_executor_job(write_utf8_file_atomic, path, new)
-            changed.append(domain)
+            changed.update(domains)
         if reload:
-            await self.async_reload(set(changed))
-        return changed
+            await self.async_reload(changed)
+        return sorted(changed)
 
 
 def _settings(entry: er.RegistryEntry) -> dict[str, Any]:
@@ -273,6 +345,38 @@ async def _rename_in_z2m(hass: HomeAssistant, device: dr.DeviceEntry, name: str)
         "mqtt", "publish", {"topic": f"{Z2M_BASE_TOPIC}/bridge/request/device/rename", "payload": payload}
     )
     return True
+
+
+def _describe(entry: er.RegistryEntry) -> str:
+    parts = [
+        entry.entity_id,
+        entry.original_name,
+        entry.device_class or entry.original_device_class,
+        entry.unit_of_measurement,
+    ]
+    return " | ".join(str(p) for p in parts if p)
+
+
+def _domain(hass: HomeAssistant, device: dr.DeviceEntry) -> str | None:
+    entry = hass.config_entries.async_get_entry(device.config_entry_id) if device.config_entry_id else None
+    return entry.domain if entry else None
+
+
+def _config_files(config_dir: str) -> list[tuple[tuple[str, ...], str]]:
+    """The files the editors write, and every YAML file in packages/ (which can hold all three)."""
+    files: list[tuple[tuple[str, ...], str]] = [
+        (("automation",), os.path.join(config_dir, AUTOMATIONS_FILE)),
+        (("script",), os.path.join(config_dir, SCRIPTS_FILE)),
+        (("scene",), os.path.join(config_dir, SCENES_FILE)),
+    ]
+    packages = os.path.join(config_dir, "packages")
+    for root, _dirs, names in os.walk(packages):
+        files += [
+            (("automation", "script", "scene"), os.path.join(root, n))
+            for n in sorted(names)
+            if n.endswith((".yaml", ".yml"))
+        ]
+    return files
 
 
 def _read(path: str) -> str | None:
