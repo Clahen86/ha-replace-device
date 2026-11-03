@@ -22,8 +22,6 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
-          # Until the logo is in home-assistant/brands.
-          ignore: brands
 
   tests:
     name: Tests
