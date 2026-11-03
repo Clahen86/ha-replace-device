@@ -65,6 +65,7 @@ const TEXT = {
     findPairs: "Find pairs",
     matches: "{n} found",
     noTargets: "Not found anywhere else",
+    noTargetsHint: "None of your {source} devices is in another integration yet. Pair them in the integration you are moving to first – then it shows up here.",
     pairsFound: "{n} devices found in both",
     noPairs: "No device was found in both. Pair them in {target} first.",
     by_ieee: "Zigbee address",
@@ -144,6 +145,7 @@ const TEXT = {
     findPairs: "Find par",
     matches: "{n} fundet",
     noTargets: "Ikke fundet andre steder",
+    noTargetsHint: "Ingen af dine {source}-enheder findes i en anden integration endnu. Par dem først i den integration, du vil flytte til – så dukker den op her.",
     pairsFound: "{n} enheder fundet begge steder",
     noPairs: "Ingen enheder blev fundet begge steder. Par dem i {target} først.",
     by_ieee: "Zigbee-adresse",
@@ -455,6 +457,7 @@ class ReplaceDevicePanel extends HTMLElement {
           <ha-icon icon="mdi:arrow-right"></ha-icon>
           <div><label>${this.t("to")}</label><select id="mdst" ${targets.length ? "" : "disabled"}>${dstOpts}</select></div>
         </div>
+        ${targets.length ? "" : `<p class="hint"><ha-icon icon="mdi:information-outline"></ha-icon><span>${this.t("noTargetsHint", { source: name(this.migrateSource) })}</span></p>`}
         <div class="actions"><button class="ghost" data-act="home">${this.t("back")}</button><button class="primary" data-act="findPairs" ${this.migrateTarget ? "" : "disabled"}>${this.t("findPairs")}</button></div>
       </div>
       ${result}`;
@@ -751,6 +754,7 @@ input:checked+.switch{background:var(--rd-blue)}input:checked+.switch:after{left
 @keyframes pop{from{transform:scale(.5)}}
 .warn-text{color:var(--rd-amber)}
 .btns{display:flex;gap:10px;flex-wrap:wrap}
+.hint{display:flex;gap:10px;align-items:flex-start;margin:14px 0 0;padding:12px;border-radius:10px;background:rgba(3,169,244,.08)}.hint ha-icon{color:var(--rd-blue);flex:none}
 .chosen{border-left:4px solid var(--rd-red)}
 .filters{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap}.filters select{width:auto;flex:0 1 220px}
 .search{flex:1 1 240px;display:flex;align-items:center;gap:8px;padding:0 12px;border-radius:10px;border:1px solid var(--divider-color,#d0d7e0);background:var(--card-background-color,#fff)}
