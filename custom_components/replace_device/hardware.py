@@ -26,7 +26,9 @@ def hardware_keys(device: dr.DeviceEntry) -> set[str]:
             keys.add(_serial(str(value)[7:]))
     for kind, value in device.connections:
         if kind == dr.CONNECTION_ZIGBEE:
-            keys.add(f"ieee:{value.replace(':', '').lower().removeprefix('0x')}")
+            # Hue adds the endpoint: "00:17:88:01:0b:12:34:56-0b". The address is the first 16 hex digits.
+            compact = value.lower().removeprefix("0x").replace(":", "")
+            keys.add(f"ieee:{compact[:16]}")
         elif kind == dr.CONNECTION_NETWORK_MAC:
             keys.add(f"mac:{value.replace(':', '').lower()}")
     if device.serial_number:

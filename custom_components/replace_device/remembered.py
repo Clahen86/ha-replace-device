@@ -50,12 +50,18 @@ def _needles(device: dr.DeviceEntry) -> list[tuple[str, ...]]:
             accessory, aid = value.split(":aid:", 1)
             needles.append(("^", f"{accessory}_{aid}_"))
             continue
+        if _domain == "zwave_js" and (zwave := re.fullmatch(r"(\d+)-(\d+)", value)):
+            # Z-Wave JS: unique IDs start with "<home id>.<node id>-".
+            needles.append(("^", f"{zwave[1]}.{zwave[2]}-"))
+            continue
         value = re.sub(r"^(?:zigbee2mqtt_|deviceid_|serial_)|-matternodedevice$", "", value)
         if len(value) >= 8:
             needles.append((value,))
     for kind, value in device.connections:
         if kind in (dr.CONNECTION_ZIGBEE, dr.CONNECTION_NETWORK_MAC) and len(value) >= 8:
             needles.append((value.lower(),))
+            # Shelly writes its MAC without colons in unique IDs: "C45BBE6C7B2C-switch:0".
+            needles.append((value.lower().replace(":", ""),))
     return needles
 
 

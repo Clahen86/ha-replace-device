@@ -1416,3 +1416,69 @@ async def test_channels_pair_in_order(hass: HomeAssistant) -> None:
         "event.sensor_button2": "event.w100_button_4",
         "event.sensor_button3": "event.w100_button_5",
     }
+
+
+async def test_hue_zwave_shelly_shapes(hass: HomeAssistant) -> None:
+    """Device and entity ids exactly as Hue, Z-Wave JS and Shelly write them (from their code in Home Assistant)."""
+    from custom_components.replace_device.hardware import hardware_keys
+    from custom_components.replace_device.remembered import remembered
+    from custom_components.replace_device.triggers import best, label
+
+    devices, registry = dr.async_get(hass), er.async_get(hass)
+    entries = {d: MockConfigEntry(domain=d) for d in ("hue", "zha", "zwave_js", "shelly")}
+    for entry in entries.values():
+        entry.add_to_hass(hass)
+
+    # Hue: the Zigbee address carries the endpoint ("-0b"). It is still the same bulb as in ZHA.
+    hue = devices.async_get_or_create(
+        config_entry_id=entries["hue"].entry_id,
+        identifiers={("hue", "3f2c8f0e-uuid")},
+        connections={(dr.CONNECTION_ZIGBEE, "00:17:88:01:0b:12:34:56-0b")},
+    )
+    zha = devices.async_get_or_create(
+        config_entry_id=entries["zha"].entry_id,
+        identifiers={("zha", "00:17:88:01:0b:12:34:56")},
+        connections={(dr.CONNECTION_ZIGBEE, "00:17:88:01:0b:12:34:56")},
+    )
+    assert hardware_keys(hue) & hardware_keys(zha) == {"ieee:001788010b123456"}
+
+    # Shelly: buttons are "button1", "button2" – button 1 never becomes button 2.
+    shelly = [{"type": t, "subtype": f"button{b}"} for b in (1, 2) for t in ("single", "double", "long")]
+    assert best({"type": "remote_button_short_press", "subtype": "button_2"}, shelly)["subtype"] == "button2"
+    assert best({"type": "remote_button_long_press", "subtype": "button_1"}, shelly) == {
+        "type": "long",
+        "subtype": "button1",
+    }
+
+    # Z-Wave JS: scenes differ in property_key and value, so those are shown to the AI too.
+    scene = {
+        "platform": "device",
+        "domain": "zwave_js",
+        "device_id": "x",
+        "type": "event.value_notification.central_scene",
+        "property_key": "002",
+        "value": "KeyPressed2x",
+        "endpoint": 0,
+    }
+    assert (
+        label(scene) == "event.value_notification.central_scene (property_key: 002, value: KeyPressed2x, endpoint: 0)"
+    )
+
+    # Remembered names: Z-Wave unique IDs start with "<home>.<node>-", Shelly's use the MAC without colons.
+    zw = devices.async_get_or_create(
+        config_entry_id=entries["zwave_js"].entry_id, identifiers={("zwave_js", "3245146787-5")}
+    )
+    sh = devices.async_get_or_create(
+        config_entry_id=entries["shelly"].entry_id,
+        identifiers={("shelly", "C45BBE6C7B2C")},
+        connections={(dr.CONNECTION_NETWORK_MAC, "c4:5b:be:6c:7b:2c")},
+    )
+    for domain, entry, uid, object_id in (
+        ("zwave_js", entries["zwave_js"], "3245146787.5-37-0-currentValue", "zw_switch"),
+        ("zwave_js", entries["zwave_js"], "3245146787.55-37-0-currentValue", "other_node"),
+        ("shelly", entries["shelly"], "C45BBE6C7B2C-switch:0", "sh_switch"),
+    ):
+        registry.async_get_or_create("switch", domain, uid, suggested_object_id=object_id, config_entry=entry)
+        registry.async_remove(f"switch.{object_id}")
+    assert [e.entity_id for e in remembered(hass, zw)] == ["switch.zw_switch"]
+    assert [e.entity_id for e in remembered(hass, sh)] == ["switch.sh_switch"]

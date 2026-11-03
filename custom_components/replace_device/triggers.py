@@ -65,7 +65,8 @@ _MIN_SCORE = 0.5
 def words(*parts: Any) -> set[str]:
     result: set[str] = set()
     for part in parts:
-        for word in re.split(r"[^a-z0-9]+", str(part or "").lower()):
+        # "button1" is the word "button" and the number 1 (Shelly), like "button_1" (ZHA).
+        for word in re.findall(r"[a-z]+|\d+", str(part or "").lower()):
             if word:
                 result.update(_WORDS.get(word, (word,)))
     # "long_release" is the end of a hold, not a hold.
@@ -74,8 +75,17 @@ def words(*parts: Any) -> set[str]:
     return result
 
 
+# Fields that only say where a trigger belongs, not what it fires on.
+_PLACE_KEYS = {"platform", "trigger", "domain", "device_id", "entity_id", "metadata", "discovery_id", "id", "alias"}
+
+
 def label(trigger: dict[str, Any]) -> str:
-    return " / ".join(str(trigger[k]) for k in ("type", "subtype") if trigger.get(k))
+    """'remote_button_short_press / button_1', plus any other field that tells triggers apart (Z-Wave scenes)."""
+    main = " / ".join(str(trigger[k]) for k in ("type", "subtype") if trigger.get(k) not in (None, ""))
+    extra = ", ".join(
+        f"{k}: {v}" for k, v in trigger.items() if k not in _PLACE_KEYS | {"type", "subtype"} and v not in (None, "")
+    )
+    return f"{main} ({extra})" if extra else main
 
 
 def same_button(old: dict[str, Any], candidate: dict[str, Any]) -> bool:
