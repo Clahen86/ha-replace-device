@@ -5,9 +5,11 @@ from __future__ import annotations
 from typing import Any
 
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 from . import references
+from .const import Z2M_BASE_TOPIC
+from .hardware import z2m_base_topic, z2m_ieee
 from .replace import Plan, _domain
 
 # Lists of allowed values, where an automation may test for one by name.
@@ -58,9 +60,24 @@ async def async_checks(
     ids = {plan.old.id: plan.new.id} | {o.id: n.id for o, n in plan.pairs}
     skip = {d for d in (_domain(hass, plan.old), _domain(hass, plan.new)) if d}
     return {
+        "outside": await hass.async_add_executor_job(
+            references.outside_users, hass.config.path(), _needles(hass, plan)
+        ),
         "dropped_used": dropped,
         "differences": changed,
         "device_actions": references.device_actions(hass, plan.old.id, _domain(hass, plan.old)),
         "integrations": [e.title for e in references.entries_using(hass, ids, skip)],
         "dashboards": [title for title, _, config in dashboards if any(i in str(config) for i in ids)],
     }
+
+
+def _needles(hass: HomeAssistant, plan: Plan) -> list[str]:
+    """How code outside Home Assistant would refer to the old device."""
+    needles = [plan.old.id]
+    for kind, value in plan.old.connections:
+        if kind == dr.CONNECTION_ZIGBEE:
+            needles += [value, "0x" + value.replace(":", "")]
+    if ieee := z2m_ieee(plan.old):
+        base = z2m_base_topic(hass, plan.old, Z2M_BASE_TOPIC)
+        needles += [ieee, f"{base}/{plan.old.name}"]
+    return needles

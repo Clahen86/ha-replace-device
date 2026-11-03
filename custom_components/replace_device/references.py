@@ -126,3 +126,45 @@ def _walk(value: Any, device_id: str, domain: str) -> list[str]:
     if value.get("device_id") == device_id and value.get("domain") == domain:
         return [str(value.get("type") or value.get("condition") or "?")]
     return [hit for v in value.values() for hit in _walk(v, device_id, domain)]
+
+
+# Where programs that run next to Home Assistant keep their code, as far as Home Assistant can see them.
+_OUTSIDE = ("appdaemon", "node-red", "nodered", "pyscript", "python_scripts", "netdaemon")
+_OUTSIDE_FILES = (".py", ".js", ".json", ".yaml", ".yml", ".cs")
+_MAX_FILE = 5_000_000
+# A big /share must not make the preview slow.
+_MAX_FILES = 3000
+
+
+def outside_users(config_dir: str, needles: list[str]) -> list[str]:
+    """Files of AppDaemon, Node-RED, pyscript … that mention the old device (id, Zigbee address, Zigbee2MQTT topic).
+
+    They can't be changed from here, so they are only reported – and only when something is found."""
+    needles = [n.lower() for n in needles if n and len(n) >= 6]
+    if not needles:
+        return []
+    roots = [os.path.join(config_dir, name) for name in _OUTSIDE] + ["/share"]
+    found: list[str] = []
+    budget = _MAX_FILES
+    for root in roots:
+        if not os.path.isdir(root):
+            continue
+        for folder, dirs, files in os.walk(root):
+            dirs[:] = [d for d in dirs if not d.startswith(".") and d not in ("node_modules", "__pycache__")]
+            if folder.count(os.sep) - root.count(os.sep) > 4:
+                dirs[:] = []
+            for name in files:
+                path = os.path.join(folder, name)
+                if not name.endswith(_OUTSIDE_FILES) or ".bak" in name or os.path.getsize(path) > _MAX_FILE:
+                    continue
+                budget -= 1
+                if budget < 0:
+                    return sorted(found)[:20]
+                try:
+                    with open(path, encoding="utf-8", errors="ignore") as file:
+                        text = file.read().lower()
+                except OSError:
+                    continue
+                if any(n in text for n in needles):
+                    found.append(os.path.relpath(path, config_dir) if path.startswith(config_dir) else path)
+    return sorted(found)[:20]

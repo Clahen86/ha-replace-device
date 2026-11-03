@@ -778,3 +778,30 @@ async def test_blueprint_zha_event_and_mqtt_listeners(hass: HomeAssistant, tmp_p
     sofa, off = load_yaml(str(tmp_path / "automations.yaml"))
     assert sofa["use_blueprint"]["input"] == {"light": "light.sofa_lys", "remote_device": zha2.id}
     assert off["triggers"][0]["domain"] == "zha" and off["triggers"][0]["subtype"] == "turn_off"
+
+
+async def test_code_outside_home_assistant(hass: HomeAssistant, tmp_path) -> None:
+    """AppDaemon or Node-RED code that mentions the old device is reported – and only then."""
+    from custom_components.replace_device.checks import async_checks
+    from custom_components.replace_device.replace import async_plan
+
+    hass.config.config_dir = str(tmp_path)
+    zha_entry = MockConfigEntry(domain="zha", title="ZHA")
+    zha_entry.add_to_hass(hass)
+    ieee = "08:dd:eb:ff:fe:60:9e:76"
+    old = dr.async_get(hass).async_get_or_create(
+        config_entry_id=zha_entry.entry_id,
+        identifiers={("zha", ieee)},
+        connections={(dr.CONNECTION_ZIGBEE, ieee)},
+        name="Kontakt stue",
+    )
+    new = _device(hass, "mqtt", "new", "0x08ddebfffe609e76", NEW_SENSORS)
+    apps = tmp_path / "appdaemon" / "apps"
+    apps.mkdir(parents=True)
+    (apps / "lys.py").write_text("self.listen_event(self.tryk, 'zha_event')  # nothing about the device\n")
+    plan = async_plan(hass, old.id, new.id)
+    assert (await async_checks(hass, plan))["outside"] == []
+    (apps / "knap.py").write_text(f"if data['device_ieee'] == '{ieee}':\n    self.turn_on('light.sofa')\n")
+    (tmp_path / "node-red").mkdir()
+    (tmp_path / "node-red" / "flows.json").write_text('[{"topic": "zigbee2mqtt/0x08ddebfffe609e76/action"}]')
+    assert (await async_checks(hass, plan))["outside"] == ["appdaemon/apps/knap.py", "node-red/flows.json"]

@@ -49,6 +49,7 @@ const TEXT = {
     hours: "{n} h",
     days: "{n} days",
     checksTitle: "Check after the move",
+    outside: "Used outside Home Assistant – change it there yourself: {list}",
     droppedUsed: "{name} has no match but is used in: {where}",
     valuesDiffer: "{name}: the new one has no {missing} (it has {new}). Automations that use these values must be changed.",
     unitDiffers: "{name}: unit changes from {old} to {new}.",
@@ -149,6 +150,7 @@ const TEXT = {
     hours: "{n} t",
     days: "{n} dage",
     checksTitle: "Tjek efter flytningen",
+    outside: "Bruges uden for Home Assistant – ret det selv dér: {list}",
     droppedUsed: "{name} har ingen match, men bruges i: {where}",
     valuesDiffer: "{name}: den nye har ikke {missing} (den har {new}). Automatiseringer, der bruger de værdier, skal rettes.",
     unitDiffers: "{name}: enheden skifter fra {old} til {new}.",
@@ -396,6 +398,7 @@ class ReplaceDevicePanel extends HTMLElement {
         else lines.push(["warn", this.t("stateClassDiffers", { name: name(e.entity_id), old: d.old, new: d.new })]);
       }
     }
+    if (c.outside?.length) lines.push(["bad", this.t("outside", { list: c.outside.join(", ") })]);
     if (c.device_actions?.length) lines.push(["warn", this.t("deviceActions", { list: c.device_actions.join(", ") })]);
     if (c.integrations?.length) lines.push(["info", this.t("otherIntegrations", { list: c.integrations.join(", ") })]);
     if (c.dashboards?.length) lines.push(["info", this.t("dashboardsUpdated", { list: c.dashboards.join(", ") })]);
