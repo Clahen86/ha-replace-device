@@ -1,5 +1,7 @@
 # Replace Device
 
+[![Validate](https://github.com/Clahen86/ha-replace-device/actions/workflows/validate.yml/badge.svg)](https://github.com/Clahen86/ha-replace-device/actions/workflows/validate.yml)
+
 **A sensor died? Pair the new one – it takes over the old one's name, entity IDs and history. Your automations and dashboards keep working.**
 
 ![Replace Device](docs/hero.png)
