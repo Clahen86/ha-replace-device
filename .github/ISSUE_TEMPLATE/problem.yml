@@ -1,0 +1,38 @@
+name: Something didn't move over right
+description: A replacement or move that didn't work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for trying Replace Device! The more you tell, the faster it gets fixed.
+  - type: input
+    id: from_to
+    attributes:
+      label: Moved from → to
+      description: The integrations, e.g. "ZHA → Zigbee2MQTT" or "HomeKit → Matter"
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device
+      description: Make and model, e.g. "IKEA SOMRIG" or "Sonoff TRVZB"
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What did you expect, and what happened instead? Screenshots of the panel help.
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Replace Device and Home Assistant version
+      placeholder: Replace Device 0.12.2, Home Assistant 2026.10.4
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: Lines from Settings → System → Logs that mention replace_device (optional)
+      render: text

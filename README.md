@@ -4,6 +4,8 @@
 
 ![Replace Device](docs/hero.png)
 
+> **Beta – feedback welcome.** It has been tested on real moves between ZHA, Zigbee2MQTT, HomeKit and Matter, but every home is different. If something doesn't move over as it should, please [open an issue](https://github.com/Clahen86/ha-replace-device/issues/new/choose) and say which integration you moved from and to. You can always fix names afterwards with **Change**.
+
 [English](#english) · [Dansk](#dansk)
 
 ## English
@@ -82,6 +84,8 @@ The same is available without the panel: **Settings → Devices & services → R
 - Everything runs locally. Only with the AI help turned on are names and types of the entities and triggers sent to the AI you picked.
 
 ## Dansk
+
+> **Beta – feedback er velkommen.** Den er testet på rigtige flytninger mellem ZHA, Zigbee2MQTT, HomeKit og Matter, men alle hjem er forskellige. Hvis noget ikke flyttes, som det skal, så [opret et issue](https://github.com/Clahen86/ha-replace-device/issues/new/choose), og skriv hvilken integration du flyttede fra og til. Du kan altid rette navne bagefter med **Ret**.
 
 Når en enhed går i stykker, og du køber en ny, ser Home Assistant en fremmed. Den får nye entity-id'er og ingen historik, og alle automatiseringer, scripts og dashboards peger stadig på den døde. Udskift enhed flytter det hele over i ét hug. Det virker for én enhed eller for et helt netværk, der flytter fra ZHA til Zigbee2MQTT.
 

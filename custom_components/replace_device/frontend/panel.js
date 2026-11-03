@@ -900,7 +900,7 @@ class ReplaceDevicePanel extends HTMLElement {
       edit: () => this.editView(),
     }[this.view]();
     this.shadowRoot.innerHTML = `<style>${STYLE}</style>
-      <div class="toolbar">${customElements.get("ha-menu-button") ? "<ha-menu-button></ha-menu-button>" : ""}<div class="tb-title">${this.t("title")}</div></div>
+      <div class="toolbar">${customElements.get("ha-menu-button") ? "<ha-menu-button></ha-menu-button>" : ""}<div class="tb-title">${this.t("title")}</div><span class="beta">beta</span></div>
       <div class="content">${this.error ? `<div class="card error"><ha-icon icon="mdi:alert-circle"></ha-icon>${esc(this.error)}</div>` : ""}${body}</div>`;
     const menu = this.shadowRoot.querySelector("ha-menu-button");
     if (menu) {
@@ -1050,7 +1050,7 @@ const STYLE = `
   --rd-red:var(--error-color,#db4437);--rd-green:var(--success-color,#43a047);--rd-blue:var(--primary-color,#03a9f4);--rd-amber:var(--warning-color,#ffa600)}
 *{box-sizing:border-box}
 .toolbar{display:flex;align-items:center;height:56px;padding:0 12px;background:var(--app-header-background-color,var(--primary-color,#03a9f4));color:var(--app-header-text-color,#fff);position:sticky;top:0;z-index:2}
-.tb-title{font-size:20px;margin-left:8px}
+.tb-title{font-size:20px;margin-left:8px}.beta{margin-left:10px;font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;padding:2px 8px;border-radius:99px;background:rgba(255,255,255,.22)}
 .content{max-width:960px;margin:0 auto;padding:16px 16px 96px}
 .card{background:var(--card-background-color,#fff);border-radius:var(--ha-card-border-radius,12px);box-shadow:var(--ha-card-box-shadow,0 1px 4px rgba(0,0,0,.1));border:1px solid var(--divider-color,transparent);padding:16px;margin-bottom:16px}
 h2{margin:0 0 6px;font-size:22px}h3{margin:24px 4px 10px;font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px}h3.in{margin:0 0 6px}
