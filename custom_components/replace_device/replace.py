@@ -32,7 +32,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util.file import write_utf8_file_atomic
 from homeassistant.util.yaml import parse_yaml
 
-from . import ai, references, triggers
+from . import ai, references, tidy, triggers
 from .const import AUTOMATIONS_FILE, CHECK_AFTER, DOMAIN, SCENES_FILE, SCRIPTS_FILE, TEXTS, Z2M_BASE_TOPIC
 from .hardware import z2m_base_topic, z2m_ieee, z2m_name
 from .matching import match, unsure
@@ -239,6 +239,12 @@ class Replacer:
         record["integrations"] = await _safely(
             "updating other integrations", references.async_rewrite_entries(hass, record["ids"], skip), []
         )
+        # The entities only the new device has get ids after the device's name, like the others.
+        own = [entities.async_get(n.entity_id) for n in plan.new_entities if n.entity_id not in set(temp_ids)]
+        record["tidied"], tidied_files = await _safely(
+            "naming the new entities", self._async_tidy([e for e in own if e], device_name(plan.old)), ([], [])
+        )
+        changed = sorted(set(changed) | set(tidied_files))
         if reload:
             await self.async_reload(set(changed))
         renamed = False
@@ -287,6 +293,13 @@ class Replacer:
             return entry.name or (state and state.attributes.get("friendly_name")) or entry.original_name or ""
 
         dropped = [o for o in plan.old_entities if not plan.mapping.get(o.entity_id)]
+        own_entries = [er.async_get(hass).async_get(n.entity_id) for n in plan.new_entities if n.entity_id not in used]
+        # Ids the old ones free up count as free here, since the replacement removes those first.
+        freed = {o.entity_id for o in dropped} if remove_old else set()
+        renamed = {
+            c["from"]: c["to"]
+            for c in tidy.plan(hass, device_name(plan.old), [e for e in own_entries if e], free=freed)
+        }
         return {
             "entities": [
                 {
@@ -308,7 +321,9 @@ class Replacer:
             ],
             "own": [n.entity_id for n in plan.new_entities if n.entity_id not in used],
             "own_info": [
-                {"entity_id": n.entity_id, "name": nice(n)} for n in plan.new_entities if n.entity_id not in used
+                {"entity_id": n.entity_id, "name": nice(n), "to": renamed.get(n.entity_id)}
+                for n in plan.new_entities
+                if n.entity_id not in used
             ],
             "device": {
                 "from": device_name(plan.new),
@@ -369,6 +384,13 @@ class Replacer:
         if record is None:
             return False
         devices, entities = dr.async_get(self.hass), er.async_get(self.hass)
+        # Ids given after the device's name go back first.
+        back = tidy.apply(self.hass, [{"from": c["to"], "to": c["from"]} for c in reversed(record.get("tidied") or [])])
+        if back:
+            ids = {c["from"]: c["to"] for c in back}
+            await self._rewrite(ids, reload=False, exact=True)
+            await references.async_rewrite_dashboards(self.hass, ids, exact=True)
+            record["tidied"] = []
         for item in record["entities"]:
             entry = entities.async_get(item["uuid"])
             if entry is None:
@@ -661,16 +683,58 @@ class Replacer:
             except Exception:  # noqa: BLE001 - e.g. a YAML error the user made elsewhere
                 _LOGGER.warning("Could not reload %s after the replacement", domain, exc_info=True)
 
-    async def _rewrite(self, ids: dict[str, str], reload: bool = True) -> list[str]:
-        """Replace device and entity registry ids in the automation, script, scene and package files, then reload."""
+    async def _async_tidy(self, entries: list[Any], name: str) -> tuple[list[dict[str, str]], list[str]]:
+        """Give entries ids after the device's name and fix what uses the old ids; (renamed, changed file domains)."""
+        done = tidy.apply(self.hass, tidy.plan(self.hass, name, entries))
+        if not done:
+            return [], []
+        ids = {c["from"]: c["to"] for c in done}
+        files = await self._rewrite(ids, reload=False, exact=True)
+        await references.async_rewrite_dashboards(self.hass, ids, exact=True)
+        return done, files
+
+    def _own_entries(self, record: dict[str, Any]) -> tuple[list[Any], str]:
+        """The new device's entities that did not take over an old one, and the device's name now."""
+        device = dr.async_get(self.hass).async_get(record["new_device"].get("id") or "")
+        if device is None:
+            return [], ""
+        taken = {item["uuid"] for item in record["entities"]}
+        entries = [e for e in er.async_entries_for_device(er.async_get(self.hass), device.id) if e.id not in taken]
+        return entries, device_name(device)
+
+    def tidy_plan(self, record_id: str) -> list[dict[str, Any]] | None:
+        record = next((r for r in self.history if r["id"] == record_id and not r["undone"]), None)
+        if record is None:
+            return None
+        entries, name = self._own_entries(record)
+        return tidy.plan(self.hass, name, entries) if name else []
+
+    async def async_tidy_record(self, record_id: str) -> list[dict[str, str]] | None:
+        """Tidy the ids of a replacement made before (or of entities that came later)."""
+        record = next((r for r in self.history if r["id"] == record_id and not r["undone"]), None)
+        if record is None:
+            return None
+        entries, name = self._own_entries(record)
+        done, files = await self._async_tidy(entries, name) if name else ([], [])
+        if done:
+            record["tidied"] = list(record.get("tidied") or []) + done
+            self._save()
+            await self.async_reload(set(files))
+        return done
+
+    async def _rewrite(self, ids: dict[str, str], reload: bool = True, exact: bool = False) -> list[str]:
+        """Replace device and entity registry ids in the automation, script, scene and package files, then reload.
+
+        exact: whole entity ids only (for renamed entity ids)."""
         changed: set[str] = set()
         for domains, path in await self.hass.async_add_executor_job(_config_files, self.hass.config.path()):
             text = await self.hass.async_add_executor_job(_read, path)
             if text is None:
                 continue
-            new = text
-            for old_id, new_id in ids.items():
-                new = new.replace(old_id, new_id)
+            new = tidy.replace_ids(text, ids) if exact else text
+            if not exact:
+                for old_id, new_id in ids.items():
+                    new = new.replace(old_id, new_id)
             if new == text:
                 continue
             await self.hass.async_add_executor_job(write_utf8_file_atomic, path, new)

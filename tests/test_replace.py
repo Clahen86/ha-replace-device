@@ -140,7 +140,7 @@ async def test_wizard(hass: HomeAssistant, tmp_path) -> None:
     assert temp.options["sensor"]["suggested_display_precision"] == 1
     assert registry.async_get("sensor.0x00158d0001_temperature") is None
     assert registry.async_get("sensor.kitchen_rssi") is None
-    assert registry.async_get("sensor.0x00158d0001_pressure") is not None
+    assert registry.async_get("sensor.kitchen_pressure") is not None  # named after the device
     # The automation points at the new device and the new entity.
     automations = (tmp_path / "automations.yaml").read_text()
     assert old.id not in automations and new.id in automations
@@ -862,7 +862,7 @@ async def test_edit_pairs_afterwards(hass: HomeAssistant, hass_ws_client) -> Non
     by_id = {c["entity_id"]: c["uuid"] for c in plan["choices"]}
     slots = {s["entity_id"]: s["holder"] for s in plan["slots"]}
     assert slots["sensor.kitchen_temperature"] == by_id["sensor.kitchen_temperature"]
-    pressure = by_id["sensor.0x00158d0001_pressure"]
+    pressure = by_id["sensor.kitchen_pressure"]
     # Swap temperature and humidity, and give the battery name to nothing.
     mapping = {
         "sensor.kitchen_temperature": slots["sensor.kitchen_humidity"],
@@ -1638,3 +1638,76 @@ async def test_buttons_in_scripts_and_packages(hass: HomeAssistant, tmp_path) ->
     assert load_yaml(str(tmp_path / "scripts.yaml"))["vent_paa_knap"]["sequence"][0]["wait_for_trigger"][0][
         "event_type"
     ] == "zha_event"
+
+
+async def test_own_entities_get_ids_after_the_device(hass: HomeAssistant, tmp_path) -> None:
+    """Entities only the new device has get ids after the device's name; what uses them follows, and undo turns back."""
+    from homeassistant.util.yaml import load_yaml
+
+    from custom_components.replace_device.replace import async_plan
+
+    hass.config.config_dir = str(tmp_path)
+    zha_entry = MockConfigEntry(domain="zha", title="ZHA")
+    zha_entry.add_to_hass(hass)
+    mqtt_entry = MockConfigEntry(domain="mqtt", title="Mosquitto broker")
+    mqtt_entry.add_to_hass(hass)
+    devices, entities = dr.async_get(hass), er.async_get(hass)
+    zha = devices.async_get_or_create(config_entry_id=zha_entry.entry_id, identifiers={("zha", "a")}, name="Røgalarm Gang")
+    z2m = devices.async_get_or_create(
+        config_entry_id=mqtt_entry.entry_id, identifiers={("mqtt", "zigbee2mqtt_0x54ef441001314fb2")}, name="0x54ef"
+    )
+    entities.async_get_or_create(
+        "binary_sensor", "zha", "a-1", suggested_object_id="rogalarm_gang", device_id=zha.id, config_entry=zha_entry,
+        original_device_class="smoke",
+    )
+    entities.async_get_or_create(
+        "binary_sensor", "mqtt", "0x54_smoke", suggested_object_id="0x54ef441001314fb2_smoke", device_id=z2m.id,
+        config_entry=mqtt_entry, original_device_class="smoke", has_entity_name=True, original_name="Smoke",
+    )
+    for key, name in (("voltage", "Voltage"), ("voltage2", "Voltage")):
+        entities.async_get_or_create(
+            "sensor", "mqtt", f"0x54_{key}", suggested_object_id=f"0x54ef441001314fb2_{key}", device_id=z2m.id,
+            config_entry=mqtt_entry, has_entity_name=True, original_name=name,
+        )
+    automations = (
+        "- id: '1'\n  alias: Lav spænding\n  triggers:\n  - trigger: numeric_state\n"
+        "    entity_id: sensor.0x54ef441001314fb2_voltage\n    below: 2.5\n"
+        "  actions:\n  - action: notify.x\n    data:\n      message: \"{{ states('sensor.0x54ef441001314fb2_voltage2') }}\"\n"
+    )
+    (tmp_path / "automations.yaml").write_text(automations)
+    entry = await _setup(hass)
+    replacer = entry.runtime_data
+    plan = async_plan(hass, zha.id, z2m.id)
+
+    dry = await replacer.async_dry_run(plan, True)
+    assert {e["entity_id"]: e["to"] for e in dry["own_info"]} == {
+        "sensor.0x54ef441001314fb2_voltage": "sensor.rogalarm_gang_voltage",
+        "sensor.0x54ef441001314fb2_voltage2": "sensor.rogalarm_gang_voltage_2",
+    }
+
+    result = await replacer.async_replace(async_plan(hass, zha.id, z2m.id), True)
+    await hass.async_block_till_done()
+    assert entities.async_get("binary_sensor.rogalarm_gang").device_id == z2m.id
+    assert entities.async_get("sensor.rogalarm_gang_voltage").unique_id == "0x54_voltage"
+    assert entities.async_get("sensor.rogalarm_gang_voltage_2").unique_id == "0x54_voltage2"
+    text = (tmp_path / "automations.yaml").read_text()
+    assert "sensor.rogalarm_gang_voltage\n" in text and "states('sensor.rogalarm_gang_voltage_2')" in text
+    assert "0x54ef" not in text
+    assert replacer.tidy_plan(result["id"]) == []
+
+    # A Zigbee2MQTT update adds an entity later: "Tidy up" in Edit gives it a name too.
+    entities.async_get_or_create(
+        "sensor", "mqtt", "0x54_linkquality", suggested_object_id="0x54ef441001314fb2_linkquality", device_id=z2m.id,
+        config_entry=mqtt_entry, has_entity_name=True, original_name="Linkquality",
+    )
+    assert [c["to"] for c in replacer.tidy_plan(result["id"])] == ["sensor.rogalarm_gang_linkquality"]
+    assert len(await replacer.async_tidy_record(result["id"])) == 1
+    assert entities.async_get("sensor.rogalarm_gang_linkquality")
+
+    assert await replacer.async_undo(result["id"])
+    await hass.async_block_till_done()
+    assert entities.async_get("sensor.0x54ef441001314fb2_voltage")
+    assert entities.async_get("sensor.0x54ef441001314fb2_linkquality")
+    assert load_yaml(str(tmp_path / "automations.yaml"))[0]["triggers"][0]["entity_id"] == (
+        "sensor.0x54ef441001314fb2_voltage"
+    )

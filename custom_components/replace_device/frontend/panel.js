@@ -88,6 +88,12 @@ const TEXT = {
     triggersDone: "{n} button triggers were translated to the new integration.",
     triggersOpen: "Check these button triggers – no match was found:",
     recheck: "Check buttons again",
+    tidy: "Tidy up entity IDs",
+    tidyHint: "Entities only the new device has get IDs after the device's name, like the others. Automations and dashboards are updated too.",
+    tidyNone: "All entity IDs already follow the device's name.",
+    tidyApply: "Rename {n}",
+    tidyDone: "{n} entity IDs renamed.",
+    dryOwnRenamed: "New – get IDs after the device's name",
     recheckDone: "{n} button triggers translated. Still to check: {open}",
     recheckNone: "No button triggers left to translate.",
     pressOnce: "Press each button once, so Zigbee2MQTT tells Home Assistant about it.",
@@ -260,6 +266,12 @@ const TEXT = {
     triggersDone: "{n} knaptriggere er oversat til den nye integration.",
     triggersOpen: "Tjek disse knaptriggere – der blev ikke fundet et match:",
     recheck: "Tjek knapper igen",
+    tidy: "Ryd op i entity-id'er",
+    tidyHint: "Entiteter, som kun den nye enhed har, får id'er efter enhedens navn ligesom de andre. Automatiseringer og dashboards rettes med.",
+    tidyNone: "Alle entity-id'er følger allerede enhedens navn.",
+    tidyApply: "Omdøb {n}",
+    tidyDone: "{n} entity-id'er omdøbt.",
+    dryOwnRenamed: "Nye – får id efter enhedens navn",
     recheckDone: "{n} knaptriggere oversat. Skal stadig tjekkes: {open}",
     recheckNone: "Der er ingen knaptriggere tilbage at oversætte.",
     pressOnce: "Tryk på hver knap én gang, så Zigbee2MQTT melder den til Home Assistant.",
@@ -432,6 +444,12 @@ const TEXT = {
     triggersDone: "{n} Tasten-Auslöser wurden in die neue Integration übersetzt.",
     triggersOpen: "Prüfe diese Tasten-Auslöser – kein Gegenstück gefunden:",
     recheck: "Tasten erneut prüfen",
+    tidy: "Entitäts-IDs aufräumen",
+    tidyHint: "Entitäten, die nur das neue Gerät hat, bekommen IDs nach dem Gerätenamen wie die anderen. Automationen und Dashboards werden mit angepasst.",
+    tidyNone: "Alle Entitäts-IDs folgen bereits dem Gerätenamen.",
+    tidyApply: "{n} umbenennen",
+    tidyDone: "{n} Entitäts-IDs umbenannt.",
+    dryOwnRenamed: "Neu – bekommen IDs nach dem Gerätenamen",
     recheckDone: "{n} Tasten-Auslöser übersetzt. Noch zu prüfen: {open}",
     recheckNone: "Keine Tasten-Auslöser mehr zu übersetzen.",
     pressOnce: "Drücke jede Taste einmal, damit Zigbee2MQTT sie Home Assistant meldet.",
@@ -604,6 +622,12 @@ const TEXT = {
     triggersDone: "{n} knapputlösare översattes till den nya integrationen.",
     triggersOpen: "Kontrollera dessa knapputlösare – ingen motsvarighet hittades:",
     recheck: "Kontrollera knapparna igen",
+    tidy: "Städa entitets-ID:n",
+    tidyHint: "Entiteter som bara den nya enheten har får ID efter enhetens namn som de andra. Automationer och instrumentpaneler uppdateras också.",
+    tidyNone: "Alla entitets-ID följer redan enhetens namn.",
+    tidyApply: "Byt namn på {n}",
+    tidyDone: "{n} entitets-ID har bytt namn.",
+    dryOwnRenamed: "Nya – får ID efter enhetens namn",
     recheckDone: "{n} knapputlösare översatta. Kvar att kontrollera: {open}",
     recheckNone: "Inga knapputlösare kvar att översätta.",
     pressOnce: "Tryck på varje knapp en gång, så att Zigbee2MQTT berättar om den för Home Assistant.",
@@ -776,6 +800,12 @@ const TEXT = {
     triggersDone: "{n} knoptriggers zijn vertaald naar de nieuwe integratie.",
     triggersOpen: "Controleer deze knoptriggers – geen tegenhanger gevonden:",
     recheck: "Knoppen opnieuw controleren",
+    tidy: "Entiteit-ID's opruimen",
+    tidyHint: "Entiteiten die alleen het nieuwe apparaat heeft krijgen ID's naar de apparaatnaam, net als de andere. Automatiseringen en dashboards worden ook bijgewerkt.",
+    tidyNone: "Alle entiteit-ID's volgen al de apparaatnaam.",
+    tidyApply: "{n} hernoemen",
+    tidyDone: "{n} entiteit-ID's hernoemd.",
+    dryOwnRenamed: "Nieuw – krijgen ID's naar de apparaatnaam",
     recheckDone: "{n} knoptriggers vertaald. Nog te controleren: {open}",
     recheckNone: "Geen knoptriggers meer om te vertalen.",
     pressOnce: "Druk elke knop één keer in, zodat Zigbee2MQTT hem aan Home Assistant doorgeeft.",
@@ -1454,9 +1484,10 @@ class ReplaceDevicePanel extends HTMLElement {
           <ha-icon icon="mdi:delete-outline"></ha-icon>
           <div class="grow"><div class="dname">${esc(e.name || e.entity_id)}</div>
             <div class="mono muted small">${esc(e.entity_id)}</div>${e.used_in ? usedIn(e.used_in) : ""}</div></div>`).join("");
-      const own = (d.own_info || d.own.map((x) => ({ entity_id: x }))).map((e) => `<div class="drow new">
+      const ownList = d.own_info || d.own.map((x) => ({ entity_id: x }));
+      const own = ownList.map((e) => `<div class="drow new">
           <ha-icon icon="${icon(e.entity_id)}"></ha-icon>
-          <div class="grow"><div class="dname">${esc(e.name || e.entity_id)}</div><div class="mono muted small">${esc(e.entity_id)}</div></div></div>`).join("");
+          <div class="grow"><div class="dname">${esc(e.name || e.entity_id)}</div><div class="mono muted small">${esc(e.entity_id)}${e.to ? ` → ${esc(e.to)}` : ""}</div></div></div>`).join("");
       const buttons = auto.map((c) => `<div class="drow">
           <ha-icon icon="mdi:gesture-tap-button"></ha-icon>
           <div class="grow"><div class="dname">${esc(c.automation)}</div>
@@ -1496,7 +1527,7 @@ class ReplaceDevicePanel extends HTMLElement {
         ${section(this.t("dryTriggers"), "mdi:gesture-tap-button", buttons)}
         ${updated.length ? `<h3 class="dsec"><ha-icon icon="mdi:sync"></ha-icon>${this.t("dryUpdated")}</h3><div class="dchips">${updated.map(([i, x]) => `<span class="chip sm"><ha-icon icon="${i}"></ha-icon>${esc(x)}</span>`).join("")}</div>` : ""}
         ${section(this.t("dryDropped"), "mdi:delete-outline", dropped, "red-text")}
-        ${section(this.t("dryOwn"), "mdi:new-box", own)}
+        ${section(this.t(ownList.some((e) => e.to) ? "dryOwnRenamed" : "dryOwn"), "mdi:new-box", own)}
       </div>`;
     };
     return `
@@ -1591,6 +1622,15 @@ class ReplaceDevicePanel extends HTMLElement {
       </div>
       <div class="card"><button class="ghost full" data-act="recheck"><ha-icon icon="mdi:gesture-tap-button"></ha-icon>${this.t("recheck")}</button>
         ${this.recheckResult ? `<p class="small ${this.recheckResult.unresolved.length ? "warn-text" : "ok-text"}">${esc(this.recheckResult.translated.length || this.recheckResult.unresolved.length ? this.t("recheckDone", { n: this.recheckResult.translated.length, open: this.recheckResult.unresolved.join(", ") || "–" }) : this.t("recheckNone"))}</p>` : ""}</div>
+      <div class="card"><button class="ghost full" data-act="tidyCheck"><ha-icon icon="mdi:rename-box"></ha-icon>${this.t("tidy")}</button>
+        <p class="muted small">${this.t("tidyHint")}</p>
+        ${this.tidyResult ? (this.tidyResult.done
+          ? `<p class="small ok-text">${esc(this.t("tidyDone", { n: this.tidyResult.changes.length }))}</p>`
+          : this.tidyResult.changes.length
+            ? `<div class="drows">${this.tidyResult.changes.map((c) => `<div class="drow new"><ha-icon icon="mdi:rename"></ha-icon><div class="grow"><div class="dname">${esc(c.name || c.to)}</div><div class="mono muted small">${esc(c.from)} → ${esc(c.to)}</div></div></div>`).join("")}</div>
+               <div class="actions"><button class="primary" data-act="tidyApply">${esc(this.t("tidyApply", { n: this.tidyResult.changes.length }))}</button></div>`
+            : `<p class="small ok-text">${this.t("tidyNone")}</p>`) : ""}
+      </div>
       <div class="actions"><button class="ghost" data-act="home">${this.t("back")}</button><button class="primary big" data-act="saveEdit">${this.t("save")}</button></div>
       ${this.confirmGiveBack ? `
         <div class="card warn give-back"><p>${this.t("giveBackWarn")}</p>
@@ -1604,7 +1644,18 @@ class ReplaceDevicePanel extends HTMLElement {
       this.editMapping = Object.fromEntries(this.editPlan.slots.map((slot) => [slot.entity_id, slot.holder]));
       this.confirmGiveBack = false;
       this.recheckResult = null;
+      this.tidyResult = null;
       this.view = "edit";
+    } catch (e) {
+      this.error = this.t("error", { e: e.message || e.code });
+    }
+    this.render();
+  }
+
+  async tidy(apply) {
+    try {
+      const r = await this.ws("tidy", { record: this.editPlan.id, apply });
+      this.tidyResult = { changes: r.changes, done: apply };
     } catch (e) {
       this.error = this.t("error", { e: e.message || e.code });
     }
@@ -1807,6 +1858,8 @@ class ReplaceDevicePanel extends HTMLElement {
       this.openEdit(data.id);
     } else if (data.act === "recheck") {
       this.recheck();
+    } else if (data.act === "tidyCheck" || data.act === "tidyApply") {
+      this.tidy(data.act === "tidyApply");
     } else if (data.act === "saveEdit") {
       this.saveEdit();
     } else if (data.act === "askGiveBack" || data.act === "cancelGiveBack") {

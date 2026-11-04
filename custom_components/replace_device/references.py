@@ -17,12 +17,17 @@ from .const import AUTOMATIONS_FILE, DOMAIN, SCRIPTS_FILE
 _LOGGER = logging.getLogger(__name__)
 
 
-def swap(value: Any, ids: dict[str, str]) -> Any:
-    """The same JSON value with ids replaced."""
+def swap(value: Any, ids: dict[str, str], exact: bool = False) -> Any:
+    """The same JSON value with ids replaced (exact: whole entity ids only)."""
+    from .tidy import replace_ids
+
     text = json.dumps(value, default=str)
     new = text
-    for old, replacement in ids.items():
-        new = new.replace(old, replacement)
+    if exact:
+        new = replace_ids(text, ids)
+    else:
+        for old, replacement in ids.items():
+            new = new.replace(old, replacement)
     return value if new == text else json.loads(new)
 
 
@@ -44,10 +49,10 @@ async def async_dashboards(hass: HomeAssistant) -> list[tuple[str, Any, dict]]:
     return result
 
 
-async def async_rewrite_dashboards(hass: HomeAssistant, ids: dict[str, str]) -> list[str]:
+async def async_rewrite_dashboards(hass: HomeAssistant, ids: dict[str, str], exact: bool = False) -> list[str]:
     changed = []
     for title, dashboard, config in await async_dashboards(hass):
-        new = swap(config, ids)
+        new = swap(config, ids, exact)
         if new is not config:
             await dashboard.async_save(new)
             changed.append(title)

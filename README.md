@@ -25,6 +25,7 @@ When a device breaks and you buy a new one, Home Assistant sees a stranger: new 
 | **Your settings** | Names, icons, areas, labels, categories, voice aliases, display precision and unit settings. |
 | **The device** | The new device gets the old one's name and area – also in Zigbee2MQTT, if you want. |
 | **Automations and scripts** | Everything that points at the old device by ID: `automations.yaml`, `scripts.yaml`, `scenes.yaml` and `packages/`. |
+| **Entity IDs of new entities** | Entities only the new device has (e.g. Zigbee2MQTT's extra sensors) get IDs after the device's name, like `sensor.kitchen_sensor_linkquality` instead of `sensor.0x00158d…_linkquality`. For replacements made before, use **Edit → Tidy up entity IDs**. |
 | **Button triggers** | Triggers with other names in the new integration are translated (ZHA `remote_button_short_press` → Zigbee2MQTT `action: single`), and so are `zha_event` triggers and Zigbee2MQTT MQTT topics – also in `wait_for_trigger` and in `scripts.yaml`. In `packages/` and YAML dashboards, which are your own files, it lists what to change by hand. |
 | **Blueprints** | Inputs meant for the old integration are moved to the right ones – e.g. a "ZHA / Zigbee2MQTT" remote blueprint gets the Zigbee2MQTT name and base topic instead of the ZHA device. |
 | **Dashboards and other integrations** | Dashboards made in the UI, and integrations that store the device (e.g. Battery Notes). |
@@ -103,6 +104,7 @@ Når en enhed går i stykker, og du køber en ny, ser Home Assistant en fremmed.
 - **Dine indstillinger:** Navne, ikoner, områder, etiketter, kategorier, stemme-aliasser, antal decimaler og enheder.
 - **Enheden:** Den nye enhed får den gamles navn og område, og hvis du vil, også i Zigbee2MQTT.
 - **Automatiseringer og scripts:** Alt, der peger på den gamle enhed via id, i `automations.yaml`, `scripts.yaml`, `scenes.yaml` og `packages/`.
+- **Entity-id'er på nye entiteter:** Entiteter, som kun den nye enhed har (fx Zigbee2MQTT's ekstra sensorer), får id'er efter enhedens navn, fx `sensor.kokken_sensor_linkquality` i stedet for `sensor.0x00158d…_linkquality`. Ved tidligere udskiftninger: **Ret → Ryd op i entity-id'er**.
 - **Knaptriggere:** Triggere, der hedder noget andet i den nye integration, bliver oversat (ZHA `remote_button_short_press` → Zigbee2MQTT `action: single`). Det samme gælder `zha_event`-triggere og Zigbee2MQTT-MQTT-emner, også i `wait_for_trigger` og i `scripts.yaml`. I `packages/` og YAML-dashboards, som er dine egne filer, viser den, hvad du selv skal rette.
 - **Blueprints:** Felter til den gamle integration bliver flyttet til de rigtige. Fx får en "ZHA / Zigbee2MQTT"-fjernbetjeningsblueprint Zigbee2MQTT-navnet og base topic i stedet for ZHA-enheden.
 - **Dashboards og andre integrationer:** Dashboards lavet i brugerfladen og integrationer, der gemmer enheden (fx Battery Notes).

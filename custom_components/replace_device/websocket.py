@@ -36,6 +36,7 @@ def async_setup(hass: HomeAssistant) -> None:
         ws_edit_plan,
         ws_edit,
         ws_retranslate,
+        ws_tidy,
         ws_migrate_plan,
         ws_migrate,
         ws_migrate_dry_run,
@@ -293,6 +294,24 @@ async def ws_retranslate(hass: HomeAssistant, connection: websocket_api.ActiveCo
         connection.send_error(msg["id"], "not_found", "Nothing to check")
         return
     connection.send_result(msg["id"], result)
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {vol.Required("type"): f"{DOMAIN}/tidy", vol.Required("record"): str, vol.Optional("apply", default=False): bool}
+)
+@websocket_api.async_response
+async def ws_tidy(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Entity ids of the new device's own entities after the device's name: what would change, or do it."""
+    replacer = _replacer(hass)
+    if replacer is None:
+        connection.send_error(msg["id"], "not_found", "Nothing to tidy")
+        return
+    result = await replacer.async_tidy_record(msg["record"]) if msg["apply"] else replacer.tidy_plan(msg["record"])
+    if result is None:
+        connection.send_error(msg["id"], "not_found", "Nothing to tidy")
+        return
+    connection.send_result(msg["id"], {"changes": result})
 
 
 @websocket_api.require_admin
