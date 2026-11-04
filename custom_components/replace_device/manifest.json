@@ -27,5 +27,5 @@
   "issue_tracker": "https://github.com/Clahen86/ha-replace-device/issues",
   "requirements": [],
   "single_config_entry": true,
-  "version": "0.18.0"
+  "version": "0.18.1"
 }

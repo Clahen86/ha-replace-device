@@ -2,6 +2,8 @@
 
 const TEXT = {
   en: {
+    historyAll: "Replaced ({n})",
+    dryOldMarked: "The old device is called {name}, so you can see it can be deleted",
     title: "Replace device",
     heroTitle: "A device died?",
     heroText: "Pair the new one first. It then takes over the old one's name, entity IDs and history – your automations and dashboards keep working.",
@@ -208,6 +210,8 @@ const TEXT = {
     dryBack: "Back",
   },
   da: {
+    historyAll: "Udskiftet ({n})",
+    dryOldMarked: "Den gamle enhed kommer til at hedde {name}, så du kan se, den kan slettes",
     title: "Udskift enhed",
     heroTitle: "Er en enhed død?",
     heroText: "Par den nye først. Så overtager den den gamles navn, entity-id'er og historik – dine automatiseringer og dashboards virker videre.",
@@ -414,6 +418,8 @@ const TEXT = {
     dryBack: "Tilbage",
   },
   de: {
+    historyAll: "Ersetzt ({n})",
+    dryOldMarked: "Das alte Gerät heißt dann {name}, damit du siehst, dass es gelöscht werden kann",
     needsAction: "Braucht einen Blick",
     historyDone: "Erledigt ({n})",
     todoButtons: "{n} Tasten-Auslöser prüfen",
@@ -620,6 +626,8 @@ const TEXT = {
     dryBack: "Zurück",
   },
   sv: {
+    historyAll: "Utbytta ({n})",
+    dryOldMarked: "Den gamla enheten får namnet {name}, så du ser att den kan tas bort",
     needsAction: "Behöver en titt",
     historyDone: "Klara ({n})",
     todoButtons: "{n} knapputlösare att kontrollera",
@@ -826,6 +834,8 @@ const TEXT = {
     dryBack: "Tillbaka",
   },
   nl: {
+    historyAll: "Vervangen ({n})",
+    dryOldMarked: "Het oude apparaat heet dan {name}, zodat je ziet dat het verwijderd kan worden",
     needsAction: "Moet bekeken worden",
     historyDone: "Klaar ({n})",
     todoButtons: "{n} knoptriggers controleren",
@@ -1288,9 +1298,7 @@ class ReplaceDevicePanel extends HTMLElement {
       <div class="grid">${deadCards}</div>
       ${hiddenPart}
       ${needs.length ? `<h3>${this.t("needsAction")} <span class="count amber">${needs.length}</span></h3><div class="card list">${needs.map((h) => this.historyRow(h)).join("")}</div>` : ""}
-      ${history ? (needs.length
-        ? `<details class="dmore hist-done"><summary><ha-icon icon="mdi:check-circle"></ha-icon> ${esc(this.t("historyDone", { n: this.historyItems.length - needs.length }))}</summary><div class="card list">${history}</div></details>`
-        : `<h3>${this.t("history")}</h3><div class="card list">${history}</div>`) : ""}`;
+      ${history ? `<details class="dmore hist-done"><summary><ha-icon icon="mdi:check-circle"></ha-icon> ${esc(this.t(needs.length ? "historyDone" : "historyAll", { n: this.historyItems.length - needs.length }))}</summary><div class="card list">${history}</div></details>` : ""}`;
   }
 
   // What could still bite, as lines; also used to count them in "move many".
@@ -1751,7 +1759,8 @@ class ReplaceDevicePanel extends HTMLElement {
         </div>
         <div class="dmeta">
           ${d.device.area ? `<span class="chip sm"><ha-icon icon="mdi:sofa"></ha-icon>${esc(d.device.area)}</span>` : ""}
-          <span class="chip sm"><ha-icon icon="${d.remove_old ? "mdi:delete-outline" : "mdi:archive-outline"}"></ha-icon>${this.t(d.remove_old ? "dryRemove" : "dryKeep")}</span>
+          <span class="chip sm"><ha-icon icon="${d.remove_old ? "mdi:delete-outline" : "mdi:archive-outline"}"></ha-icon>${this.t(d.remove_old && !d.old_name ? "dryRemove" : "dryKeep")}</span>
+          ${d.old_name ? `<span class="chip sm"><ha-icon icon="mdi:rename"></ha-icon>${esc(this.t("dryOldMarked", { name: d.old_name }))}</span>` : ""}
           ${d.z2m_name ? `<span class="chip sm"><ha-icon icon="mdi:zigbee"></ha-icon>${esc(this.t("dryZ2m", { name: d.z2m_name }))}</span>` : ""}
         </div>
         <div class="tiles">

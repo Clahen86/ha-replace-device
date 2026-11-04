@@ -1791,3 +1791,22 @@ async def test_rename_device_everywhere(hass: HomeAssistant, tmp_path) -> None:
     assert entities.async_get("sensor.0x00158d0001a2b3_linkquality").unique_id == "l"
     assert "sensor.kokken_sensor_temperature\n" in (tmp_path / "automations.yaml").read_text()
     assert group.options["entities"] == ["sensor.kokken_sensor_temperature", "sensor.other"]
+
+
+async def test_old_device_that_stays_says_so(hass: HomeAssistant) -> None:
+    """A kept old device gets a name that says it can be deleted; undo gives its name back."""
+    from custom_components.replace_device.replace import async_plan
+
+    old = _device(hass, "zha", "old", "Kitchen", OLD_SENSORS)
+    new = _device(hass, "mqtt", "new", "0x00158d0001", NEW_SENSORS)
+    entry = await _setup(hass)
+    replacer = entry.runtime_data
+    dry = await replacer.async_dry_run(async_plan(hass, old.id, new.id), False)
+    assert dry["old_name"] == "Kitchen (old – can be deleted)"
+    result = await replacer.async_replace(async_plan(hass, old.id, new.id), False)
+    await hass.async_block_till_done()
+    devices = dr.async_get(hass)
+    assert devices.async_get(old.id).name_by_user == "Kitchen (old – can be deleted)"
+    assert devices.async_get(new.id).name_by_user == "Kitchen"
+    assert await replacer.async_undo(result["id"])
+    assert devices.async_get(old.id).name_by_user is None

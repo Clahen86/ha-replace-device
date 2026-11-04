@@ -182,6 +182,11 @@ class Replacer:
             if entities.async_get(entity_id):
                 entities.async_remove(entity_id)
         await _wait_until_gone(hass, old_ids)
+        # The old device stays (its integration won't let go, or it was kept): a name that says so. Entities its
+        # integration makes again are then named after it, instead of taking "_2" of the names that moved.
+        if (old_device := devices.async_get(plan.old.id)) is not None:
+            record["old_marked"] = {"name_by_user": old_device.name_by_user}
+            devices.async_update_device(old_device.id, name_by_user=_old_name(hass, device_name(plan.old)))
 
         # 2. The new entities take over the old entity ids and everything the user set on them.
         failed = []
@@ -331,6 +336,8 @@ class Replacer:
                 "area": area_entry and area_entry.name,
             },
             "remove_old": remove_old,
+            # What the old device will be called if it stays.
+            "old_name": None if remove_old and _can_remove(hass, plan.old) else _old_name(hass, device_name(plan.old)),
             "z2m_name": moved.new_z2m_name if rename_z2m and moved.new_z2m_name != plan.new.name else None,
             "users": users,
             "triggers": translation,
@@ -403,6 +410,8 @@ class Replacer:
             entities.async_update_entity(entry.entity_id, new_entity_id=new_id, **_restore(item))
             for domain in set(entry.options) | set(item["options"]):
                 entities.async_update_entity_options(new_id, domain, item["options"].get(domain, {}))
+        if (marked := record.get("old_marked")) and (old := devices.async_get(record["old_device"].get("id") or "")):
+            devices.async_update_device(old.id, name_by_user=marked.get("name_by_user"))
         device = record["new_device"]
         if device.get("id") and (current := devices.async_get(device["id"])):
             record["old_device"]["area_id"] = current.area_id
@@ -1049,6 +1058,21 @@ def _read(path: str) -> str | None:
             return file.read()
     except FileNotFoundError:
         return None
+
+
+def _old_name(hass: HomeAssistant, name: str) -> str:
+    text = TEXTS.get(hass.config.language.split("-")[0], TEXTS["en"])
+    return text["old_name"].format(name=name)
+
+
+def _can_remove(hass: HomeAssistant, device: dr.DeviceEntry) -> bool:
+    """Whether _remove_device will most likely manage it (for the test run)."""
+    entry = hass.config_entries.async_get_entry(device.config_entry_id) if device.config_entry_id else None
+    if entry is None or entry.state is not ConfigEntryState.LOADED:
+        return True
+    if entry.domain == "zha":
+        return hass.services.has_service("zha", "remove")
+    return bool(entry.supports_remove_device)
 
 
 async def _remove_device(hass: HomeAssistant, device: dr.DeviceEntry) -> bool:

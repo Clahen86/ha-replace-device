@@ -28,6 +28,7 @@ CONF_AI = "ai_task"
 # Texts written from code (logbook), in the user's language.
 TEXTS = {
     "en": {
+        "old_name": "{name} (old – can be deleted)",
         "logbook": "replaced by {new}",
         "moves": "Moves to the new device (keeps entity ID, name and history):",
         "dropped": "Removed, no match on the new device:",
@@ -37,6 +38,7 @@ TEXTS = {
         "nothing": "Nothing to move.",
     },
     "da": {
+        "old_name": "{name} (gammel – kan slettes)",
         "logbook": "udskiftet med {new}",
         "moves": "Flyttes til den nye enhed (beholder entity-id, navn og historik):",
         "dropped": "Fjernes, ingen match på den nye enhed:",
@@ -46,6 +48,7 @@ TEXTS = {
         "nothing": "Der er intet at flytte.",
     },
     "de": {
+        "old_name": "{name} (alt – kann gelöscht werden)",
         "logbook": "ersetzt durch {new}",
         "moves": "Wird auf das neue Gerät übertragen (behält Entitäts-ID, Namen und Verlauf):",
         "dropped": "Wird entfernt, kein Gegenstück auf dem neuen Gerät:",
@@ -55,6 +58,7 @@ TEXTS = {
         "nothing": "Nichts zu übertragen.",
     },
     "sv": {
+        "old_name": "{name} (gammal – kan tas bort)",
         "logbook": "ersatt av {new}",
         "moves": "Flyttas till den nya enheten (behåller entitets-ID, namn och historik):",
         "dropped": "Tas bort, ingen motsvarighet på den nya enheten:",
@@ -64,6 +68,7 @@ TEXTS = {
         "nothing": "Inget att flytta.",
     },
     "nl": {
+        "old_name": "{name} (oud – kan verwijderd worden)",
         "logbook": "vervangen door {new}",
         "moves": "Gaat naar het nieuwe apparaat (behoudt entiteit-ID, naam en geschiedenis):",
         "dropped": "Wordt verwijderd, geen tegenhanger op het nieuwe apparaat:",
