@@ -140,6 +140,8 @@ const TEXT = {
     none: "None",
     dryRun: "Test first",
     dryWorking: "Testing…",
+    planning: "Getting ready…",
+    planningHint: "Pairing the entities and checking automations – asking the AI if something is unclear. This can take a few seconds.",
     dryTitle: "Test run – nothing has been changed",
     dryIntro: "This is what would happen. Go back and press the button to do it for real.",
     dryEntities: "Takes over the old names and history",
@@ -297,6 +299,8 @@ const TEXT = {
     none: "Ingen",
     dryRun: "Test først",
     dryWorking: "Tester…",
+    planning: "Gør klar…",
+    planningHint: "Parrer entiteterne og tjekker automatiseringer – spørger AI, hvis noget er uklart. Det kan tage nogle sekunder.",
     dryTitle: "Testkørsel – intet er ændret",
     dryIntro: "Sådan ville det gå. Gå tilbage og tryk på knappen for at gøre det for alvor.",
     dryEntities: "Overtager de gamle navne og historik",
@@ -454,6 +458,8 @@ const TEXT = {
     none: "Keine",
     dryRun: "Erst testen",
     dryWorking: "Wird getestet…",
+    planning: "Wird vorbereitet…",
+    planningHint: "Entitäten werden zugeordnet und Automationen geprüft – bei Unklarheiten wird die KI gefragt. Das kann ein paar Sekunden dauern.",
     dryTitle: "Testlauf – nichts wurde geändert",
     dryIntro: "So würde es ablaufen. Geh zurück und drücke den Knopf, um es wirklich zu tun.",
     dryEntities: "Übernimmt die alten Namen und den Verlauf",
@@ -611,6 +617,8 @@ const TEXT = {
     none: "Inga",
     dryRun: "Testa först",
     dryWorking: "Testar…",
+    planning: "Förbereder…",
+    planningHint: "Parar ihop entiteterna och kontrollerar automationer – frågar AI om något är oklart. Det kan ta några sekunder.",
     dryTitle: "Testkörning – inget har ändrats",
     dryIntro: "Så här skulle det gå. Gå tillbaka och tryck på knappen för att göra det på riktigt.",
     dryEntities: "Tar över de gamla namnen och historiken",
@@ -768,6 +776,8 @@ const TEXT = {
     none: "Geen",
     dryRun: "Eerst testen",
     dryWorking: "Bezig met testen…",
+    planning: "Bezig met voorbereiden…",
+    planningHint: "Entiteiten koppelen en automatiseringen controleren – de AI wordt gevraagd als iets onduidelijk is. Dit kan een paar seconden duren.",
     dryTitle: "Testrun – er is niets gewijzigd",
     dryIntro: "Zo zou het gaan. Ga terug en druk op de knop om het echt te doen.",
     dryEntities: "Neemt de oude namen en geschiedenis over",
@@ -880,6 +890,14 @@ class ReplaceDevicePanel extends HTMLElement {
     }
     this.oldId = oldId;
     this.newId = newId;
+    const back = this.view;
+    if (!mapping) {
+      // A fresh plan can take a few seconds (checks, maybe the AI): show that something is happening.
+      this.view = "working";
+      this.planning = true;
+      this.error = "";
+      this.render();
+    }
     try {
       this.plan = await this.ws("plan", { old: oldId, new: newId, ...(mapping ? { mapping } : {}) });
       this.mapping = { ...this.plan.mapping };
@@ -887,7 +905,9 @@ class ReplaceDevicePanel extends HTMLElement {
       this.error = "";
     } catch (e) {
       this.error = this.t("error", { e: e.message || e.code });
+      this.view = back;
     }
+    this.planning = false;
     this.render();
   }
 
@@ -1456,6 +1476,7 @@ class ReplaceDevicePanel extends HTMLElement {
   }
 
   workingView() {
+    if (this.planning) return `<div class="card center"><div class="spinner"></div><h2>${this.t("planning")}</h2><p class="muted small">${this.t("planningHint")}</p></div>`;
     return `<div class="card center"><div class="spinner"></div><h2>${this.t(this.testing ? "dryWorking" : "working")}</h2></div>`;
   }
 
