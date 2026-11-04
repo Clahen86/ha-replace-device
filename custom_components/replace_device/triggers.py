@@ -19,7 +19,7 @@ from homeassistant.util.file import write_utf8_file_atomic
 from homeassistant.util.yaml import dump, load_yaml, parse_yaml
 
 from . import ai
-from .const import AUTOMATIONS_FILE
+from .const import AUTOMATIONS_FILE, SCRIPTS_FILE
 from .hardware import async_z2m_actions
 
 _LOGGER = logging.getLogger(__name__)
@@ -133,52 +133,51 @@ class Moved:
 
 
 async def async_translate(
-    hass: HomeAssistant, moved: Moved, ai_entity: str | None, ids: dict[str, str] | None = None
+    hass: HomeAssistant,
+    moved: Moved,
+    ai_entity: str | None,
+    ids: dict[str, str] | None = None,
+    cache: dict[tuple, dict[int, int]] | None = None,
 ) -> dict[str, Any]:
-    """Rewrite what listens to the old integration in automations.yaml: device triggers, ZHA events, Zigbee2MQTT
-    topics, and blueprint inputs meant for the old integration. Entity triggers need nothing: the ids stay.
+    """Rewrite what listens to the old integration: device triggers (also in wait_for_trigger), ZHA events,
+    Zigbee2MQTT topics, and blueprint inputs meant for the old integration. Entity triggers need nothing: the ids
+    stay. automations.yaml and scripts.yaml are written by the editors and rewritten; packages are the user's own
+    files, so what would change there is listed to do by hand instead.
 
-    With ids (old registry id -> new) it is a dry run: the file is read as the replacement would have left it,
-    and nothing is saved."""
-    empty: dict[str, Any] = {"translated": [], "unresolved": [], "changes": []}
+    With ids (old registry id -> new) it is a dry run: the files are read as the replacement would have left them,
+    and nothing is saved. cache keeps the AI's answers, so a dry run and the replacement ask only once."""
+    empty: dict[str, Any] = {"translated": [], "unresolved": [], "changes": [], "saved": []}
     if moved.old_domain == moved.new_domain:
         return empty
-    path = hass.config.path(AUTOMATIONS_FILE)
-    try:
-        automations = await hass.async_add_executor_job(_load, path, ids)
-    except Exception:  # noqa: BLE001 - e.g. !secret in automations.yaml: don't rewrite what we can't read back
-        _LOGGER.warning("Could not read %s; device triggers were not translated", path, exc_info=True)
-        return empty
-    if not isinstance(automations, list):
-        return empty
+    places = await hass.async_add_executor_job(_places, hass.config.path(), ids)
 
     translated: list[str] = []
     unresolved: list[str] = []
-    # Before -> after, for the dry run.
-    changes: list[dict[str, str]] = []
+    # Before -> after, for the dry run; by_hand when it is in a package.
+    changes: list[dict[str, Any]] = []
+    dirty: set[str] = set()
     ai_error: str | None = None
     found = []
-    for automation in automations:
-        if not isinstance(automation, dict):
-            continue
-        name = automation.get("alias") or automation.get("id") or "?"
-        if isinstance(automation.get("use_blueprint"), dict):
-            result = await hass.async_add_executor_job(_blueprint, hass.config.path(), automation, moved)
-            if result is True:
-                translated.append(f"{name}: blueprint")
-                changes.append(
-                    {
-                        "automation": name,
-                        "before": f"blueprint: {moved.old_domain}",
-                        "after": f"blueprint: {moved.new_domain}",
-                    }
-                )
-            elif result:
-                unresolved.append(f"{name}: blueprint ({result})")
-            continue
-        for trigger in automation.get("triggers", automation.get("trigger")) or []:
-            if isinstance(trigger, dict) and (meaning := _old_meaning(trigger, moved)) is not None:
-                found.append((name, trigger, meaning))
+    for place in places:
+        for kind, name, item in place.items:
+            if isinstance(item.get("use_blueprint"), dict):
+                result = await hass.async_add_executor_job(_blueprint, hass.config.path(), item, moved, kind)
+                if result is True:
+                    change = {"automation": name, "before": f"blueprint: {moved.old_domain}"}
+                    change["after"] = f"blueprint: {moved.new_domain}"
+                    if place.writable:
+                        translated.append(f"{name}: blueprint")
+                        dirty.add(place.path)
+                    else:
+                        change["by_hand"] = place.label
+                        unresolved.append(f"{name} ({place.label}): blueprint")
+                    changes.append(change)
+                elif result:
+                    unresolved.append(f"{name}: blueprint ({result})")
+                continue
+            for trigger in _triggers_in(item):
+                if (meaning := _old_meaning(trigger, moved)) is not None:
+                    found.append((name, trigger, meaning, place))
 
     if found:
         available = (await async_get_device_automations(hass, DeviceAutomationType.TRIGGER, [moved.new_device_id])).get(
@@ -192,36 +191,42 @@ async def async_translate(
                 for action in await async_z2m_actions(hass, moved.new_base, moved.new_z2m_ieee)
                 if action not in known
             ]
-        choices: dict[int, dict[str, Any] | None] = {i: best(m, candidates) for i, (_, _, m) in enumerate(found)}
+        choices: dict[int, dict[str, Any] | None] = {i: best(f[2], candidates) for i, f in enumerate(found)}
         open_items = [i for i, choice in choices.items() if choice is None]
         answer: dict[int, int] = {}
         if open_items and candidates and ai_entity:
-            try:
-                answer = await ai.async_pick_triggers(
-                    hass,
-                    ai_entity,
-                    [label(found[i][2]) for i in open_items],
-                    [label(c) for c in candidates],
-                    moved.context,
-                )
-            except ai.AiError as err:
-                ai_error = str(err)
+            old_labels = [label(found[i][2]) for i in open_items]
+            new_labels = [label(c) for c in candidates]
+            key = (moved.new_device_id, tuple(old_labels), tuple(new_labels))
+            if cache is not None and key in cache:
+                answer = cache[key]
+            else:
+                try:
+                    answer = await ai.async_pick_triggers(hass, ai_entity, old_labels, new_labels, moved.context)
+                    if cache is not None:
+                        cache[key] = answer
+                except ai.AiError as err:
+                    ai_error = str(err)
             for n, i in enumerate(open_items):
                 if (pick := answer.get(n)) is not None and same_button(found[i][2], candidates[pick]):
                     choices[i] = candidates[pick]
         # Two different presses never become the same one: that was a guess, so ask the user instead.
         taken: dict[tuple[str, str], set[str]] = {}
-        for i, (name, _, meaning) in enumerate(found):
+        for i, (name, _, meaning, _) in enumerate(found):
             if choices[i] is not None:
                 taken.setdefault((name, label(choices[i])), set()).add(label(meaning))
-        for i, (name, _, _) in enumerate(found):
+        for i, (name, _, _, _) in enumerate(found):
             if choices[i] is not None and len(taken[(name, label(choices[i]))]) > 1:
                 choices[i] = None
-        for i, (name, trigger, meaning) in enumerate(found):
+        for i, (name, trigger, meaning, place) in enumerate(found):
             if (choice := choices[i]) is None:
                 unresolved.append(f"{name}: {label(meaning)}")
                 continue
             before = label(meaning)  # a device trigger is its own meaning, and is changed in place below
+            if not place.writable:
+                unresolved.append(f"{name} ({place.label}): {before} → {label(choice)}")
+                changes.append({"automation": name, "before": before, "after": label(choice), "by_hand": place.label})
+                continue
             own = {k: trigger[k] for k in _OWN_KEYS if k in trigger}
             trigger.clear()
             trigger.update(
@@ -229,10 +234,15 @@ async def async_translate(
             )
             translated.append(f"{name}: {label(choice)}")
             changes.append({"automation": name, "before": before, "after": label(choice)})
+            dirty.add(place.path)
 
-    if translated and ids is None:
-        await hass.async_add_executor_job(_save, path, automations)
-    result: dict[str, Any] = {"translated": translated, "unresolved": unresolved, "changes": changes}
+    saved = []
+    if ids is None:
+        for place in places:
+            if place.path in dirty:
+                await hass.async_add_executor_job(_save, place.path, place.data)
+                saved.append(place.domain)
+    result: dict[str, Any] = {"translated": translated, "unresolved": unresolved, "changes": changes, "saved": saved}
     if ai_error:
         result["ai_error"] = ai_error
     return result
@@ -263,7 +273,83 @@ def _old_meaning(trigger: dict[str, Any], moved: Moved) -> dict[str, Any] | None
     return None
 
 
-def _blueprint(config_dir: str, automation: dict[str, Any], moved: Moved) -> bool | str | None:
+@dataclass
+class _Place:
+    """A file with automations or scripts in it."""
+
+    path: str
+    label: str
+    domain: str
+    data: Any
+    writable: bool
+    # (kind, name, automation or script)
+    items: list[tuple[str, str, dict[str, Any]]]
+
+
+def _places(config_dir: str, ids: dict[str, str] | None) -> list[_Place]:
+    """automations.yaml and scripts.yaml (written by the editors), and the automations and scripts in packages/."""
+    places = []
+
+    def read(path: str) -> Any:
+        try:
+            return _load(path, ids)
+        except Exception:  # noqa: BLE001 - e.g. !secret: don't rewrite what we can't read back
+            _LOGGER.warning("Could not read %s; its device triggers were not translated", path, exc_info=True)
+            return None
+
+    automations = read(os.path.join(config_dir, AUTOMATIONS_FILE))
+    if isinstance(automations, list):
+        items = [("automation", _name(a), a) for a in automations if isinstance(a, dict)]
+        path = os.path.join(config_dir, AUTOMATIONS_FILE)
+        places.append(_Place(path, AUTOMATIONS_FILE, "automation", automations, True, items))
+    scripts = read(os.path.join(config_dir, SCRIPTS_FILE))
+    if isinstance(scripts, dict):
+        items = [("script", _name(v, k), v) for k, v in scripts.items() if isinstance(v, dict)]
+        places.append(_Place(os.path.join(config_dir, SCRIPTS_FILE), SCRIPTS_FILE, "script", scripts, True, items))
+    for root, _dirs, names in os.walk(os.path.join(config_dir, "packages")):
+        for file in sorted(n for n in names if n.endswith((".yaml", ".yml"))):
+            path = os.path.join(root, file)
+            data = read(path)
+            if not isinstance(data, dict):
+                continue
+            items = []
+            for key, value in data.items():
+                kind = str(key).split(" ")[0]
+                if kind == "automation":
+                    for a in value if isinstance(value, list) else [value]:
+                        if isinstance(a, dict):
+                            items.append(("automation", _name(a), a))
+                elif kind == "script" and isinstance(value, dict):
+                    items += [("script", _name(v, k), v) for k, v in value.items() if isinstance(v, dict)]
+            if items:
+                places.append(_Place(path, os.path.relpath(path, config_dir), "", data, False, items))
+    return places
+
+
+def _name(item: dict[str, Any], key: str = "") -> str:
+    return str(item.get("alias") or key or item.get("id") or "?")
+
+
+def _triggers_in(item: dict[str, Any]) -> list[dict[str, Any]]:
+    """An automation's triggers, and the triggers of every wait_for_trigger in its actions or a script's sequence."""
+    found = [t for t in item.get("triggers", item.get("trigger")) or [] if isinstance(t, dict)]
+
+    def walk(value: Any) -> None:
+        if isinstance(value, dict):
+            for key, inner in value.items():
+                if key == "wait_for_trigger":
+                    found.extend(t for t in (inner if isinstance(inner, list) else [inner]) if isinstance(t, dict))
+                else:
+                    walk(inner)
+        elif isinstance(value, list):
+            for inner in value:
+                walk(inner)
+
+    walk({k: v for k, v in item.items() if k not in ("triggers", "trigger")})
+    return found
+
+
+def _blueprint(config_dir: str, automation: dict[str, Any], moved: Moved, kind: str = "automation") -> bool | str | None:
     """Move blueprint inputs meant for the old integration to the ones for the new integration.
 
     True when changed, a short reason when an input is for the old integration but there is no input to move it to,
@@ -271,7 +357,7 @@ def _blueprint(config_dir: str, automation: dict[str, Any], moved: Moved) -> boo
     use = automation["use_blueprint"]
     inputs = use.get("input") or {}
     try:
-        blueprint = load_yaml(os.path.join(config_dir, "blueprints", "automation", str(use.get("path"))))
+        blueprint = load_yaml(os.path.join(config_dir, "blueprints", kind, str(use.get("path"))))
         schema = _flat_inputs(blueprint["blueprint"]["input"])
     except Exception:  # noqa: BLE001 - missing or unreadable blueprint
         return None

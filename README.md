@@ -25,7 +25,7 @@ When a device breaks and you buy a new one, Home Assistant sees a stranger: new 
 | **Your settings** | Names, icons, areas, labels, categories, voice aliases, display precision and unit settings. |
 | **The device** | The new device gets the old one's name and area – also in Zigbee2MQTT, if you want. |
 | **Automations and scripts** | Everything that points at the old device by ID: `automations.yaml`, `scripts.yaml`, `scenes.yaml` and `packages/`. |
-| **Button triggers** | Triggers with other names in the new integration are translated (ZHA `remote_button_short_press` → Zigbee2MQTT `action: single`), and so are `zha_event` triggers and Zigbee2MQTT MQTT topics. |
+| **Button triggers** | Triggers with other names in the new integration are translated (ZHA `remote_button_short_press` → Zigbee2MQTT `action: single`), and so are `zha_event` triggers and Zigbee2MQTT MQTT topics – also in `wait_for_trigger` and in `scripts.yaml`. In `packages/` and YAML dashboards, which are your own files, it lists what to change by hand. |
 | **Blueprints** | Inputs meant for the old integration are moved to the right ones – e.g. a "ZHA / Zigbee2MQTT" remote blueprint gets the Zigbee2MQTT name and base topic instead of the ZHA device. |
 | **Dashboards and other integrations** | Dashboards made in the UI, and integrations that store the device (e.g. Battery Notes). |
 | **Zigbee groups** | Make the group again in the new integration with the same name, and it takes over the old group's entity ID and history. |
@@ -100,7 +100,7 @@ Når en enhed går i stykker, og du køber en ny, ser Home Assistant en fremmed.
 - **Dine indstillinger:** Navne, ikoner, områder, etiketter, kategorier, stemme-aliasser, antal decimaler og enheder.
 - **Enheden:** Den nye enhed får den gamles navn og område, og hvis du vil, også i Zigbee2MQTT.
 - **Automatiseringer og scripts:** Alt, der peger på den gamle enhed via id, i `automations.yaml`, `scripts.yaml`, `scenes.yaml` og `packages/`.
-- **Knaptriggere:** Triggere, der hedder noget andet i den nye integration, bliver oversat (ZHA `remote_button_short_press` → Zigbee2MQTT `action: single`). Det samme gælder `zha_event`-triggere og Zigbee2MQTT-MQTT-emner.
+- **Knaptriggere:** Triggere, der hedder noget andet i den nye integration, bliver oversat (ZHA `remote_button_short_press` → Zigbee2MQTT `action: single`). Det samme gælder `zha_event`-triggere og Zigbee2MQTT-MQTT-emner, også i `wait_for_trigger` og i `scripts.yaml`. I `packages/` og YAML-dashboards, som er dine egne filer, viser den, hvad du selv skal rette.
 - **Blueprints:** Felter til den gamle integration bliver flyttet til de rigtige. Fx får en "ZHA / Zigbee2MQTT"-fjernbetjeningsblueprint Zigbee2MQTT-navnet og base topic i stedet for ZHA-enheden.
 - **Dashboards og andre integrationer:** Dashboards lavet i brugerfladen og integrationer, der gemmer enheden (fx Battery Notes).
 - **Zigbee-grupper:** Lav gruppen igen i den nye integration med samme navn, så overtager den den gamle gruppes entity-id og historik.

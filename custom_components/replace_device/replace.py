@@ -112,6 +112,8 @@ class Replacer:
         # Optional AI Task entity, set from the integration's options.
         self.ai_entity: str | None = None
         self._ai_cache: dict[tuple[str, str], dict[str, str]] = {}
+        # The AI's answers for button triggers, so "Test first" and the replacement ask only once.
+        self._trigger_cache: dict[tuple, dict[int, int]] = {}
         # Why the AI couldn't answer the last time it was asked ("quota", …), None when it did.
         self.ai_error: str | None = None
         # Devices the user said are only switched off, not gone.
@@ -215,17 +217,17 @@ class Replacer:
         # 4. Automations and scripts that point at the old device or its entities by id, and device triggers that
         #    have other names in the new integration (a ZHA button press is an "action" in Zigbee2MQTT).
         changed = await _safely("updating automations and scripts", self._rewrite(record["ids"], reload=False), [])
-        path = hass.config.path(AUTOMATIONS_FILE)
-        before = await hass.async_add_executor_job(_read, path)
+        paths = {d: hass.config.path(f) for d, f in (("automation", AUTOMATIONS_FILE), ("script", SCRIPTS_FILE))}
+        before = {d: await hass.async_add_executor_job(_read, p) for d, p in paths.items()}
         translation = await _safely(
             "translating device triggers",
-            triggers.async_translate(hass, moved, self.ai_entity),
-            {"translated": [], "unresolved": []},
+            triggers.async_translate(hass, moved, self.ai_entity, cache=self._trigger_cache),
+            {"translated": [], "unresolved": [], "saved": []},
         )
-        if translation["translated"]:
-            record["automations_before"] = before
-            record["automations_after"] = await hass.async_add_executor_job(_read, path)
-            changed = sorted(set(changed) | {"automation"})
+        if saved := translation.get("saved"):
+            record["triggers_before"] = {d: before[d] for d in saved}
+            record["triggers_after"] = {d: await hass.async_add_executor_job(_read, paths[d]) for d in saved}
+            changed = sorted(set(changed) | set(saved))
         record["triggers"] = translation
         record["moved"] = asdict(moved)
         record["files"] = changed
@@ -272,7 +274,7 @@ class Replacer:
         users = await hass.async_add_executor_job(_users_of_ids, hass.config.path(), ids)
         translation = await _safely(
             "trying device triggers",
-            triggers.async_translate(hass, moved, self.ai_entity, ids=ids),
+            triggers.async_translate(hass, moved, self.ai_entity, ids=ids, cache=self._trigger_cache),
             {"translated": [], "unresolved": []},
         )
         dashboards = await _safely("reading dashboards", references.async_dashboards(hass), [])
@@ -366,12 +368,17 @@ class Replacer:
                 labels=set(device["labels"]),
             )
         # Translated triggers go back only if nobody edited the automations since.
-        path = self.hass.config.path(AUTOMATIONS_FILE)
-        if record.get("automations_before") is not None:
-            if await self.hass.async_add_executor_job(_read, path) == record["automations_after"]:
-                await self.hass.async_add_executor_job(write_utf8_file_atomic, path, record["automations_before"])
+        befores = dict(record.get("triggers_before") or {})
+        afters = dict(record.get("triggers_after") or {})
+        if record.get("automations_before") is not None:  # made by 0.15.0 and older
+            befores["automation"], afters["automation"] = record["automations_before"], record["automations_after"]
+        files = {"automation": AUTOMATIONS_FILE, "script": SCRIPTS_FILE}
+        for domain, text in befores.items():
+            path = self.hass.config.path(files[domain])
+            if await self.hass.async_add_executor_job(_read, path) == afters.get(domain):
+                await self.hass.async_add_executor_job(write_utf8_file_atomic, path, text)
             else:
-                _LOGGER.warning("Automations were edited since; translated device triggers were not changed back")
+                _LOGGER.warning("%s was edited since; translated device triggers were not changed back", files[domain])
         back = {new: old for old, new in record["ids"].items()}
         await self._rewrite(back, reload=reload)
         await references.async_rewrite_dashboards(self.hass, back)
@@ -488,9 +495,9 @@ class Replacer:
             moved.new_base = moved.new_base or (
                 z2m_base_topic(self.hass, device, Z2M_BASE_TOPIC) if z2m_ieee(device) else None
             )
-        translation = await triggers.async_translate(self.hass, moved, self.ai_entity)
-        if translation["translated"]:
-            await self.async_reload({"automation"})
+        translation = await triggers.async_translate(self.hass, moved, self.ai_entity, cache=self._trigger_cache)
+        if translation.get("saved"):
+            await self.async_reload(set(translation["saved"]))
         record["triggers"] = translation
         self._save()
         return translation
@@ -525,11 +532,12 @@ class Replacer:
         if record.get("moved"):
             translation = await _safely(
                 "translating device triggers",
-                triggers.async_translate(hass, triggers.Moved(**record["moved"]), self.ai_entity),
-                {"translated": [], "unresolved": []},
+                triggers.async_translate(
+                    hass, triggers.Moved(**record["moved"]), self.ai_entity, cache=self._trigger_cache
+                ),
+                {"translated": [], "unresolved": [], "saved": []},
             )
-            if translation["translated"]:
-                changed.add("automation")
+            changed |= set(translation.get("saved") or [])
         await _safely("updating dashboards", references.async_rewrite_dashboards(hass, record["ids"]), [])
         await _safely("updating other integrations", references.async_rewrite_entries(hass, record["ids"], set()), [])
         if reload:

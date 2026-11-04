@@ -1571,3 +1571,68 @@ async def test_dry_run_changes_nothing(hass: HomeAssistant, hass_ws_client, tmp_
     assert (tmp_path / "automations.yaml").read_text() == automations
     assert devices.async_get(zha.id) is not None and devices.async_get(z2m.id).name_by_user is None
     assert entities.async_get("sensor.x_battery") and entities.async_get("sensor.kontakt_stue_batteri")
+
+
+async def test_buttons_in_scripts_and_packages(hass: HomeAssistant, tmp_path) -> None:
+    """Button triggers in scripts.yaml are translated and changed back; in packages/ they are listed to do by hand."""
+    from unittest.mock import patch
+
+    from homeassistant.util.yaml import load_yaml
+
+    from custom_components.replace_device.replace import async_plan
+
+    hass.config.config_dir = str(tmp_path)
+    zha_entry = MockConfigEntry(domain="zha", title="ZHA")
+    zha_entry.add_to_hass(hass)
+    mqtt_entry = MockConfigEntry(domain="mqtt", title="Mosquitto broker")
+    mqtt_entry.add_to_hass(hass)
+    devices = dr.async_get(hass)
+    ieee = "08:dd:eb:ff:fe:60:9e:76"
+    zha = devices.async_get_or_create(
+        config_entry_id=zha_entry.entry_id,
+        identifiers={("zha", ieee)},
+        connections={(dr.CONNECTION_ZIGBEE, ieee)},
+        name="Kontakt stue",
+    )
+    z2m = devices.async_get_or_create(
+        config_entry_id=mqtt_entry.entry_id,
+        identifiers={("mqtt", "zigbee2mqtt_0x08ddebfffe609e76")},
+        name="0x08ddebfffe609e76",
+    )
+    zha_wait = (
+        "  - wait_for_trigger:\n    - trigger: event\n      event_type: zha_event\n"
+        f"      event_data:\n        device_ieee: '{ieee}'\n        command: 'on'\n"
+    )
+    (tmp_path / "automations.yaml").write_text("[]\n")
+    scripts = f"vent_paa_knap:\n  alias: Vent på knap\n  sequence:\n{zha_wait}"
+    (tmp_path / "scripts.yaml").write_text(scripts)
+    (tmp_path / "packages").mkdir()
+    package = (
+        "automation:\n- id: pk1\n  alias: Pakke sluk\n  triggers:\n  - trigger: event\n    event_type: zha_event\n"
+        f"    event_data:\n      device_ieee: '{ieee}'\n      command: 'off'\n  actions: []\n"
+    )
+    (tmp_path / "packages" / "knap.yaml").write_text(package)
+    entry = await _setup(hass)
+    available = [
+        {"platform": "device", "domain": "mqtt", "device_id": z2m.id, "type": "action", "subtype": s}
+        for s in ("on", "off")
+    ]
+    with patch(
+        "custom_components.replace_device.triggers.async_get_device_automations", return_value={z2m.id: available}
+    ):
+        dry = await entry.runtime_data.async_dry_run(async_plan(hass, zha.id, z2m.id), True, False)
+        assert (tmp_path / "scripts.yaml").read_text() == scripts
+        assert [c.get("by_hand") for c in dry["triggers"]["changes"]] == [None, "packages/knap.yaml"]
+        result = await entry.runtime_data.async_replace(async_plan(hass, zha.id, z2m.id), True)
+    await hass.async_block_till_done()
+    wait = load_yaml(str(tmp_path / "scripts.yaml"))["vent_paa_knap"]["sequence"][0]["wait_for_trigger"][0]
+    assert wait["trigger"] == "device" and wait["subtype"] == "on"
+    assert (tmp_path / "packages" / "knap.yaml").read_text() == package
+    assert result["triggers"]["unresolved"] == ["Pakke sluk (packages/knap.yaml): off → action / off"]
+    assert "script" in result["changed"]
+
+    assert await entry.runtime_data.async_undo(result["id"])
+    await hass.async_block_till_done()
+    assert load_yaml(str(tmp_path / "scripts.yaml"))["vent_paa_knap"]["sequence"][0]["wait_for_trigger"][0][
+        "event_type"
+    ] == "zha_event"

@@ -72,6 +72,12 @@ async def async_checks(
         "outside": await hass.async_add_executor_job(
             references.outside_users, hass.config.path(), _needles(hass, plan)
         ),
+        "yaml_dashboards": await hass.async_add_executor_job(
+            references.files_mentioning,
+            hass.config.path(),
+            references.yaml_dashboard_files(hass),
+            [*ids, *_needles(hass, plan)],
+        ),
         "dropped_used": dropped,
         "differences": changed,
         "device_actions": references.device_actions(hass, plan.old.id, _domain(hass, plan.old)),

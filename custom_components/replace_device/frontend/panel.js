@@ -63,6 +63,7 @@ const TEXT = {
     days: "{n} days",
     checksTitle: "Check after the move",
     outside: "Used outside Home Assistant – change it there yourself: {list}",
+    yamlDashboards: "YAML dashboards that mention the old device – change them yourself: {list}",
     droppedUsed: "{name} has no match but is used in: {where}",
     valuesDiffer: "{name}: the new one has no {missing} (it has {new}). Automations that use these values must be changed.",
     unitDiffers: "{name}: unit changes from {old} to {new}.",
@@ -151,6 +152,7 @@ const TEXT = {
     dryZ2m: "Renamed in Zigbee2MQTT to {name}",
     dryUsers: "Automations, scripts and scenes that are pointed at the new device",
     dryTriggers: "Button triggers that are translated",
+    byHand: "change by hand in {file}",
     dryUnresolved: "Button triggers you must check yourself",
     dryDashboards: "Dashboards updated",
     dryIntegrations: "Other integrations updated",
@@ -218,6 +220,7 @@ const TEXT = {
     days: "{n} dage",
     checksTitle: "Tjek efter flytningen",
     outside: "Bruges uden for Home Assistant – ret det selv dér: {list}",
+    yamlDashboards: "YAML-dashboards, der nævner den gamle enhed – ret dem selv: {list}",
     droppedUsed: "{name} har ingen match, men bruges i: {where}",
     valuesDiffer: "{name}: den nye har ikke {missing} (den har {new}). Automatiseringer, der bruger de værdier, skal rettes.",
     unitDiffers: "{name}: enheden skifter fra {old} til {new}.",
@@ -306,6 +309,7 @@ const TEXT = {
     dryZ2m: "Omdøbes i Zigbee2MQTT til {name}",
     dryUsers: "Automatiseringer, scripts og scener, der peges over på den nye enhed",
     dryTriggers: "Knaptriggere, der oversættes",
+    byHand: "ret selv i {file}",
     dryUnresolved: "Knaptriggere, du selv skal tjekke",
     dryDashboards: "Dashboards, der opdateres",
     dryIntegrations: "Andre integrationer, der opdateres",
@@ -373,6 +377,7 @@ const TEXT = {
     days: "{n} Tagen",
     checksTitle: "Nach dem Umzug prüfen",
     outside: "Außerhalb von Home Assistant verwendet – dort selbst ändern: {list}",
+    yamlDashboards: "YAML-Dashboards, die das alte Gerät nennen – selbst ändern: {list}",
     droppedUsed: "{name} hat kein Gegenstück, wird aber verwendet in: {where}",
     valuesDiffer: "{name}: das neue hat kein {missing} (es hat {new}). Automationen, die diese Werte nutzen, müssen geändert werden.",
     unitDiffers: "{name}: Einheit ändert sich von {old} zu {new}.",
@@ -461,6 +466,7 @@ const TEXT = {
     dryZ2m: "In Zigbee2MQTT umbenannt in {name}",
     dryUsers: "Automationen, Skripte und Szenen, die auf das neue Gerät umgestellt werden",
     dryTriggers: "Tasten-Auslöser, die übersetzt werden",
+    byHand: "selbst ändern in {file}",
     dryUnresolved: "Tasten-Auslöser, die du selbst prüfen musst",
     dryDashboards: "Dashboards, die angepasst werden",
     dryIntegrations: "Andere Integrationen, die angepasst werden",
@@ -528,6 +534,7 @@ const TEXT = {
     days: "{n} dagar",
     checksTitle: "Kontrollera efter flytten",
     outside: "Används utanför Home Assistant – ändra det där själv: {list}",
+    yamlDashboards: "YAML-instrumentpaneler som nämner den gamla enheten – ändra dem själv: {list}",
     droppedUsed: "{name} har ingen motsvarighet men används i: {where}",
     valuesDiffer: "{name}: den nya har inget {missing} (den har {new}). Automationer som använder dessa värden måste ändras.",
     unitDiffers: "{name}: enheten ändras från {old} till {new}.",
@@ -616,6 +623,7 @@ const TEXT = {
     dryZ2m: "Döps om i Zigbee2MQTT till {name}",
     dryUsers: "Automationer, skript och scener som pekas om till den nya enheten",
     dryTriggers: "Knapputlösare som översätts",
+    byHand: "ändra själv i {file}",
     dryUnresolved: "Knapputlösare du själv måste kontrollera",
     dryDashboards: "Instrumentpaneler som uppdateras",
     dryIntegrations: "Andra integrationer som uppdateras",
@@ -683,6 +691,7 @@ const TEXT = {
     days: "{n} dagen",
     checksTitle: "Controleren na de verhuizing",
     outside: "Gebruikt buiten Home Assistant – pas het daar zelf aan: {list}",
+    yamlDashboards: "YAML-dashboards die het oude apparaat noemen – pas ze zelf aan: {list}",
     droppedUsed: "{name} heeft geen tegenhanger maar wordt gebruikt in: {where}",
     valuesDiffer: "{name}: het nieuwe heeft geen {missing} (het heeft {new}). Automatiseringen die deze waarden gebruiken moeten worden aangepast.",
     unitDiffers: "{name}: de eenheid verandert van {old} naar {new}.",
@@ -771,6 +780,7 @@ const TEXT = {
     dryZ2m: "Hernoemd in Zigbee2MQTT naar {name}",
     dryUsers: "Automatiseringen, scripts en scènes die naar het nieuwe apparaat worden omgezet",
     dryTriggers: "Knoptriggers die worden vertaald",
+    byHand: "zelf aanpassen in {file}",
     dryUnresolved: "Knoptriggers die je zelf moet controleren",
     dryDashboards: "Dashboards die worden bijgewerkt",
     dryIntegrations: "Andere integraties die worden bijgewerkt",
@@ -1006,6 +1016,7 @@ class ReplaceDevicePanel extends HTMLElement {
       }
     }
     if (c.outside?.length) lines.push(["bad", this.t("outside", { list: c.outside.join(", ") })]);
+    if (c.yaml_dashboards?.length) lines.push(["bad", this.t("yamlDashboards", { list: c.yaml_dashboards.join(", ") })]);
     if (c.device_actions?.length) lines.push(["warn", this.t("deviceActions", { list: c.device_actions.join(", ") })]);
     if (c.integrations?.length) lines.push(["info", this.t("otherIntegrations", { list: c.integrations.join(", ") })]);
     if (c.dashboards?.length) lines.push(["info", this.t("dashboardsUpdated", { list: c.dashboards.join(", ") })]);
@@ -1301,7 +1312,7 @@ class ReplaceDevicePanel extends HTMLElement {
         ${list(this.t("dryDropped"), "mdi:delete-outline", d.dropped.map((e) => `<code>${esc(e)}</code>`))}
         ${list(this.t("dryOwn"), "mdi:new-box", d.own.map((e) => `<code>${esc(e)}</code>`))}
         ${list(this.t("dryUsers"), "mdi:robot", d.users.map(esc))}
-        ${list(this.t("dryTriggers"), "mdi:gesture-tap-button", (tr.changes || []).map((c) => `${esc(c.automation)}: <code>${esc(c.before)}</code> → <code>${esc(c.after)}</code>`))}
+        ${list(this.t("dryTriggers"), "mdi:gesture-tap-button", (tr.changes || []).map((c) => `${esc(c.automation)}: <code>${esc(c.before)}</code> → <code>${esc(c.after)}</code>${c.by_hand ? ` <span class="warn-text">(${esc(this.t("byHand", { file: c.by_hand }))})</span>` : ""}`))}
         ${list(this.t("dryUnresolved"), "mdi:alert", (tr.unresolved || []).map(esc))}
         ${list(this.t("dryDashboards"), "mdi:view-dashboard", d.dashboards.map(esc))}
         ${list(this.t("dryIntegrations"), "mdi:puzzle", d.integrations.map(esc))}

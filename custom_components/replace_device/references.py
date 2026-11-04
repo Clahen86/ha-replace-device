@@ -136,6 +136,34 @@ _MAX_FILE = 5_000_000
 _MAX_FILES = 3000
 
 
+def yaml_dashboard_files(hass: HomeAssistant) -> list[str]:
+    """The files of dashboards kept in YAML. They are the user's own files, so they are checked, never rewritten."""
+    from homeassistant.components.lovelace.const import LOVELACE_DATA, MODE_STORAGE
+
+    data = hass.data.get(LOVELACE_DATA)
+    paths = {
+        path
+        for dashboard in (data.dashboards.values() if data else [])
+        if getattr(dashboard, "mode", None) != MODE_STORAGE and (path := getattr(dashboard, "path", None))
+    }
+    return sorted(paths)
+
+
+def files_mentioning(config_dir: str, paths: list[str], needles: list[str]) -> list[str]:
+    """Which of the files mention one of the needles, relative to the config folder."""
+    needles = [n.lower() for n in needles if n and len(n) >= 6]
+    found = []
+    for path in paths:
+        try:
+            with open(path, encoding="utf-8", errors="ignore") as file:
+                text = file.read().lower()
+        except OSError:
+            continue
+        if any(n in text for n in needles):
+            found.append(os.path.relpath(path, config_dir) if path.startswith(config_dir) else path)
+    return found
+
+
 def outside_users(config_dir: str, needles: list[str]) -> list[str]:
     """Files of AppDaemon, Node-RED, pyscript … that mention the old device (id, Zigbee address, Zigbee2MQTT topic).
 
