@@ -10,6 +10,7 @@ from homeassistant.helpers import device_registry as dr, entity_registry as er, 
 from homeassistant.helpers.event import async_call_later
 
 from .const import DEAD_AFTER, DOMAIN, SUGGEST_DELAY
+from .hardware import all_devices
 from .replace import device_name
 
 
@@ -21,7 +22,7 @@ def dead_twins(hass: HomeAssistant, new_id: str) -> list[dr.DeviceEntry]:
         return []
     return [
         device
-        for device in devices.devices.values()
+        for device in all_devices(devices)
         if device.id != new_id
         and device.manufacturer == new.manufacturer
         and ((new.model and device.model == new.model) or (new.model_id and device.model_id == new.model_id))

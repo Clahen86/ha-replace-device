@@ -143,6 +143,8 @@ const TEXT = {
     planning: "Getting ready…",
     planningHint: "Pairing the entities and checking automations – asking the AI if something is unclear. This can take a few seconds.",
     dryTitle: "Test run – nothing has been changed",
+    dryMoreUnused: "{n} more, not used anywhere – show",
+    dryAllUnused: "{n} entities, none used anywhere – show",
     sumMoved: "Move over",
     sumUpdated: "Updated",
     sumButtons: "Buttons",
@@ -313,6 +315,8 @@ const TEXT = {
     planning: "Gør klar…",
     planningHint: "Parrer entiteterne og tjekker automatiseringer – spørger AI, hvis noget er uklart. Det kan tage nogle sekunder.",
     dryTitle: "Testkørsel – intet er ændret",
+    dryMoreUnused: "{n} mere, der ikke bruges nogen steder – vis",
+    dryAllUnused: "{n} entiteter, ingen bruges nogen steder – vis",
     sumMoved: "Flyttes over",
     sumUpdated: "Opdateres",
     sumButtons: "Knapper",
@@ -483,6 +487,8 @@ const TEXT = {
     planning: "Wird vorbereitet…",
     planningHint: "Entitäten werden zugeordnet und Automationen geprüft – bei Unklarheiten wird die KI gefragt. Das kann ein paar Sekunden dauern.",
     dryTitle: "Testlauf – nichts wurde geändert",
+    dryMoreUnused: "{n} weitere, nirgends verwendet – anzeigen",
+    dryAllUnused: "{n} Entitäten, keine wird verwendet – anzeigen",
     sumMoved: "Übernommen",
     sumUpdated: "Aktualisiert",
     sumButtons: "Tasten",
@@ -653,6 +659,8 @@ const TEXT = {
     planning: "Förbereder…",
     planningHint: "Parar ihop entiteterna och kontrollerar automationer – frågar AI om något är oklart. Det kan ta några sekunder.",
     dryTitle: "Testkörning – inget har ändrats",
+    dryMoreUnused: "{n} till som inte används någonstans – visa",
+    dryAllUnused: "{n} entiteter, ingen används någonstans – visa",
     sumMoved: "Flyttas över",
     sumUpdated: "Uppdateras",
     sumButtons: "Knappar",
@@ -823,6 +831,8 @@ const TEXT = {
     planning: "Bezig met voorbereiden…",
     planningHint: "Entiteiten koppelen en automatiseringen controleren – de AI wordt gevraagd als iets onduidelijk is. Dit kan een paar seconden duren.",
     dryTitle: "Testrun – er is niets gewijzigd",
+    dryMoreUnused: "{n} meer, nergens gebruikt – toon",
+    dryAllUnused: "{n} entiteiten, geen enkele gebruikt – toon",
     sumMoved: "Overgenomen",
     sumUpdated: "Bijgewerkt",
     sumButtons: "Knoppen",
@@ -1412,7 +1422,7 @@ class ReplaceDevicePanel extends HTMLElement {
     const code = (this._hass?.language || "en").split("-")[0];
     const press = (l) => esc(pressWords(l, code));
     const icon = (id) => DOMAIN_ICON[String(id).split(".")[0]] || "mdi:shape";
-    const usedIn = (list) => list && list.length
+    const usedIn = (list) => !Array.isArray(list) ? "" : list.length
       ? `<div class="dchips"><span class="muted small">${this.t("usedIn")}:</span>${list.map((u) => `<span class="chip sm"><ha-icon icon="${u.startsWith("Dashboard") ? "mdi:view-dashboard" : "mdi:robot"}"></ha-icon>${esc(u.replace(/^Dashboard: /, ""))}</span>`).join("")}</div>`
       : `<div class="muted small">${this.t("notUsed")}</div>`;
     const section = (title, icon, body, extra = "") => body ? `<h3 class="dsec ${extra}"><ha-icon icon="${icon}"></ha-icon>${esc(title)}</h3><div class="drows">${body}</div>` : "";
@@ -1429,10 +1439,17 @@ class ReplaceDevicePanel extends HTMLElement {
         ...d.integrations.map((x) => ["mdi:puzzle", x]),
       ];
       const toCheck = open.length + byHand.length;
-      const entities = (d.entities || []).map((e) => `<div class="drow">
+      const entityRow = (e) => `<div class="drow">
           <ha-icon icon="${icon(e.to)}"></ha-icon>
           <div class="grow"><div class="dname">${esc(e.name || e.to)}</div>
-            <div class="mono muted small">${esc(e.from)} → ${esc(e.to)}</div>${usedIn(e.used_in)}</div></div>`).join("");
+            <div class="mono muted small">${esc(e.from)} → ${esc(e.to)}</div>${usedIn(e.used_in)}</div></div>`;
+      const all = d.entities || [];
+      const known = all.some((e) => Array.isArray(e.used_in));
+      const inUse = known ? all.filter((e) => e.used_in?.length) : all;
+      const unused = known ? all.filter((e) => !e.used_in?.length) : [];
+      const entities = inUse.map(entityRow).join("") + (unused.length
+        ? `<details class="dmore"><summary>${esc(this.t(inUse.length ? "dryMoreUnused" : "dryAllUnused", { n: unused.length }))}</summary><div class="drows">${unused.map(entityRow).join("")}</div></details>`
+        : "");
       const dropped = (d.dropped_info || d.dropped.map((x) => ({ entity_id: x }))).map((e) => `<div class="drow gone">
           <ha-icon icon="mdi:delete-outline"></ha-icon>
           <div class="grow"><div class="dname">${esc(e.name || e.entity_id)}</div>
@@ -1865,6 +1882,7 @@ input:checked+.switch{background:var(--rd-blue)}input:checked+.switch:after{left
 .dsec{display:flex;align-items:center;gap:8px;font-size:15px;margin:18px 0 8px}.dsec ha-icon{--mdc-icon-size:20px}.red-text{color:var(--rd-red)}
 .drows{display:flex;flex-direction:column;gap:6px}.drow{display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:10px;background:var(--secondary-background-color,#f6f8fa);border-left:4px solid var(--rd-green)}.drow>ha-icon{flex:none;--mdc-icon-size:20px;margin-top:1px;color:var(--secondary-text-color)}
 .drow.gone{border-left-color:var(--rd-red)}.drow.new{border-left-color:var(--rd-blue)}.drow.warnrow{border-left-color:var(--rd-amber)}.drow.warnrow>ha-icon{color:var(--rd-amber)}
+.dmore{margin-top:6px}.dmore summary{cursor:pointer;padding:10px;border-radius:10px;background:var(--secondary-background-color,#f6f8fa);color:var(--rd-blue);font-size:14px;list-style:none}.dmore summary::-webkit-details-marker{display:none}.dmore[open] summary{margin-bottom:6px}
 .dname{font-weight:500;overflow-wrap:anywhere}.mono{font-family:var(--code-font-family,monospace);font-size:12px;overflow-wrap:anywhere}
 .dchips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}.chip.sm{padding:3px 10px;font-size:12px}.chip.sm ha-icon{--mdc-icon-size:14px}
 .press{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:2px 0}.press span{padding:2px 8px;border-radius:8px;background:var(--card-background-color,#fff);font-size:13px}.press ha-icon{--mdc-icon-size:16px;color:var(--rd-blue)}

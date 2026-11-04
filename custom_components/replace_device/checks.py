@@ -80,7 +80,9 @@ async def async_checks(
         ),
         "dropped_used": dropped,
         "differences": changed,
-        "device_actions": references.device_actions(hass, plan.old.id, _domain(hass, plan.old)),
+        "device_actions": await hass.async_add_executor_job(
+            references.device_actions, hass, plan.old.id, _domain(hass, plan.old)
+        ),
         "integrations": [e.title for e in references.entries_using(hass, ids, skip)],
         "dashboards": [title for title, _, config in dashboards if any(i in str(config) for i in ids)],
     }

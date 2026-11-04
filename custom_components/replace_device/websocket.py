@@ -15,7 +15,7 @@ from .const import DOMAIN
 from . import references
 from .checks import async_checks
 from .groups import match_groups
-from .hardware import hardware_keys, source, z2m_ieee
+from .hardware import all_devices, hardware_keys, source, z2m_ieee
 from .remembered import remembered
 from .replace import Plan, Replacer, async_plan, async_remove_device, device_name
 from .suggest import is_dead
@@ -107,7 +107,7 @@ async def ws_devices(hass: HomeAssistant, connection: websocket_api.ActiveConnec
     replacer = _replacer(hass)
     hidden = set(replacer.hidden) if replacer else set()
     devices = []
-    for d in dr.async_get(hass).devices.values():
+    for d in all_devices(dr.async_get(hass)):
         if d.entry_type is not None:
             continue
         if er.async_entries_for_device(er.async_get(hass), d.id):
@@ -397,7 +397,7 @@ def _devices_from(hass: HomeAssistant, key: str) -> list[dr.DeviceEntry]:
     entities = er.async_get(hass)
     return [
         d
-        for d in dr.async_get(hass).devices.values()
+        for d in all_devices(dr.async_get(hass))
         if d.entry_type is None
         and source(hass, d)[0] == key
         and (d.model or "").lower() != "group"

@@ -132,3 +132,14 @@ def _action_values(exposes: list) -> list[str]:
         if found := _action_values(expose.get("features") or []):
             return found
     return []
+
+
+def all_devices(registry: dr.DeviceRegistry) -> list[dr.DeviceEntry]:
+    """Every device. Iterating the registry gives the entries (HA 2026.10+); older versions gave their ids."""
+    found = []
+    for item in registry.devices:
+        if isinstance(item, str):
+            item = registry.async_get(item)
+        if item is not None:
+            found.append(item)
+    return found

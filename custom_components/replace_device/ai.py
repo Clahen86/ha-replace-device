@@ -17,7 +17,8 @@ from typing import Any
 from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
-_TIMEOUT = 120
+# A hanging AI must not keep the panel waiting: after this many seconds we go on without it.
+_TIMEOUT = 40
 _QUOTA = re.compile(r"429|quota|resource.?exhausted|rate.?limit|per.?day", re.I)
 _RULES = (
     "Pick only when it is clearly the same thing. Use 0 when unsure: a wrong guess breaks the user's automations, "
