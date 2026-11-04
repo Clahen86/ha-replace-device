@@ -1675,6 +1675,10 @@ async def test_own_entities_get_ids_after_the_device(hass: HomeAssistant, tmp_pa
         "  actions:\n  - action: notify.x\n    data:\n      message: \"{{ states('sensor.0x54ef441001314fb2_voltage2') }}\"\n"
     )
     (tmp_path / "automations.yaml").write_text(automations)
+    (tmp_path / "configuration.yaml").write_text("template: !include templates.yaml\n")
+    (tmp_path / "templates.yaml").write_text("- sensor:\n  - name: V\n    state: \"{{ states('sensor.0x54ef441001314fb2_voltage') }}\"\n")
+    helper = MockConfigEntry(domain="group", title="Spændinger", options={"entities": ["sensor.0x54ef441001314fb2_voltage"]})
+    helper.add_to_hass(hass)
     entry = await _setup(hass)
     replacer = entry.runtime_data
     plan = async_plan(hass, zha.id, z2m.id)
@@ -1693,6 +1697,8 @@ async def test_own_entities_get_ids_after_the_device(hass: HomeAssistant, tmp_pa
     text = (tmp_path / "automations.yaml").read_text()
     assert "sensor.rogalarm_gang_voltage\n" in text and "states('sensor.rogalarm_gang_voltage_2')" in text
     assert "0x54ef" not in text
+    assert "sensor.rogalarm_gang_voltage'" in (tmp_path / "templates.yaml").read_text()
+    assert helper.options["entities"] == ["sensor.rogalarm_gang_voltage"]
     assert replacer.tidy_plan(result["id"]) == []
 
     # A Zigbee2MQTT update adds an entity later: "Tidy up" in Edit gives it a name too.

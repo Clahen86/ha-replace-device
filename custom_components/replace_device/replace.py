@@ -396,9 +396,7 @@ class Replacer:
         # Ids given after the device's name go back first.
         back = tidy.apply(self.hass, [{"from": c["to"], "to": c["from"]} for c in reversed(record.get("tidied") or [])])
         if back:
-            ids = {c["from"]: c["to"] for c in back}
-            await self._rewrite(ids, reload=False, exact=True)
-            await references.async_rewrite_dashboards(self.hass, ids, exact=True)
+            await self._async_places({c["from"]: c["to"] for c in back}, apply=True)
             record["tidied"] = []
         for item in record["entities"]:
             entry = entities.async_get(item["uuid"])
@@ -818,10 +816,9 @@ class Replacer:
         done = tidy.apply(self.hass, tidy.plan(self.hass, name, entries))
         if not done:
             return [], []
-        ids = {c["from"]: c["to"] for c in done}
-        files = await self._rewrite(ids, reload=False, exact=True)
-        await references.async_rewrite_dashboards(self.hass, ids, exact=True)
-        return done, files
+        # The same places as renaming a device: files, YAML templates, dashboards, helpers, the energy dashboard.
+        places = await self._async_places({c["from"]: c["to"] for c in done}, apply=True)
+        return done, places.get("changed", [])
 
     def _own_entries(self, record: dict[str, Any]) -> tuple[list[Any], str]:
         """The new device's entities that did not take over an old one, and the device's name now."""
