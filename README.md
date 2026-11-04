@@ -58,9 +58,10 @@ Connect any AI Task entity (e.g. Google Gemini, free) under **Settings → Devic
 
 ### Installation
 
-1. **HACS** → ⋮ → **Custom repositories** → `https://github.com/Clahen86/ha-replace-device`, type **Integration** → **Add**.
-2. Search for **Replace Device** → **Download**, and restart Home Assistant.
-3. **Settings → Devices & services → Add integration → Replace Device → Submit.**
+1. Open **HACS**, search for **Replace Device** → **Download**, and restart Home Assistant.
+2. **Settings → Devices & services → Add integration → Replace Device → Submit.**
+
+Can't find it in the HACS search? Add it as a custom repository first: **HACS** → ⋮ → **Custom repositories** → `https://github.com/Clahen86/ha-replace-device`, type **Integration** → **Add**.
 
 ### How to replace a device
 
@@ -131,9 +132,10 @@ Tilslut en AI Task-enhed, fx Google Gemini, som er gratis, under **Indstillinger
 
 ### Installation
 
-1. **HACS** → ⋮ → **Brugerdefinerede repositories** → `https://github.com/Clahen86/ha-replace-device`, type **Integration** → **Tilføj**.
-2. Søg efter **Replace Device** → **Download**, og genstart Home Assistant.
-3. **Indstillinger → Enheder og tjenester → Tilføj integration → Udskift enhed → Send.**
+1. Åbn **HACS**, søg efter **Replace Device** → **Download**, og genstart Home Assistant.
+2. **Indstillinger → Enheder og tjenester → Tilføj integration → Udskift enhed → Send.**
+
+Kan du ikke finde den i HACS-søgningen? Tilføj den først som brugerdefineret repository: **HACS** → ⋮ → **Brugerdefinerede repositories** → `https://github.com/Clahen86/ha-replace-device`, type **Integration** → **Tilføj**.
 
 ### Sådan udskifter du en enhed
 
