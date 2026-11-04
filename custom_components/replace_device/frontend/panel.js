@@ -1967,7 +1967,7 @@ class ReplaceDevicePanel extends HTMLElement {
       edit: () => this.editView(), dry: () => this.dryView(), rename: () => this.renameView(),
     }[this.view]();
     this.shadowRoot.innerHTML = `<style>${STYLE}</style>
-      <div class="toolbar">${customElements.get("ha-menu-button") ? "<ha-menu-button></ha-menu-button>" : ""}<div class="tb-title">${this.t("title")}</div><span class="beta">beta</span></div>
+      <div class="toolbar">${customElements.get("ha-menu-button") ? "<ha-menu-button></ha-menu-button>" : ""}<div class="tb-title">${this.t("title")}</div></div>
       <div class="content">${this.error ? `<div class="card error"><ha-icon icon="mdi:alert-circle"></ha-icon>${esc(this.error)}</div>` : ""}${body}</div>`;
     const menu = this.shadowRoot.querySelector("ha-menu-button");
     if (menu) {
