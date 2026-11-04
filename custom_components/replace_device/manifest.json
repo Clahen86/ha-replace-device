@@ -3,6 +3,7 @@
   "name": "Replace Device",
   "after_dependencies": [
     "automation",
+    "energy",
     "logbook",
     "lovelace",
     "mqtt",
