@@ -78,6 +78,13 @@ def yaml_files(config_dir: str, skip: set[str], extra: list[str]) -> list[tuple[
                     todo += [os.path.join(root, n) for n in names if n.endswith((".yaml", ".yml"))]
             else:
                 todo.append(target)
+    # Folders Home Assistant reads by itself, without an !include: the voice assistant's own sentences.
+    for folder in ("custom_sentences",):
+        for root, dirs, names in os.walk(os.path.join(config_dir, folder)):
+            dirs[:] = [d for d in dirs if not d.startswith(".")]
+            for name in names:
+                if name.endswith((".yaml", ".yml")):
+                    found.setdefault(os.path.join(root, name), "config")
     esphome = os.path.join(config_dir, "esphome")
     if os.path.isdir(esphome):
         for name in sorted(os.listdir(esphome)):

@@ -79,7 +79,7 @@ Home Assistant can rename a device and its entity IDs, but automations, scripts,
 
 - automations, scripts and scenes (also inside templates and blueprint inputs) and `packages/`
 - dashboards made in the UI, helpers (groups, templates, utility meters …) and other integrations that store the ID
-- the energy dashboard, and your own YAML files that `configuration.yaml` includes
+- the energy dashboard, your own YAML files that `configuration.yaml` includes, and the voice assistant's `custom_sentences/`
 - ESPHome files that read from Home Assistant (install the device again afterwards)
 - the name in Zigbee2MQTT
 
@@ -170,7 +170,7 @@ Home Assistant kan omdøbe en enhed og dens entity-id'er, men automatiseringer, 
 
 - automatiseringer, scripts og scener (også i skabeloner og blueprint-input) og `packages/`
 - dashboards lavet i brugerfladen, hjælpere (grupper, skabeloner, utility meter …) og andre integrationer, der gemmer id'et
-- energi-dashboardet og dine egne YAML-filer, som `configuration.yaml` inkluderer
+- energi-dashboardet, dine egne YAML-filer, som `configuration.yaml` inkluderer, og stemmeassistentens `custom_sentences/`
 - ESPHome-filer, der læser fra Home Assistant (installer enheden igen bagefter)
 - navnet i Zigbee2MQTT
 

@@ -1763,6 +1763,8 @@ async def test_rename_device_everywhere(hass: HomeAssistant, tmp_path) -> None:
         "sensor:\n  - platform: homeassistant\n    entity_id: sensor.kokken_sensor_temperature\n"
     )
     (tmp_path / "secrets.yaml").write_text("x: sensor.kokken_sensor_temperature\n")
+    (tmp_path / "custom_sentences" / "da").mkdir(parents=True)
+    (tmp_path / "custom_sentences" / "da" / "k.yaml").write_text("intents:\n  X:\n    entity: sensor.kokken_sensor_temperature\n")
     entry = await _setup(hass)
     replacer = entry.runtime_data
 
@@ -1771,7 +1773,7 @@ async def test_rename_device_everywhere(hass: HomeAssistant, tmp_path) -> None:
         "sensor.kokken_sensor_temperature": "sensor.spisekammer_temperature",
         "sensor.0x00158d0001a2b3_linkquality": "sensor.spisekammer_linkquality",
     }
-    assert dry["yaml"] == ["templates.yaml"] and dry["esphome"] == ["esphome/display.yaml"]
+    assert dry["yaml"] == ["custom_sentences/da/k.yaml", "templates.yaml"] and dry["esphome"] == ["esphome/display.yaml"]
     assert dry["integrations"] == ["Alle temperaturer"]
     assert entities.async_get("sensor.kokken_sensor_temperature")  # nothing changed yet
 
