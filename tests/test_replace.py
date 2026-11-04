@@ -1711,3 +1711,83 @@ async def test_own_entities_get_ids_after_the_device(hass: HomeAssistant, tmp_pa
     assert load_yaml(str(tmp_path / "automations.yaml"))[0]["triggers"][0]["entity_id"] == (
         "sensor.0x54ef441001314fb2_voltage"
     )
+
+
+async def test_rename_device_everywhere(hass: HomeAssistant, tmp_path) -> None:
+    """Renaming a device renames its entity ids and every place that uses them; undo turns it all back."""
+    hass.config.config_dir = str(tmp_path)
+    mqtt_entry = MockConfigEntry(domain="mqtt", title="Mosquitto broker")
+    mqtt_entry.add_to_hass(hass)
+    group = MockConfigEntry(
+        domain="group", title="Alle temperaturer",
+        options={"group_type": "sensor", "entities": ["sensor.kokken_sensor_temperature", "sensor.other"]},
+    )
+    group.add_to_hass(hass)
+    devices, entities = dr.async_get(hass), er.async_get(hass)
+    device = devices.async_get_or_create(
+        config_entry_id=mqtt_entry.entry_id, identifiers={("mqtt", "zigbee2mqtt_0x00158d0001a2b3")}, name="0x00158d"
+    )
+    devices.async_update_device(device.id, name_by_user="Køkken sensor")
+    entities.async_get_or_create(
+        "sensor", "mqtt", "t", suggested_object_id="kokken_sensor_temperature", device_id=device.id,
+        config_entry=mqtt_entry, has_entity_name=True, original_name="Temperature",
+    )
+    entities.async_get_or_create(
+        "sensor", "mqtt", "l", suggested_object_id="0x00158d0001a2b3_linkquality", device_id=device.id,
+        config_entry=mqtt_entry, has_entity_name=True, original_name="Linkquality",
+    )
+    # Another device's entity with a longer id that starts the same must not change.
+    entities.async_get_or_create("sensor", "mqtt", "x", suggested_object_id="kokken_sensor_temperature_avg")
+    (tmp_path / "configuration.yaml").write_text("template: !include templates.yaml\nautomation: !include automations.yaml\n")
+    (tmp_path / "templates.yaml").write_text(
+        "- sensor:\n  - name: Varm\n    state: \"{{ states('sensor.kokken_sensor_temperature') | float > 25 }}\"\n"
+        "  - name: Snit\n    state: \"{{ states('sensor.kokken_sensor_temperature_avg') }}\"\n"
+    )
+    (tmp_path / "automations.yaml").write_text(
+        "- id: '1'\n  alias: Varmt i køkkenet\n  triggers:\n  - trigger: numeric_state\n"
+        "    entity_id: sensor.kokken_sensor_temperature\n    above: 25\n  actions: []\n"
+    )
+    (tmp_path / "scripts.yaml").write_text(
+        "signal:\n  sequence:\n  - action: notify.x\n    data:\n      message: \"{{ states('sensor.0x00158d0001a2b3_linkquality') }}\"\n"
+    )
+    (tmp_path / "packages").mkdir()
+    (tmp_path / "packages" / "p.yaml").write_text("homeassistant:\n  customize:\n    sensor.kokken_sensor_temperature:\n      icon: mdi:fire\n")
+    (tmp_path / "esphome").mkdir()
+    (tmp_path / "esphome" / "display.yaml").write_text(
+        "sensor:\n  - platform: homeassistant\n    entity_id: sensor.kokken_sensor_temperature\n"
+    )
+    (tmp_path / "secrets.yaml").write_text("x: sensor.kokken_sensor_temperature\n")
+    entry = await _setup(hass)
+    replacer = entry.runtime_data
+
+    dry = await replacer.async_rename_dry_run(device.id, "Spisekammer")
+    assert {c["from"]: c["to"] for c in dry["entities"]} == {
+        "sensor.kokken_sensor_temperature": "sensor.spisekammer_temperature",
+        "sensor.0x00158d0001a2b3_linkquality": "sensor.spisekammer_linkquality",
+    }
+    assert dry["yaml"] == ["templates.yaml"] and dry["esphome"] == ["esphome/display.yaml"]
+    assert dry["integrations"] == ["Alle temperaturer"]
+    assert entities.async_get("sensor.kokken_sensor_temperature")  # nothing changed yet
+
+    result = await replacer.async_rename(device.id, "Spisekammer")
+    await hass.async_block_till_done()
+    assert devices.async_get(device.id).name_by_user == "Spisekammer"
+    assert entities.async_get("sensor.spisekammer_temperature").unique_id == "t"
+    assert entities.async_get("sensor.spisekammer_linkquality").unique_id == "l"
+    templates = (tmp_path / "templates.yaml").read_text()
+    assert "states('sensor.spisekammer_temperature')" in templates and "sensor.kokken_sensor_temperature_avg" in templates
+    assert "sensor.spisekammer_temperature" in (tmp_path / "automations.yaml").read_text()
+    assert "sensor.spisekammer_linkquality" in (tmp_path / "scripts.yaml").read_text()
+    assert "sensor.spisekammer_temperature:" in (tmp_path / "packages" / "p.yaml").read_text()
+    assert "sensor.spisekammer_temperature" in (tmp_path / "esphome" / "display.yaml").read_text()
+    assert "kokken_sensor" in (tmp_path / "secrets.yaml").read_text()
+    assert group.options["entities"] == ["sensor.spisekammer_temperature", "sensor.other"]
+    assert entities.async_get("sensor.kokken_sensor_temperature_avg")
+
+    assert await replacer.async_undo(result["id"])
+    await hass.async_block_till_done()
+    assert devices.async_get(device.id).name_by_user == "Køkken sensor"
+    assert entities.async_get("sensor.kokken_sensor_temperature").unique_id == "t"
+    assert entities.async_get("sensor.0x00158d0001a2b3_linkquality").unique_id == "l"
+    assert "sensor.kokken_sensor_temperature\n" in (tmp_path / "automations.yaml").read_text()
+    assert group.options["entities"] == ["sensor.kokken_sensor_temperature", "sensor.other"]

@@ -26,6 +26,12 @@ const TEXT = {
     replaceWith: "Replace with {name}",
     pickReplacement: "Pick replacement",
     history: "Replaced",
+    needsAction: "Needs a look",
+    historyDone: "Done ({n})",
+    todoButtons: "{n} button triggers to check",
+    todoIds: "{n} entity IDs can be tidied up",
+    markDone: "Mark as done",
+    openEdit: "Open",
     undo: "Undo",
     undone: "Undone",
     moved: "{n} entities moved",
@@ -123,6 +129,28 @@ const TEXT = {
     change: "Change",
     migrateTitle: "Move many devices",
     migrateStart: "Move many devices",
+    renameStart: "Rename a device",
+    renameTitle: "Rename a device",
+    renameText: "The device, its entity IDs and every place that uses them get the new name – automations, scripts, dashboards, helpers, YAML and the energy dashboard. History follows.",
+    renamePick: "Pick the device to rename",
+    newName: "New name",
+    renameDo: "Rename",
+    renameWorking: "Renaming…",
+    renameEntities: "Entity IDs that change",
+    renameNone: "No entity IDs change – only the device's name.",
+    renameFixed: "Updated automatically",
+    renameYaml: "YAML files",
+    renameEsphome: "ESPHome – install the device again afterwards",
+    renameEnergy: "Energy dashboard",
+    renameOutside: "Outside Home Assistant – change it there yourself",
+    renameAlsoZ2m: "Also renamed in Zigbee2MQTT",
+    renameNothingUses: "Nothing else uses these entity IDs.",
+    renameDone: "{name} has its new name",
+    renameDoneText: "{n} entity IDs renamed and updated everywhere they are used.",
+    renameRestart: "YAML files were changed. If something doesn't pick up the new name, restart Home Assistant.",
+    renamedLine: "Renamed · {n} entity IDs",
+    sumIds: "Entity IDs",
+    sumPlaces: "Places",
     migrateText: "Moving to another integration, e.g. ZHA → Zigbee2MQTT? Pair the devices there first. They are matched by their Zigbee address, serial number or MAC address – names don't matter.",
     from: "From",
     to: "To",
@@ -204,6 +232,12 @@ const TEXT = {
     replaceWith: "Udskift med {name}",
     pickReplacement: "Vælg afløser",
     history: "Udskiftet",
+    needsAction: "Kræver handling",
+    historyDone: "Færdige ({n})",
+    todoButtons: "{n} knaptriggere skal tjekkes",
+    todoIds: "{n} entity-id'er kan ryddes op",
+    markDone: "Marker som færdig",
+    openEdit: "Åbn",
     undo: "Fortryd",
     undone: "Fortrudt",
     moved: "{n} entiteter flyttet",
@@ -301,6 +335,28 @@ const TEXT = {
     change: "Skift",
     migrateTitle: "Flyt mange enheder",
     migrateStart: "Flyt mange enheder",
+    renameStart: "Omdøb en enhed",
+    renameTitle: "Omdøb en enhed",
+    renameText: "Enheden, dens entity-id'er og alle steder, de bruges, får det nye navn – automatiseringer, scripts, dashboards, hjælpere, YAML og energi-dashboardet. Historikken følger med.",
+    renamePick: "Vælg den enhed, der skal omdøbes",
+    newName: "Nyt navn",
+    renameDo: "Omdøb",
+    renameWorking: "Omdøber…",
+    renameEntities: "Entity-id'er, der skifter",
+    renameNone: "Ingen entity-id'er skifter – kun enhedens navn.",
+    renameFixed: "Rettes automatisk",
+    renameYaml: "YAML-filer",
+    renameEsphome: "ESPHome – installer enheden igen bagefter",
+    renameEnergy: "Energi-dashboardet",
+    renameOutside: "Uden for Home Assistant – ret det selv dér",
+    renameAlsoZ2m: "Omdøbes også i Zigbee2MQTT",
+    renameNothingUses: "Intet andet bruger disse entity-id'er.",
+    renameDone: "{name} har fået sit nye navn",
+    renameDoneText: "{n} entity-id'er omdøbt og rettet alle de steder, de bruges.",
+    renameRestart: "Der er ændret i YAML-filer. Hvis noget ikke har fået det nye navn, så genstart Home Assistant.",
+    renamedLine: "Omdøbt · {n} entity-id'er",
+    sumIds: "Entity-id'er",
+    sumPlaces: "Steder",
     migrateText: "Skal du flytte til en anden integration, fx ZHA → Zigbee2MQTT? Par enhederne dér først. De matches på deres Zigbee-adresse, serienummer eller MAC-adresse – navnene er ligegyldige.",
     from: "Fra",
     to: "Til",
@@ -358,6 +414,12 @@ const TEXT = {
     dryBack: "Tilbage",
   },
   de: {
+    needsAction: "Braucht einen Blick",
+    historyDone: "Erledigt ({n})",
+    todoButtons: "{n} Tasten-Auslöser prüfen",
+    todoIds: "{n} Entitäts-IDs können aufgeräumt werden",
+    markDone: "Als erledigt markieren",
+    openEdit: "Öffnen",
     title: "Gerät ersetzen",
     heroTitle: "Ein Gerät ist ausgefallen?",
     heroText: "Kopple zuerst das neue. Es übernimmt dann Namen, Entitäts-IDs und Verlauf des alten – deine Automationen und Dashboards funktionieren weiter.",
@@ -479,6 +541,28 @@ const TEXT = {
     change: "Ändern",
     migrateTitle: "Viele Geräte umziehen",
     migrateStart: "Viele Geräte umziehen",
+    renameStart: "Ein Gerät umbenennen",
+    renameTitle: "Ein Gerät umbenennen",
+    renameText: "Das Gerät, seine Entitäts-IDs und alle Stellen, die sie nutzen, bekommen den neuen Namen – Automationen, Skripte, Dashboards, Helfer, YAML und das Energie-Dashboard. Der Verlauf bleibt erhalten.",
+    renamePick: "Wähle das Gerät zum Umbenennen",
+    newName: "Neuer Name",
+    renameDo: "Umbenennen",
+    renameWorking: "Wird umbenannt…",
+    renameEntities: "Entitäts-IDs, die sich ändern",
+    renameNone: "Keine Entitäts-IDs ändern sich – nur der Gerätename.",
+    renameFixed: "Wird automatisch angepasst",
+    renameYaml: "YAML-Dateien",
+    renameEsphome: "ESPHome – danach das Gerät neu installieren",
+    renameEnergy: "Energie-Dashboard",
+    renameOutside: "Außerhalb von Home Assistant – dort selbst ändern",
+    renameAlsoZ2m: "Auch in Zigbee2MQTT umbenannt",
+    renameNothingUses: "Nichts anderes nutzt diese Entitäts-IDs.",
+    renameDone: "{name} hat den neuen Namen",
+    renameDoneText: "{n} Entitäts-IDs umbenannt und überall angepasst.",
+    renameRestart: "YAML-Dateien wurden geändert. Wenn etwas den neuen Namen nicht übernimmt, starte Home Assistant neu.",
+    renamedLine: "Umbenannt · {n} Entitäts-IDs",
+    sumIds: "Entitäts-IDs",
+    sumPlaces: "Stellen",
     migrateText: "Umzug in eine andere Integration, z. B. ZHA → Zigbee2MQTT? Kopple die Geräte zuerst dort. Sie werden über ihre Zigbee-Adresse, Seriennummer oder MAC-Adresse zugeordnet – Namen spielen keine Rolle.",
     from: "Von",
     to: "Nach",
@@ -536,6 +620,12 @@ const TEXT = {
     dryBack: "Zurück",
   },
   sv: {
+    needsAction: "Behöver en titt",
+    historyDone: "Klara ({n})",
+    todoButtons: "{n} knapputlösare att kontrollera",
+    todoIds: "{n} entitets-ID kan städas",
+    markDone: "Markera som klar",
+    openEdit: "Öppna",
     title: "Byt enhet",
     heroTitle: "Har en enhet dött?",
     heroText: "Para den nya först. Den tar sedan över den gamlas namn, entitets-ID:n och historik – dina automationer och instrumentpaneler fortsätter att fungera.",
@@ -657,6 +747,28 @@ const TEXT = {
     change: "Ändra",
     migrateTitle: "Flytta många enheter",
     migrateStart: "Flytta många enheter",
+    renameStart: "Byt namn på en enhet",
+    renameTitle: "Byt namn på en enhet",
+    renameText: "Enheten, dess entitets-ID och alla ställen som använder dem får det nya namnet – automationer, skript, instrumentpaneler, hjälpare, YAML och energipanelen. Historiken följer med.",
+    renamePick: "Välj enheten som ska byta namn",
+    newName: "Nytt namn",
+    renameDo: "Byt namn",
+    renameWorking: "Byter namn…",
+    renameEntities: "Entitets-ID som ändras",
+    renameNone: "Inga entitets-ID ändras – bara enhetens namn.",
+    renameFixed: "Uppdateras automatiskt",
+    renameYaml: "YAML-filer",
+    renameEsphome: "ESPHome – installera enheten igen efteråt",
+    renameEnergy: "Energipanelen",
+    renameOutside: "Utanför Home Assistant – ändra det där själv",
+    renameAlsoZ2m: "Byter även namn i Zigbee2MQTT",
+    renameNothingUses: "Inget annat använder dessa entitets-ID.",
+    renameDone: "{name} har fått sitt nya namn",
+    renameDoneText: "{n} entitets-ID har bytt namn och uppdaterats överallt.",
+    renameRestart: "YAML-filer har ändrats. Om något inte fått det nya namnet, starta om Home Assistant.",
+    renamedLine: "Bytt namn · {n} entitets-ID",
+    sumIds: "Entitets-ID",
+    sumPlaces: "Ställen",
     migrateText: "Flyttar du till en annan integration, t.ex. ZHA → Zigbee2MQTT? Para enheterna där först. De matchas via sin Zigbee-adress, serienummer eller MAC-adress – namnen spelar ingen roll.",
     from: "Från",
     to: "Till",
@@ -714,6 +826,12 @@ const TEXT = {
     dryBack: "Tillbaka",
   },
   nl: {
+    needsAction: "Moet bekeken worden",
+    historyDone: "Klaar ({n})",
+    todoButtons: "{n} knoptriggers controleren",
+    todoIds: "{n} entiteit-ID's kunnen opgeruimd worden",
+    markDone: "Markeer als klaar",
+    openEdit: "Openen",
     title: "Apparaat vervangen",
     heroTitle: "Is er een apparaat kapot?",
     heroText: "Koppel eerst het nieuwe. Dat neemt dan de naam, entiteit-ID's en geschiedenis van het oude over – je automatiseringen en dashboards blijven werken.",
@@ -835,6 +953,28 @@ const TEXT = {
     change: "Wijzigen",
     migrateTitle: "Veel apparaten verhuizen",
     migrateStart: "Veel apparaten verhuizen",
+    renameStart: "Een apparaat hernoemen",
+    renameTitle: "Een apparaat hernoemen",
+    renameText: "Het apparaat, zijn entiteit-ID's en alle plekken die ze gebruiken krijgen de nieuwe naam – automatiseringen, scripts, dashboards, helpers, YAML en het energiedashboard. De geschiedenis blijft.",
+    renamePick: "Kies het apparaat om te hernoemen",
+    newName: "Nieuwe naam",
+    renameDo: "Hernoemen",
+    renameWorking: "Bezig met hernoemen…",
+    renameEntities: "Entiteit-ID's die veranderen",
+    renameNone: "Geen entiteit-ID's veranderen – alleen de apparaatnaam.",
+    renameFixed: "Automatisch bijgewerkt",
+    renameYaml: "YAML-bestanden",
+    renameEsphome: "ESPHome – installeer het apparaat daarna opnieuw",
+    renameEnergy: "Energiedashboard",
+    renameOutside: "Buiten Home Assistant – pas het daar zelf aan",
+    renameAlsoZ2m: "Ook hernoemd in Zigbee2MQTT",
+    renameNothingUses: "Niets anders gebruikt deze entiteit-ID's.",
+    renameDone: "{name} heeft de nieuwe naam",
+    renameDoneText: "{n} entiteit-ID's hernoemd en overal bijgewerkt.",
+    renameRestart: "Er zijn YAML-bestanden gewijzigd. Als iets de nieuwe naam niet oppikt, herstart Home Assistant.",
+    renamedLine: "Hernoemd · {n} entiteit-ID's",
+    sumIds: "Entiteit-ID's",
+    sumPlaces: "Plekken",
     migrateText: "Verhuis je naar een andere integratie, bijv. ZHA → Zigbee2MQTT? Koppel de apparaten daar eerst. Ze worden herkend aan hun Zigbee-adres, serienummer of MAC-adres – namen maken niet uit.",
     from: "Van",
     to: "Naar",
@@ -1124,7 +1264,9 @@ class ReplaceDevicePanel extends HTMLElement {
          ${this.showHidden ? `<div class="grid">${hidden.map(card).join("")}</div>` : ""}`
       : "";
     const rows = [];
-    for (const h of this.historyItems) {
+    const open = (h) => !h.undone && !h.done && (h.todo?.buttons || h.todo?.ids);
+    const needs = this.historyItems.filter(open);
+    for (const h of this.historyItems.filter((x) => !open(x))) {
       const last = rows[rows.length - 1];
       if (h.batch && last?.batch === h.batch) last.items.push(h);
       else rows.push({ batch: h.batch, items: [h] });
@@ -1135,7 +1277,8 @@ class ReplaceDevicePanel extends HTMLElement {
         <div class="hero-icon"><ha-icon icon="mdi:swap-horizontal-circle"></ha-icon></div>
         <div class="grow"><h2>${this.t("heroTitle")}</h2><p class="muted">${this.t("heroText")}</p>
         <div class="btns"><button class="primary" data-act="pick">${this.t("start")}</button>
-        <button class="ghost" data-act="migrate"><ha-icon icon="mdi:transfer"></ha-icon>${this.t("migrateStart")}</button></div></div>
+        <button class="ghost" data-act="migrate"><ha-icon icon="mdi:transfer"></ha-icon>${this.t("migrateStart")}</button>
+        <button class="ghost" data-act="renameStart"><ha-icon icon="mdi:rename"></ha-icon>${this.t("renameStart")}</button></div></div>
       </div>
       ${leftovers.length ? `<h3>${this.t("leftoversTitle")} <span class="count">${leftovers.length}</span></h3>
         <p class="muted small section-hint">${this.t("leftoversHint")}</p>
@@ -1144,7 +1287,10 @@ class ReplaceDevicePanel extends HTMLElement {
       <p class="muted small section-hint">${this.t("deadHint")}</p>
       <div class="grid">${deadCards}</div>
       ${hiddenPart}
-      ${history ? `<h3>${this.t("history")}</h3><div class="card list">${history}</div>` : ""}`;
+      ${needs.length ? `<h3>${this.t("needsAction")} <span class="count amber">${needs.length}</span></h3><div class="card list">${needs.map((h) => this.historyRow(h)).join("")}</div>` : ""}
+      ${history ? (needs.length
+        ? `<details class="dmore hist-done"><summary><ha-icon icon="mdi:check-circle"></ha-icon> ${esc(this.t("historyDone", { n: this.historyItems.length - needs.length }))}</summary><div class="card list">${history}</div></details>`
+        : `<h3>${this.t("history")}</h3><div class="card list">${history}</div>`) : ""}`;
   }
 
   // What could still bite, as lines; also used to count them in "move many".
@@ -1208,11 +1354,22 @@ class ReplaceDevicePanel extends HTMLElement {
   }
 
   historyRow(h) {
+    if (h.kind === "rename") {
+      return `
+      <div class="hist">
+        <ha-icon icon="mdi:rename"></ha-icon>
+        <div class="grow"><b>${esc(h.old_device.name)}</b> → ${esc(h.new_device.name)}
+          <div class="muted small">${new Date(h.at * 1000).toLocaleString(this._hass.language)} · ${esc(this.t("renamedLine", { n: h.renamed }))}</div></div>
+        ${h.undone ? `<span class="tag">${this.t("undone")}</span>` : `<button class="ghost small-btn" data-act="undo" data-id="${h.id}">${this.t("undo")}</button>`}
+      </div>`;
+    }
     return `
       <div class="hist">
         <ha-icon icon="mdi:swap-horizontal"></ha-icon>
         <div class="grow"><b>${esc(h.old_device.name)}</b> → ${esc(h.new_device.model || h.new_device.name)}
-          <div class="muted small">${new Date(h.at * 1000).toLocaleString(this._hass.language)} · ${this.t("moved", { n: h.moved })}</div></div>
+          <div class="muted small">${new Date(h.at * 1000).toLocaleString(this._hass.language)} · ${this.t("moved", { n: h.moved })}</div>
+          ${!h.undone && !h.done && (h.todo?.buttons || h.todo?.ids) ? `<div class="small warn-text">${[h.todo.buttons ? esc(this.t("todoButtons", { n: h.todo.buttons })) : "", h.todo.ids ? esc(this.t("todoIds", { n: h.todo.ids })) : ""].filter(Boolean).join(" · ")}</div>
+            <button class="link small" data-act="markDone" data-id="${h.id}">${this.t("markDone")}</button>` : ""}</div>
         ${h.undone ? `<span class="tag">${this.t("namesBack")}</span><button class="ghost small-btn" data-act="redo" data-id="${h.id}">${this.t("redo")}</button>` : h.new_device?.id ? `<button class="ghost small-btn" data-act="edit" data-id="${h.id}">${this.t("edit")}</button>` : ""}
       </div>`;
   }
@@ -1237,7 +1394,7 @@ class ReplaceDevicePanel extends HTMLElement {
       ${old ? `<div class="card chosen"><div class="dev-head"><ha-icon icon="mdi:devices"></ha-icon><div class="grow"><div class="muted small">${this.t("old")}</div><div class="dev-name">${esc(old.name)}</div>
         <div class="muted small">${esc([old.area, old.model, old.integration_title].filter(Boolean).join(" · "))}</div></div>
         <button class="ghost small-btn" data-act="changeOld">${this.t("change")}</button></div></div>` : ""}
-      <h3>${old ? this.t("pickNew") : this.t("pickOld")}</h3>
+      <h3>${this.pickMode === "rename" ? this.t("renamePick") : old ? this.t("pickNew") : this.t("pickOld")}</h3>
       <div class="filters">
         <div class="search"><ha-icon icon="mdi:magnify"></ha-icon><input id="q" type="search" placeholder="${this.t("search")}" value="${esc(this.query)}"></div>
         <select id="src"><option value="">${this.t("allIntegrations")}</option>${sources.map(([k, [v, n]]) => `<option value="${esc(k)}" ${k === this.srcFilter ? "selected" : ""}>${esc(v || k)} (${n})</option>`).join("")}</select>
@@ -1446,6 +1603,87 @@ class ReplaceDevicePanel extends HTMLElement {
     }
     this.testing = false;
     this.render();
+  }
+
+  async doRename(apply) {
+    const input = this.shadowRoot.getElementById("newName");
+    if (input) this.renameName = input.value;
+    const name = (this.renameName || "").trim();
+    if (!name) return;
+    this.renaming = apply ? "do" : "dry";
+    this.view = "working";
+    this.render();
+    try {
+      const r = await this.ws(apply ? "rename" : "rename_dry_run", { device: this.renameId, name });
+      if (apply) {
+        this.renameResult = r;
+        this.renameDry = null;
+      } else {
+        this.renameDry = r;
+      }
+      this.error = "";
+    } catch (e) {
+      this.error = this.t("error", { e: e.message || e.code });
+    }
+    this.renaming = "";
+    this.view = "rename";
+    if (apply) await this.load();
+    this.view = "rename";
+    this.render();
+  }
+
+  renamePlaces(r) {
+    const chips = [
+      ...(r.users || []).map((u) => [u.startsWith("script") ? "mdi:script-text" : u.startsWith("scene") ? "mdi:palette" : "mdi:robot", u.replace(/^(automation|script|scene): /, "")]),
+      ...(r.dashboards || []).map((x) => ["mdi:view-dashboard", x]),
+      ...(r.integrations || []).map((x) => ["mdi:puzzle", x]),
+      ...(r.yaml || []).map((x) => ["mdi:file-code-outline", x]),
+      ...(r.energy ? [["mdi:lightning-bolt", this.t("renameEnergy")]] : []),
+    ];
+    const chip = ([i, x]) => `<span class="chip sm"><ha-icon icon="${i}"></ha-icon>${esc(x)}</span>`;
+    return `
+      ${chips.length ? `<h3 class="dsec"><ha-icon icon="mdi:sync"></ha-icon>${this.t("renameFixed")}</h3><div class="dchips">${chips.map(chip).join("")}</div>`
+        : `<p class="muted small">${this.t("renameNothingUses")}</p>`}
+      ${(r.esphome || []).length ? `<h3 class="dsec warn-text"><ha-icon icon="mdi:chip"></ha-icon>${this.t("renameEsphome")}</h3><div class="dchips">${r.esphome.map((x) => chip(["mdi:file-code-outline", x])).join("")}</div>` : ""}
+      ${(r.outside || []).length ? `<h3 class="dsec red-text"><ha-icon icon="mdi:alert-octagon"></ha-icon>${this.t("renameOutside")}</h3><div class="dchips">${r.outside.map((x) => chip(["mdi:file-alert-outline", x])).join("")}</div>` : ""}`;
+  }
+
+  renameView() {
+    const d = this.device(this.renameId);
+    if (this.renameResult) {
+      const r = this.renameResult;
+      return `
+        <div class="card center"><div class="check"><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="24"/><path d="M14 27l8 8 16-16"/></svg></div>
+          <h2>${esc(this.t("renameDone", { name: this.renameName }))}</h2>
+          <p class="muted">${esc(this.t("renameDoneText", { n: r.entities.length }))}</p></div>
+        <div class="card">${this.renamePlaces(r)}
+          ${(r.yaml || []).length ? `<p class="hint"><ha-icon icon="mdi:information-outline"></ha-icon><span>${this.t("renameRestart")}</span></p>` : ""}</div>
+        <div class="actions"><button class="ghost" data-act="undo" data-id="${r.id}">${this.t("undo")}</button><button class="primary" data-act="home">${this.t("home")}</button></div>`;
+    }
+    const r = this.renameDry;
+    const rows = r ? r.entities.map((c) => `<div class="drow"><ha-icon icon="${DOMAIN_ICON[c.from.split(".")[0]] || "mdi:shape"}"></ha-icon>
+        <div class="grow"><div class="dname">${esc(c.name || c.to)}</div><div class="mono muted small">${esc(c.from)} → ${esc(c.to)}</div></div></div>`).join("") : "";
+    const places = r ? (r.users || []).length + (r.dashboards || []).length + (r.integrations || []).length + (r.yaml || []).length + (r.energy ? 1 : 0) + (r.esphome || []).length : 0;
+    return `
+      <div class="card hero"><ha-icon icon="mdi:rename"></ha-icon><div class="grow"><h2>${this.t("renameTitle")}</h2><p class="muted">${this.t("renameText")}</p></div></div>
+      <div class="card">
+        <div class="muted small">${esc([d?.area, d?.model, d?.integration_title].filter(Boolean).join(" · "))}</div>
+        <div class="dname">${esc(d?.name || "")}</div>
+        <label class="muted small" for="newName" style="display:block;margin-top:12px">${this.t("newName")}</label>
+        <input id="newName" class="name-input" type="text" value="${esc(this.renameName)}" autocomplete="off">
+      </div>
+      ${r ? `<div class="card">
+        <div class="tiles" style="grid-template-columns:repeat(2,1fr)">
+          <div class="tile"><div class="num">${r.entities.length}</div><div class="small">${this.t("sumIds")}</div></div>
+          <div class="tile"><div class="num">${places}</div><div class="small">${this.t("sumPlaces")}</div></div>
+        </div>
+        ${r.z2m ? `<div class="dmeta"><span class="chip sm"><ha-icon icon="mdi:zigbee"></ha-icon>${this.t("renameAlsoZ2m")}</span></div>` : ""}
+        ${rows ? `<h3 class="dsec"><ha-icon icon="mdi:swap-horizontal"></ha-icon>${this.t("renameEntities")}</h3><div class="drows">${rows}</div>` : `<p class="muted small">${this.t("renameNone")}</p>`}
+        ${this.renamePlaces(r)}
+      </div>` : ""}
+      <div class="actions sticky"><button class="ghost" data-act="home">${this.t("back")}</button>
+        <button class="ghost" data-act="renameDry"><ha-icon icon="mdi:test-tube"></ha-icon>${this.t("dryRun")}</button>
+        <button class="primary big" data-act="renameDo"><ha-icon icon="mdi:rename"></ha-icon>${this.t("renameDo")}</button></div>`;
   }
 
   dryView() {
@@ -1687,6 +1925,7 @@ class ReplaceDevicePanel extends HTMLElement {
   }
 
   workingView() {
+    if (this.renaming) return `<div class="card center"><div class="spinner"></div><h2>${this.t(this.renaming === "dry" ? "dryWorking" : "renameWorking")}</h2></div>`;
     if (this.planning) return `<div class="card center"><div class="spinner"></div><h2>${this.t("planning")}</h2><p class="muted small">${this.t("planningHint")}</p></div>`;
     return `<div class="card center"><div class="spinner"></div><h2>${this.t(this.testing ? "dryWorking" : "working")}</h2></div>`;
   }
@@ -1716,7 +1955,7 @@ class ReplaceDevicePanel extends HTMLElement {
     const body = {
       home: () => this.homeView(), pick: () => this.pickView(), match: () => this.matchView(), working: () => this.workingView(),
       done: () => this.doneView(), migrate: () => this.migrateView(), migrated: () => this.migrateDoneView(),
-      edit: () => this.editView(), dry: () => this.dryView(),
+      edit: () => this.editView(), dry: () => this.dryView(), rename: () => this.renameView(),
     }[this.view]();
     this.shadowRoot.innerHTML = `<style>${STYLE}</style>
       <div class="toolbar">${customElements.get("ha-menu-button") ? "<ha-menu-button></ha-menu-button>" : ""}<div class="tb-title">${this.t("title")}</div><span class="beta">beta</span></div>
@@ -1735,6 +1974,8 @@ class ReplaceDevicePanel extends HTMLElement {
       }));
     const remove = this.shadowRoot.getElementById("removeOld");
     if (remove) remove.addEventListener("change", () => (this.removeOld = remove.checked));
+    const newName = this.shadowRoot.getElementById("newName");
+    if (newName) newName.addEventListener("input", () => (this.renameName = newName.value));
     const rename = this.shadowRoot.getElementById("renameZ2m");
     if (rename) rename.addEventListener("change", () => (this.renameZ2m = rename.checked));
     const q = this.shadowRoot.getElementById("q");
@@ -1800,11 +2041,29 @@ class ReplaceDevicePanel extends HTMLElement {
       this.oldId = this.newId = "";
       this.load();
     } else if (data.act === "pick") {
+      this.pickMode = "";
       this.oldId = data.old || "";
       this.newId = "";
       this.query = "";
       this.view = "pick";
       this.render();
+    } else if (data.act === "choose" && this.pickMode === "rename") {
+      this.renameId = data.id;
+      this.renameName = this.device(data.id)?.name || "";
+      this.renameDry = null;
+      this.renameResult = null;
+      this.view = "rename";
+      this.render();
+    } else if (data.act === "markDone") {
+      this.ws("mark_done", { record: data.id }).then(() => this.load());
+    } else if (data.act === "renameStart") {
+      this.pickMode = "rename";
+      this.oldId = "";
+      this.query = "";
+      this.view = "pick";
+      this.render();
+    } else if (data.act === "renameDry" || data.act === "renameDo") {
+      this.doRename(data.act === "renameDo");
     } else if (data.act === "choose") {
       if (!this.oldId) {
         this.oldId = data.id;
@@ -1935,6 +2194,8 @@ input:checked+.switch{background:var(--rd-blue)}input:checked+.switch:after{left
 .dsec{display:flex;align-items:center;gap:8px;font-size:15px;margin:18px 0 8px}.dsec ha-icon{--mdc-icon-size:20px}.red-text{color:var(--rd-red)}
 .drows{display:flex;flex-direction:column;gap:6px}.drow{display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:10px;background:var(--secondary-background-color,#f6f8fa);border-left:4px solid var(--rd-green)}.drow>ha-icon{flex:none;--mdc-icon-size:20px;margin-top:1px;color:var(--secondary-text-color)}
 .drow.gone{border-left-color:var(--rd-red)}.drow.new{border-left-color:var(--rd-blue)}.drow.warnrow{border-left-color:var(--rd-amber)}.drow.warnrow>ha-icon{color:var(--rd-amber)}
+.name-input{width:100%;box-sizing:border-box;margin-top:4px;padding:12px;border-radius:10px;border:1px solid var(--divider-color,#d0d7e0);background:var(--card-background-color,#fff);color:var(--primary-text-color);font-size:16px}
+.count.amber{background:var(--rd-amber)}.hist-done summary{display:flex;align-items:center;gap:8px;margin:16px 0 8px}.hist-done summary ha-icon{color:var(--rd-green);--mdc-icon-size:18px}.link.small{font-size:13px;padding:2px 0}
 .dmore{margin-top:6px}.dmore summary{cursor:pointer;padding:10px;border-radius:10px;background:var(--secondary-background-color,#f6f8fa);color:var(--rd-blue);font-size:14px;list-style:none}.dmore summary::-webkit-details-marker{display:none}.dmore[open] summary{margin-bottom:6px}
 .dname{font-weight:500;overflow-wrap:anywhere}.mono{font-family:var(--code-font-family,monospace);font-size:12px;overflow-wrap:anywhere}
 .dchips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}.chip.sm{padding:3px 10px;font-size:12px}.chip.sm ha-icon{--mdc-icon-size:14px}

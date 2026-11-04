@@ -37,6 +37,9 @@ def async_setup(hass: HomeAssistant) -> None:
         ws_edit,
         ws_retranslate,
         ws_tidy,
+        ws_mark_done,
+        ws_rename_dry_run,
+        ws_rename,
         ws_migrate_plan,
         ws_migrate,
         ws_migrate_dry_run,
@@ -278,6 +281,16 @@ def ws_history(hass: HomeAssistant, connection: websocket_api.ActiveConnection, 
             "moved": len(r["entities"]),
             "batch": r.get("batch"),
             "unresolved": r.get("triggers", {}).get("unresolved", []),
+            "kind": r.get("kind", "replace"),
+            "renamed": len(r.get("renamed") or []),
+            "done": bool(r.get("done")),
+            # What is still open, so the list can show it first.
+            "todo": {
+                "buttons": len(r.get("triggers", {}).get("unresolved", [])),
+                "ids": len(replacer.tidy_plan(r["id"]) or []),
+            }
+            if replacer and not r["undone"] and r.get("kind") != "rename" and not r.get("done")
+            else {},
         }
         for r in (replacer.history if replacer else [])
     ]
@@ -292,6 +305,50 @@ async def ws_retranslate(hass: HomeAssistant, connection: websocket_api.ActiveCo
     result = await replacer.async_retranslate(msg["record"]) if replacer else None
     if result is None:
         connection.send_error(msg["id"], "not_found", "Nothing to check")
+        return
+    connection.send_result(msg["id"], result)
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {vol.Required("type"): f"{DOMAIN}/mark_done", vol.Required("record"): str, vol.Optional("done", default=True): bool}
+)
+@callback
+def ws_mark_done(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """The user has checked what was left; it moves to the done ones."""
+    replacer = _replacer(hass)
+    if replacer is None or not replacer.set_done(msg["record"], msg["done"]):
+        connection.send_error(msg["id"], "not_found", "No such replacement")
+        return
+    connection.send_result(msg["id"], {})
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {vol.Required("type"): f"{DOMAIN}/rename_dry_run", vol.Required("device"): str, vol.Required("name"): str}
+)
+@websocket_api.async_response
+async def ws_rename_dry_run(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """What renaming a device would change."""
+    replacer = _replacer(hass)
+    result = await replacer.async_rename_dry_run(msg["device"], msg["name"]) if replacer else None
+    if result is None:
+        connection.send_error(msg["id"], "invalid", "Pick a device and a name")
+        return
+    connection.send_result(msg["id"], result)
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {vol.Required("type"): f"{DOMAIN}/rename", vol.Required("device"): str, vol.Required("name"): str}
+)
+@websocket_api.async_response
+async def ws_rename(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Rename a device, its entity ids and everything that uses them."""
+    replacer = _replacer(hass)
+    result = await replacer.async_rename(msg["device"], msg["name"]) if replacer else None
+    if result is None:
+        connection.send_error(msg["id"], "invalid", "Pick a device and a name")
         return
     connection.send_result(msg["id"], result)
 
@@ -389,7 +446,9 @@ def _took_over(hass: HomeAssistant) -> dict[str, dr.DeviceEntry]:
     registry = dr.async_get(hass)
     keys: dict[str, dr.DeviceEntry] = {}
     for record in replacer.history if replacer else []:
-        if record["undone"] or not (new := registry.async_get(record["new_device"].get("id") or "")):
+        if record["undone"] or record.get("kind") == "rename":
+            continue
+        if not (new := registry.async_get(record["new_device"].get("id") or "")):
             continue
         for key in hardware_keys(new):
             keys[key] = new

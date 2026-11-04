@@ -32,7 +32,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util.file import write_utf8_file_atomic
 from homeassistant.util.yaml import parse_yaml
 
-from . import ai, references, tidy, triggers
+from . import ai, references, rename, tidy, triggers
 from .const import AUTOMATIONS_FILE, CHECK_AFTER, DOMAIN, SCENES_FILE, SCRIPTS_FILE, TEXTS, Z2M_BASE_TOPIC
 from .hardware import z2m_base_topic, z2m_ieee, z2m_name
 from .matching import match, unsure
@@ -383,6 +383,8 @@ class Replacer:
         record = next((r for r in self.history if r["id"] == record_id and not r["undone"]), None)
         if record is None:
             return False
+        if record.get("kind") == "rename":
+            return await self._async_undo_rename(record)
         devices, entities = dr.async_get(self.hass), er.async_get(self.hass)
         # Ids given after the device's name go back first.
         back = tidy.apply(self.hass, [{"from": c["to"], "to": c["from"]} for c in reversed(record.get("tidied") or [])])
@@ -666,6 +668,15 @@ class Replacer:
         return filled
 
     @callback
+    def set_done(self, record_id: str, done: bool) -> bool:
+        record = next((r for r in self.history if r["id"] == record_id), None)
+        if record is None:
+            return False
+        record["done"] = done
+        self._save()
+        return True
+
+    @callback
     def set_hidden(self, device_id: str, hidden: bool) -> None:
         self.hidden = [d for d in self.hidden if d != device_id] + ([device_id] if hidden else [])
         self._save()
@@ -682,6 +693,116 @@ class Replacer:
                 await self.hass.services.async_call(domain, "reload", blocking=True)
             except Exception:  # noqa: BLE001 - e.g. a YAML error the user made elsewhere
                 _LOGGER.warning("Could not reload %s after the replacement", domain, exc_info=True)
+
+    # ---------- renaming a device ----------
+
+    async def _async_places(self, ids: dict[str, str], apply: bool) -> dict[str, Any]:
+        """Everywhere Home Assistant uses the entity ids; with apply, they are changed there."""
+        hass = self.hass
+        config_dir = hass.config.path()
+        handled = {path for _, path in await hass.async_add_executor_job(_config_files, config_dir)}
+        files = await hass.async_add_executor_job(
+            rename.yaml_files, config_dir, handled, references.yaml_dashboard_files(hass)
+        )
+        yaml_changes = await hass.async_add_executor_job(rename.files_using, config_dir, files, ids)
+        dashboards = await _safely("reading dashboards", references.async_dashboards(hass), [])
+        entries = [
+            e
+            for e in references.entries_using(hass, ids, set())
+            if references.swap([dict(e.data), dict(e.options)], ids, True) != [dict(e.data), dict(e.options)]
+        ]
+        result: dict[str, Any] = {
+            "users": await hass.async_add_executor_job(_users_of_ids, config_dir, ids),
+            "yaml": [os.path.relpath(p, config_dir) for p, kind, _ in yaml_changes if kind == "config"],
+            "esphome": [os.path.relpath(p, config_dir) for p, kind, _ in yaml_changes if kind == "esphome"],
+            "dashboards": [t for t, _, c in dashboards if references.swap(c, ids, True) is not c],
+            "integrations": [e.title for e in entries],
+            "energy": await _safely("reading the energy dashboard", references.async_energy_uses(hass, ids), False),
+            "outside": await hass.async_add_executor_job(references.outside_users, config_dir, list(ids)),
+        }
+        if not apply:
+            return result
+        changed = set(await self._rewrite(ids, reload=False, exact=True))
+        for path, _kind, text in yaml_changes:
+            await hass.async_add_executor_job(write_utf8_file_atomic, path, text)
+        await _safely("updating dashboards", references.async_rewrite_dashboards(hass, ids, exact=True), [])
+        await _safely("updating other integrations", references.async_rewrite_entries(hass, ids, set(), True), [])
+        await _safely("updating the energy dashboard", references.async_rewrite_energy(hass, ids), False)
+        await self.async_reload(changed)
+        if yaml_changes and hass.services.has_service("homeassistant", "reload_all"):
+            await _safely(
+                "reloading YAML",
+                hass.services.async_call("homeassistant", "reload_all", blocking=True),
+                None,
+            )
+        result["changed"] = sorted(changed)
+        return result
+
+    def _rename_plan(self, device_id: str, name: str) -> tuple[Any, list[dict[str, str]]]:
+        device = dr.async_get(self.hass).async_get(device_id)
+        if device is None or not name.strip():
+            return None, []
+        entries = er.async_entries_for_device(er.async_get(self.hass), device.id, include_disabled_entities=True)
+        return device, rename.plan_ids(self.hass, entries, device_name(device), name.strip())
+
+    async def async_rename_dry_run(self, device_id: str, name: str) -> dict[str, Any] | None:
+        """What renaming a device would change, without changing anything."""
+        device, changes = self._rename_plan(device_id, name)
+        if device is None:
+            return None
+        places = await self._async_places({c["from"]: c["to"] for c in changes}, apply=False)
+        return {
+            "device": {"from": device_name(device), "to": name.strip()},
+            "entities": changes,
+            "z2m": z2m_ieee(device) is not None,
+            **places,
+        }
+
+    async def async_rename(self, device_id: str, name: str) -> dict[str, Any] | None:
+        """Rename a device, its entity ids, and everything that uses them. It can be undone."""
+        hass = self.hass
+        device, changes = self._rename_plan(device_id, name)
+        if device is None:
+            return None
+        name = name.strip()
+        old_name, before = device_name(device), device.name_by_user
+        dr.async_get(hass).async_update_device(device.id, name_by_user=name)
+        done = _rename_all(hass, changes)
+        record: dict[str, Any] = {
+            "id": uuid4().hex,
+            "at": time.time(),
+            "kind": "rename",
+            "old_device": {"id": device.id, "name": old_name, "model": device.model},
+            "new_device": {"id": device.id, "name": name, "model": device.model, "name_by_user": before},
+            "entities": [],
+            "ids": {},
+            "renamed": done,
+            "files": [],
+            "batch": None,
+            "undone": False,
+        }
+        self.history.append(record)
+        self._save()
+        places = await self._async_places({c["from"]: c["to"] for c in done}, apply=True)
+        record["files"] = places.get("changed", [])
+        if z2m_ieee(device):
+            await _safely("renaming in Zigbee2MQTT", _rename_in_z2m(hass, device, name), False)
+        self._save()
+        return {"id": record["id"], "entities": done, **places}
+
+    async def _async_undo_rename(self, record: dict[str, Any]) -> bool:
+        hass = self.hass
+        device = dr.async_get(hass).async_get(record["new_device"]["id"])
+        back = _rename_all(hass, [{"from": c["to"], "to": c["from"]} for c in reversed(record.get("renamed") or [])])
+        if device is not None:
+            dr.async_get(hass).async_update_device(device.id, name_by_user=record["new_device"].get("name_by_user"))
+            if z2m_ieee(device):
+                old_name = record["old_device"]["name"]
+                await _safely("renaming in Zigbee2MQTT", _rename_in_z2m(hass, device, old_name), False)
+        await self._async_places({c["from"]: c["to"] for c in back}, apply=True)
+        record["undone"] = True
+        self._save()
+        return True
 
     async def _async_tidy(self, entries: list[Any], name: str) -> tuple[list[dict[str, str]], list[str]]:
         """Give entries ids after the device's name and fix what uses the old ids; (renamed, changed file domains)."""
@@ -841,6 +962,19 @@ def _restore(item: dict[str, Any]) -> dict[str, Any]:
         "device_class": item["device_class"],
         "hidden_by": er.RegistryEntryHider(item["hidden_by"]) if item["hidden_by"] else None,
     }
+
+
+def _rename_all(hass: HomeAssistant, changes: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Rename entity ids; one whose new id another of them still holds waits for it, so a chain works out."""
+    done: list[dict[str, str]] = []
+    todo = list(changes)
+    while todo:
+        step = tidy.apply(hass, todo)
+        if not step:
+            break
+        done += step
+        todo = [c for c in todo if c not in step]
+    return done
 
 
 async def _rename_in_z2m(hass: HomeAssistant, device: dr.DeviceEntry, name: str) -> bool:

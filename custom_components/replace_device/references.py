@@ -69,17 +69,49 @@ def entries_using(hass: HomeAssistant, ids: dict[str, str], skip: set[str]) -> l
     ]
 
 
-async def async_rewrite_entries(hass: HomeAssistant, ids: dict[str, str], skip: set[str]) -> list[str]:
-    """Point other integrations at the new ids, and reload them so they pick it up."""
+async def async_rewrite_entries(
+    hass: HomeAssistant, ids: dict[str, str], skip: set[str], exact: bool = False
+) -> list[str]:
+    """Point other integrations (and helpers: groups, templates, utility meters …) at the new ids, and reload them."""
     changed = []
     for entry in entries_using(hass, ids, skip):
-        hass.config_entries.async_update_entry(
-            entry, data=swap(dict(entry.data), ids), options=swap(dict(entry.options), ids)
-        )
+        data, options = swap(dict(entry.data), ids, exact), swap(dict(entry.options), ids, exact)
+        if data == dict(entry.data) and options == dict(entry.options):
+            continue
+        hass.config_entries.async_update_entry(entry, data=data, options=options)
         changed.append(entry.title)
         if entry.state is ConfigEntryState.LOADED:
             hass.config_entries.async_schedule_reload(entry.entry_id)
     return changed
+
+
+async def _energy(hass: HomeAssistant) -> Any:
+    if "energy" not in hass.config.components:
+        return None
+    try:
+        from homeassistant.components.energy.data import async_get_manager
+
+        return await async_get_manager(hass)
+    except Exception:  # noqa: BLE001 - the energy dashboard is optional
+        return None
+
+
+async def async_energy_uses(hass: HomeAssistant, ids: dict[str, str]) -> bool:
+    """Whether the energy dashboard uses one of the entity ids."""
+    manager = await _energy(hass)
+    return bool(manager and manager.data and swap(manager.data, ids, True) is not manager.data)
+
+
+async def async_rewrite_energy(hass: HomeAssistant, ids: dict[str, str]) -> bool:
+    """Point the energy dashboard at the new entity ids; its statistics follow the entities by themselves."""
+    manager = await _energy(hass)
+    if not (manager and manager.data):
+        return False
+    new = swap(manager.data, ids, True)
+    if new is manager.data:
+        return False
+    await manager.async_update({key: value for key, value in new.items() if value != manager.data.get(key)})
+    return True
 
 
 def used_in(hass: HomeAssistant, entity_id: str, dashboards: list[tuple[str, Any, dict]]) -> list[str]:

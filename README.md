@@ -72,6 +72,20 @@ Can't find it in the HACS search? Add it as a custom repository first: **HACS** 
 4. Read what to check. Not sure? Tap **Test first**: it shows exactly what would happen – which entity IDs change, which automations, scripts and dashboards are updated, and how each button trigger is translated – without changing anything. It works for **Move many devices** too.
 
 <p><img src="docs/panel-dry.png" alt="Test first: what would happen, without changing anything" width="300"></p>
+
+### Rename a device
+
+Home Assistant can rename a device and its entity IDs, but automations, scripts, dashboards and helpers keep pointing at the old IDs. **Rename a device** changes the name and the entity IDs, and updates every place Home Assistant can reach:
+
+- automations, scripts and scenes (also inside templates and blueprint inputs) and `packages/`
+- dashboards made in the UI, helpers (groups, templates, utility meters …) and other integrations that store the ID
+- the energy dashboard, and your own YAML files that `configuration.yaml` includes
+- ESPHome files that read from Home Assistant (install the device again afterwards)
+- the name in Zigbee2MQTT
+
+History and statistics follow by themselves. Code outside Home Assistant (Node-RED, AppDaemon) is listed for you to change. Tap **Test first** to see every change before it happens, and **Undo** in the list puts it all back.
+
+The list on the front page shows what still **needs a look** first (button triggers to check, entity IDs to tidy up). The rest is folded away under **Done**.
 5. Tap **Replace now**.
 
 Got two names mixed up (temperature and humidity, say)? Tap **Change** next to the replacement under *Replaced* and move the names to the right entities. Only names change – the device stays where it is.
@@ -149,6 +163,20 @@ Kan du ikke finde den i HACS-søgningen? Tilføj den først som brugerdefineret 
 4. Læs, hvad du skal tjekke. I tvivl? Tryk **Test først**. Den viser præcis, hvad der ville ske: hvilke entity-id'er der skifter, hvilke automatiseringer, scripts og dashboards der opdateres, og hvordan hver knaptrigger oversættes. Intet bliver ændret. Det virker også ved **Flyt mange enheder**.
 
 <p><img src="docs/panel-dry.png" alt="Test først: hvad der ville ske, uden at noget ændres" width="300"></p>
+
+### Omdøb en enhed
+
+Home Assistant kan omdøbe en enhed og dens entity-id'er, men automatiseringer, scripts, dashboards og hjælpere peger stadig på de gamle id'er. **Omdøb en enhed** skifter navnet og entity-id'erne og retter alle de steder, Home Assistant kan nå:
+
+- automatiseringer, scripts og scener (også i skabeloner og blueprint-input) og `packages/`
+- dashboards lavet i brugerfladen, hjælpere (grupper, skabeloner, utility meter …) og andre integrationer, der gemmer id'et
+- energi-dashboardet og dine egne YAML-filer, som `configuration.yaml` inkluderer
+- ESPHome-filer, der læser fra Home Assistant (installer enheden igen bagefter)
+- navnet i Zigbee2MQTT
+
+Historik og statistik følger med af sig selv. Kode uden for Home Assistant (Node-RED, AppDaemon) bliver listet, så du kan rette den selv. Tryk **Test først** for at se alle ændringer, før de sker, og **Fortryd** i listen sætter det hele tilbage.
+
+Listen på forsiden viser øverst, hvad der stadig **kræver handling** (knaptriggere, der skal tjekkes, entity-id'er, der kan ryddes op). Resten er foldet sammen under **Færdige**.
 5. Tryk **Udskift nu**.
 
 Har to navne byttet plads, fx temperatur og fugt? Tryk **Ret** ved udskiftningen under *Udskiftet*, og flyt navnene til de rigtige entiteter. Kun navnene ændres. Enheden bliver, hvor den er.
