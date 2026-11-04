@@ -1555,7 +1555,9 @@ async def test_dry_run_changes_nothing(hass: HomeAssistant, hass_ws_client, tmp_
         await client.send_json_auto_id({"type": f"{DOMAIN}/migrate_dry_run", "pairs": [{"old": zha.id, "new": z2m.id}]})
         many = (await client.receive_json())["result"]
 
-    assert dry["entities"] == [{"from": "sensor.x_battery", "to": "sensor.kontakt_stue_batteri", "name": ""}]
+    assert dry["entities"] == [
+        {"from": "sensor.x_battery", "to": "sensor.kontakt_stue_batteri", "name": "", "used_in": []}
+    ]
     assert dry["device"]["to"] == "Kontakt stue" and dry["remove_old"] is True and dry["z2m_name"] == "Kontakt stue"
     assert dry["users"] == ["automation: Sluk med kontakt", "automation: Sofa lys"]
     changes = {c["automation"]: c for c in dry["triggers"]["changes"]}

@@ -282,12 +282,34 @@ class Replacer:
         used = {n.entity_id for _, n in pairs}
         area = plan.old.area_id or plan.new.area_id
         area_entry = ar.async_get(hass).async_get_area(area) if area else None
+        def nice(entry: Any) -> str:
+            state = hass.states.get(entry.entity_id)
+            return entry.name or (state and state.attributes.get("friendly_name")) or entry.original_name or ""
+
+        dropped = [o for o in plan.old_entities if not plan.mapping.get(o.entity_id)]
         return {
             "entities": [
-                {"from": n.entity_id, "to": o.entity_id, "name": o.name or o.original_name or ""} for o, n in pairs
+                {
+                    "from": n.entity_id,
+                    "to": o.entity_id,
+                    "name": nice(o),
+                    "used_in": references.used_in(hass, o.entity_id, dashboards),
+                }
+                for o, n in pairs
             ],
-            "dropped": [o.entity_id for o in plan.old_entities if not plan.mapping.get(o.entity_id)],
+            "dropped": [o.entity_id for o in dropped],
+            "dropped_info": [
+                {
+                    "entity_id": o.entity_id,
+                    "name": nice(o),
+                    "used_in": references.used_in(hass, o.entity_id, dashboards),
+                }
+                for o in dropped
+            ],
             "own": [n.entity_id for n in plan.new_entities if n.entity_id not in used],
+            "own_info": [
+                {"entity_id": n.entity_id, "name": nice(n)} for n in plan.new_entities if n.entity_id not in used
+            ],
             "device": {
                 "from": device_name(plan.new),
                 "to": device_name(plan.old),

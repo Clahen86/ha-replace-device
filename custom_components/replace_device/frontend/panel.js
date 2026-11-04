@@ -143,6 +143,17 @@ const TEXT = {
     planning: "Getting ready…",
     planningHint: "Pairing the entities and checking automations – asking the AI if something is unclear. This can take a few seconds.",
     dryTitle: "Test run – nothing has been changed",
+    sumMoved: "Move over",
+    sumUpdated: "Updated",
+    sumButtons: "Buttons",
+    sumCheck: "To check",
+    usedIn: "Used in",
+    notUsed: "Not used anywhere",
+    dryUpdated: "Updated automatically",
+    dryCheck: "Check these yourself",
+    dryAllGood: "Nothing for you to check",
+    dryNewName: "New device",
+    dryOldName: "Gets the name",
     dryIntro: "This is what would happen. Go back and press the button to do it for real.",
     dryEntities: "Takes over the old names and history",
     dryDropped: "Removed – no match on the new device",
@@ -302,6 +313,17 @@ const TEXT = {
     planning: "Gør klar…",
     planningHint: "Parrer entiteterne og tjekker automatiseringer – spørger AI, hvis noget er uklart. Det kan tage nogle sekunder.",
     dryTitle: "Testkørsel – intet er ændret",
+    sumMoved: "Flyttes over",
+    sumUpdated: "Opdateres",
+    sumButtons: "Knapper",
+    sumCheck: "Skal tjekkes",
+    usedIn: "Bruges i",
+    notUsed: "Bruges ingen steder",
+    dryUpdated: "Opdateres automatisk",
+    dryCheck: "Tjek selv disse",
+    dryAllGood: "Intet, du skal tjekke",
+    dryNewName: "Ny enhed",
+    dryOldName: "Får navnet",
     dryIntro: "Sådan ville det gå. Gå tilbage og tryk på knappen for at gøre det for alvor.",
     dryEntities: "Overtager de gamle navne og historik",
     dryDropped: "Fjernes – ingen match på den nye enhed",
@@ -461,6 +483,17 @@ const TEXT = {
     planning: "Wird vorbereitet…",
     planningHint: "Entitäten werden zugeordnet und Automationen geprüft – bei Unklarheiten wird die KI gefragt. Das kann ein paar Sekunden dauern.",
     dryTitle: "Testlauf – nichts wurde geändert",
+    sumMoved: "Übernommen",
+    sumUpdated: "Aktualisiert",
+    sumButtons: "Tasten",
+    sumCheck: "Zu prüfen",
+    usedIn: "Verwendet in",
+    notUsed: "Nirgends verwendet",
+    dryUpdated: "Wird automatisch aktualisiert",
+    dryCheck: "Bitte selbst prüfen",
+    dryAllGood: "Nichts zu prüfen",
+    dryNewName: "Neues Gerät",
+    dryOldName: "Bekommt den Namen",
     dryIntro: "So würde es ablaufen. Geh zurück und drücke den Knopf, um es wirklich zu tun.",
     dryEntities: "Übernimmt die alten Namen und den Verlauf",
     dryDropped: "Wird entfernt – kein Gegenstück auf dem neuen Gerät",
@@ -620,6 +653,17 @@ const TEXT = {
     planning: "Förbereder…",
     planningHint: "Parar ihop entiteterna och kontrollerar automationer – frågar AI om något är oklart. Det kan ta några sekunder.",
     dryTitle: "Testkörning – inget har ändrats",
+    sumMoved: "Flyttas över",
+    sumUpdated: "Uppdateras",
+    sumButtons: "Knappar",
+    sumCheck: "Att kontrollera",
+    usedIn: "Används i",
+    notUsed: "Används ingenstans",
+    dryUpdated: "Uppdateras automatiskt",
+    dryCheck: "Kontrollera själv",
+    dryAllGood: "Inget att kontrollera",
+    dryNewName: "Ny enhet",
+    dryOldName: "Får namnet",
     dryIntro: "Så här skulle det gå. Gå tillbaka och tryck på knappen för att göra det på riktigt.",
     dryEntities: "Tar över de gamla namnen och historiken",
     dryDropped: "Tas bort – ingen motsvarighet på den nya enheten",
@@ -779,6 +823,17 @@ const TEXT = {
     planning: "Bezig met voorbereiden…",
     planningHint: "Entiteiten koppelen en automatiseringen controleren – de AI wordt gevraagd als iets onduidelijk is. Dit kan een paar seconden duren.",
     dryTitle: "Testrun – er is niets gewijzigd",
+    sumMoved: "Overgenomen",
+    sumUpdated: "Bijgewerkt",
+    sumButtons: "Knoppen",
+    sumCheck: "Te controleren",
+    usedIn: "Gebruikt in",
+    notUsed: "Nergens gebruikt",
+    dryUpdated: "Automatisch bijgewerkt",
+    dryCheck: "Controleer deze zelf",
+    dryAllGood: "Niets te controleren",
+    dryNewName: "Nieuw apparaat",
+    dryOldName: "Krijgt de naam",
     dryIntro: "Zo zou het gaan. Ga terug en druk op de knop om het echt te doen.",
     dryEntities: "Neemt de oude namen en geschiedenis over",
     dryDropped: "Wordt verwijderd – geen tegenhanger op het nieuwe apparaat",
@@ -810,6 +865,39 @@ const CLASS_ICON = {
   signal_strength: "mdi:wifi", moisture: "mdi:water", carbon_dioxide: "mdi:molecule-co2",
 };
 
+// Button presses in plain words, for the test run. Anything not recognised is shown as it is.
+const PRESS = {
+  en: { toggle: "toggle", button: "Button", short: "short press", double: "double press", triple: "triple press", long: "long press", longUp: "release after long press", down: "press down", on: "on", off: "off", up: "brighter", dim: "dimmer", stop: "stop", left: "left", right: "right" },
+  da: { toggle: "skift", button: "Knap", short: "kort tryk", double: "dobbelttryk", triple: "tredobbelt tryk", long: "langt tryk", longUp: "slip efter langt tryk", down: "tryk ned", on: "tænd", off: "sluk", up: "lysere", dim: "mørkere", stop: "stop", left: "venstre", right: "højre" },
+  de: { toggle: "umschalten", button: "Taste", short: "kurz drücken", double: "doppelt drücken", triple: "dreifach drücken", long: "lang drücken", longUp: "loslassen nach lang", down: "herunterdrücken", on: "ein", off: "aus", up: "heller", dim: "dunkler", stop: "stopp", left: "links", right: "rechts" },
+  sv: { toggle: "växla", button: "Knapp", short: "kort tryck", double: "dubbeltryck", triple: "trippeltryck", long: "långt tryck", longUp: "släpp efter långt tryck", down: "tryck ned", on: "på", off: "av", up: "ljusare", dim: "mörkare", stop: "stopp", left: "vänster", right: "höger" },
+  nl: { toggle: "schakelen", button: "Knop", short: "kort drukken", double: "dubbel drukken", triple: "driedubbel drukken", long: "lang drukken", longUp: "loslaten na lang", down: "indrukken", on: "aan", off: "uit", up: "feller", dim: "donkerder", stop: "stop", left: "links", right: "rechts" },
+};
+function pressWords(label, code) {
+  const w = PRESS[code] || (["nb", "nn", "no"].includes(code) ? PRESS.da : PRESS.en);
+  const text = String(label || "").replace(/\s*\(.*\)\s*$/, "");
+  if (!text || text.startsWith("blueprint:")) return text;
+  const words = text.toLowerCase().replace(/([a-z])(\d)/g, "$1 $2").replace(/(\d)([a-z])/g, "$1 $2").split(/[\s_/:-]+/).filter(Boolean);
+  const has = (...xs) => xs.some((x) => words.includes(x));
+  const num = words.find((x) => /^\d+$/.test(x));
+  let kind = null;
+  if (has("double", "dbl")) kind = w.double;
+  else if (has("triple")) kind = w.triple;
+  else if (has("brightness", "dim") && has("up")) kind = w.up;
+  else if (has("brightness", "dim") && has("down")) kind = w.dim;
+  else if (has("long", "hold") && has("release")) kind = w.longUp;
+  else if (has("long", "hold")) kind = w.long;
+  else if (has("toggle")) kind = w.toggle;
+  else if (has("stop")) kind = w.stop;
+  else if (has("initial") || (has("press") && has("down"))) kind = w.down;
+  else if (has("short", "single", "click", "release", "press", "pressed")) kind = w.short;
+  const side = has("left") ? w.left : has("right") ? w.right : null;
+  const onoff = has("on") ? w.on : has("off") ? w.off : null;
+  const parts = [num ? `${w.button} ${num}` : side || onoff, kind].filter(Boolean);
+  if (!parts.length) return text;
+  const out = parts.join(", ");
+  return out.charAt(0).toUpperCase() + out.slice(1);
+}
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
 class ReplaceDevicePanel extends HTMLElement {
@@ -1321,22 +1409,77 @@ class ReplaceDevicePanel extends HTMLElement {
   }
 
   dryView() {
-    const list = (title, icon, items) => items && items.length
-      ? `<h3 class="in"><ha-icon icon="${icon}"></ha-icon> ${esc(title)}</h3><ul>${items.map((i) => `<li>${i}</li>`).join("")}</ul>` : "";
+    const code = (this._hass?.language || "en").split("-")[0];
+    const press = (l) => esc(pressWords(l, code));
+    const icon = (id) => DOMAIN_ICON[String(id).split(".")[0]] || "mdi:shape";
+    const usedIn = (list) => list && list.length
+      ? `<div class="dchips"><span class="muted small">${this.t("usedIn")}:</span>${list.map((u) => `<span class="chip sm"><ha-icon icon="${u.startsWith("Dashboard") ? "mdi:view-dashboard" : "mdi:robot"}"></ha-icon>${esc(u.replace(/^Dashboard: /, ""))}</span>`).join("")}</div>`
+      : `<div class="muted small">${this.t("notUsed")}</div>`;
+    const section = (title, icon, body, extra = "") => body ? `<h3 class="dsec ${extra}"><ha-icon icon="${icon}"></ha-icon>${esc(title)}</h3><div class="drows">${body}</div>` : "";
+    const userIcon = (u) => u.startsWith("script") ? "mdi:script-text" : u.startsWith("scene") ? "mdi:palette" : "mdi:robot";
     const device = (d) => {
       const tr = d.triggers || {};
+      const changes = tr.changes || [];
+      const auto = changes.filter((c) => !c.by_hand);
+      const byHand = changes.filter((c) => c.by_hand);
+      const open = (tr.unresolved || []).filter((u) => !byHand.some((c) => u.startsWith(`${c.automation} (`)));
+      const updated = [
+        ...d.users.map((u) => [userIcon(u), u.replace(/^(automation|script|scene): /, "")]),
+        ...d.dashboards.map((x) => ["mdi:view-dashboard", x]),
+        ...d.integrations.map((x) => ["mdi:puzzle", x]),
+      ];
+      const toCheck = open.length + byHand.length;
+      const entities = (d.entities || []).map((e) => `<div class="drow">
+          <ha-icon icon="${icon(e.to)}"></ha-icon>
+          <div class="grow"><div class="dname">${esc(e.name || e.to)}</div>
+            <div class="mono muted small">${esc(e.from)} → ${esc(e.to)}</div>${usedIn(e.used_in)}</div></div>`).join("");
+      const dropped = (d.dropped_info || d.dropped.map((x) => ({ entity_id: x }))).map((e) => `<div class="drow gone">
+          <ha-icon icon="mdi:delete-outline"></ha-icon>
+          <div class="grow"><div class="dname">${esc(e.name || e.entity_id)}</div>
+            <div class="mono muted small">${esc(e.entity_id)}</div>${e.used_in ? usedIn(e.used_in) : ""}</div></div>`).join("");
+      const own = (d.own_info || d.own.map((x) => ({ entity_id: x }))).map((e) => `<div class="drow new">
+          <ha-icon icon="${icon(e.entity_id)}"></ha-icon>
+          <div class="grow"><div class="dname">${esc(e.name || e.entity_id)}</div><div class="mono muted small">${esc(e.entity_id)}</div></div></div>`).join("");
+      const buttons = auto.map((c) => `<div class="drow">
+          <ha-icon icon="mdi:gesture-tap-button"></ha-icon>
+          <div class="grow"><div class="dname">${esc(c.automation)}</div>
+            <div class="press"><span>${press(c.before)}</span><ha-icon icon="mdi:arrow-right"></ha-icon><span>${press(c.after)}</span></div>
+            <div class="mono muted small">${esc(c.before)} → ${esc(c.after)}</div></div></div>`).join("");
+      const checks = [
+        ...byHand.map((c) => `<div class="drow warnrow"><ha-icon icon="mdi:file-document-edit-outline"></ha-icon>
+          <div class="grow"><div class="dname">${esc(c.automation)}</div>
+            <div class="press"><span>${press(c.before)}</span><ha-icon icon="mdi:arrow-right"></ha-icon><span>${press(c.after)}</span></div>
+            <div class="muted small">${esc(this.t("byHand", { file: c.by_hand }))}</div></div></div>`),
+        ...open.map((u) => {
+          const at = u.indexOf(": ");
+          const [name, what] = at > 0 ? [u.slice(0, at), u.slice(at + 2)] : [u, ""];
+          return `<div class="drow warnrow"><ha-icon icon="mdi:alert"></ha-icon><div class="grow"><div class="dname">${esc(name)}</div>${what ? `<div class="press"><span>${press(what)}</span></div><div class="mono muted small">${esc(what)}</div>` : ""}</div></div>`;
+        }),
+      ].join("");
+      const tile = (n, label, cls = "") => `<div class="tile ${cls}"><div class="num">${n}</div><div class="small">${esc(label)}</div></div>`;
       return `<div class="card">
-        <h3>${esc(d.name || d.device.to)}</h3>
-        <p>${esc(this.t("dryDevice", { from: d.device.from, to: d.device.to }))}${d.device.area ? ` · ${esc(this.t("dryArea", { area: d.device.area }))}` : ""}</p>
-        ${list(this.t("dryEntities"), "mdi:swap-horizontal", d.entities.map((e) => `<code>${esc(e.from)}</code> → <code>${esc(e.to)}</code>`))}
-        ${list(this.t("dryDropped"), "mdi:delete-outline", d.dropped.map((e) => `<code>${esc(e)}</code>`))}
-        ${list(this.t("dryOwn"), "mdi:new-box", d.own.map((e) => `<code>${esc(e)}</code>`))}
-        ${list(this.t("dryUsers"), "mdi:robot", d.users.map(esc))}
-        ${list(this.t("dryTriggers"), "mdi:gesture-tap-button", (tr.changes || []).map((c) => `${esc(c.automation)}: <code>${esc(c.before)}</code> → <code>${esc(c.after)}</code>${c.by_hand ? ` <span class="warn-text">(${esc(this.t("byHand", { file: c.by_hand }))})</span>` : ""}`))}
-        ${list(this.t("dryUnresolved"), "mdi:alert", (tr.unresolved || []).map(esc))}
-        ${list(this.t("dryDashboards"), "mdi:view-dashboard", d.dashboards.map(esc))}
-        ${list(this.t("dryIntegrations"), "mdi:puzzle", d.integrations.map(esc))}
-        <p class="muted small">${this.t(d.remove_old ? "dryRemove" : "dryKeep")}${d.z2m_name ? ` · ${esc(this.t("dryZ2m", { name: d.z2m_name }))}` : ""}</p>
+        <div class="dhead">
+          <div class="dpill"><div class="muted small">${this.t("dryNewName")}</div><b>${esc(d.device.from)}</b></div>
+          <ha-icon icon="mdi:arrow-right-bold"></ha-icon>
+          <div class="dpill main"><div class="muted small">${this.t("dryOldName")}</div><b>${esc(d.device.to)}</b></div>
+        </div>
+        <div class="dmeta">
+          ${d.device.area ? `<span class="chip sm"><ha-icon icon="mdi:sofa"></ha-icon>${esc(d.device.area)}</span>` : ""}
+          <span class="chip sm"><ha-icon icon="${d.remove_old ? "mdi:delete-outline" : "mdi:archive-outline"}"></ha-icon>${this.t(d.remove_old ? "dryRemove" : "dryKeep")}</span>
+          ${d.z2m_name ? `<span class="chip sm"><ha-icon icon="mdi:zigbee"></ha-icon>${esc(this.t("dryZ2m", { name: d.z2m_name }))}</span>` : ""}
+        </div>
+        <div class="tiles">
+          ${tile(d.entities.length, this.t("sumMoved"))}
+          ${tile(updated.length, this.t("sumUpdated"))}
+          ${tile(auto.length, this.t("sumButtons"))}
+          ${tile(toCheck || "✓", toCheck ? this.t("sumCheck") : this.t("dryAllGood"), toCheck ? "amber" : "green")}
+        </div>
+        ${section(this.t("dryCheck"), "mdi:alert", checks, "warn-text")}
+        ${section(this.t("dryEntities"), "mdi:swap-horizontal", entities)}
+        ${section(this.t("dryTriggers"), "mdi:gesture-tap-button", buttons)}
+        ${updated.length ? `<h3 class="dsec"><ha-icon icon="mdi:sync"></ha-icon>${this.t("dryUpdated")}</h3><div class="dchips">${updated.map(([i, x]) => `<span class="chip sm"><ha-icon icon="${i}"></ha-icon>${esc(x)}</span>`).join("")}</div>` : ""}
+        ${section(this.t("dryDropped"), "mdi:delete-outline", dropped, "red-text")}
+        ${section(this.t("dryOwn"), "mdi:new-box", own)}
       </div>`;
     };
     return `
@@ -1715,6 +1858,16 @@ input:checked+.switch{background:var(--rd-blue)}input:checked+.switch:after{left
 .check path{fill:none;stroke:var(--rd-green);stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
 @keyframes pop{from{transform:scale(.5)}}
 .warn-text{color:var(--rd-amber)}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px 0 4px}.tile{padding:10px 6px;border-radius:12px;background:var(--secondary-background-color,#f6f8fa);text-align:center}.tile .num{font-size:24px;font-weight:600;line-height:1.2}.tile.amber{background:rgba(255,166,0,.16);color:#b36b00}.tile.green{background:rgba(67,160,71,.14);color:var(--rd-green)}
+@media (max-width:520px){.tiles{grid-template-columns:repeat(2,1fr)}}
+.dhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.dhead>ha-icon{color:var(--rd-blue);flex:none}.dpill{flex:1;min-width:120px;padding:10px 12px;border-radius:12px;background:var(--secondary-background-color,#f6f8fa)}.dpill.main{background:rgba(3,169,244,.12)}.dpill b{display:block;overflow-wrap:anywhere}
+.dmeta{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.dsec{display:flex;align-items:center;gap:8px;font-size:15px;margin:18px 0 8px}.dsec ha-icon{--mdc-icon-size:20px}.red-text{color:var(--rd-red)}
+.drows{display:flex;flex-direction:column;gap:6px}.drow{display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:10px;background:var(--secondary-background-color,#f6f8fa);border-left:4px solid var(--rd-green)}.drow>ha-icon{flex:none;--mdc-icon-size:20px;margin-top:1px;color:var(--secondary-text-color)}
+.drow.gone{border-left-color:var(--rd-red)}.drow.new{border-left-color:var(--rd-blue)}.drow.warnrow{border-left-color:var(--rd-amber)}.drow.warnrow>ha-icon{color:var(--rd-amber)}
+.dname{font-weight:500;overflow-wrap:anywhere}.mono{font-family:var(--code-font-family,monospace);font-size:12px;overflow-wrap:anywhere}
+.dchips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}.chip.sm{padding:3px 10px;font-size:12px}.chip.sm ha-icon{--mdc-icon-size:14px}
+.press{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:2px 0}.press span{padding:2px 8px;border-radius:8px;background:var(--card-background-color,#fff);font-size:13px}.press ha-icon{--mdc-icon-size:16px;color:var(--rd-blue)}
 .tag.unsure{background:rgba(255,166,0,.18);color:#b36b00;font-size:11px;padding:1px 7px}
 .left-hint{text-align:left}
 .leftover{border-left:4px solid var(--rd-amber)}.leftover .dev-head>ha-icon{color:var(--rd-amber)}
