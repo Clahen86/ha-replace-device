@@ -16,7 +16,7 @@ from typing import Any
 from homeassistant.components.device_automation import DeviceAutomationType, async_get_device_automations
 from homeassistant.core import HomeAssistant
 from homeassistant.util.file import write_utf8_file_atomic
-from homeassistant.util.yaml import dump, load_yaml
+from homeassistant.util.yaml import dump, load_yaml, parse_yaml
 
 from . import ai
 from .const import AUTOMATIONS_FILE
@@ -132,15 +132,20 @@ class Moved:
     context: str = ""
 
 
-async def async_translate(hass: HomeAssistant, moved: Moved, ai_entity: str | None) -> dict[str, list[str]]:
+async def async_translate(
+    hass: HomeAssistant, moved: Moved, ai_entity: str | None, ids: dict[str, str] | None = None
+) -> dict[str, Any]:
     """Rewrite what listens to the old integration in automations.yaml: device triggers, ZHA events, Zigbee2MQTT
-    topics, and blueprint inputs meant for the old integration. Entity triggers need nothing: the ids stay."""
-    empty: dict[str, list[str]] = {"translated": [], "unresolved": []}
+    topics, and blueprint inputs meant for the old integration. Entity triggers need nothing: the ids stay.
+
+    With ids (old registry id -> new) it is a dry run: the file is read as the replacement would have left it,
+    and nothing is saved."""
+    empty: dict[str, Any] = {"translated": [], "unresolved": [], "changes": []}
     if moved.old_domain == moved.new_domain:
         return empty
     path = hass.config.path(AUTOMATIONS_FILE)
     try:
-        automations = await hass.async_add_executor_job(_load, path)
+        automations = await hass.async_add_executor_job(_load, path, ids)
     except Exception:  # noqa: BLE001 - e.g. !secret in automations.yaml: don't rewrite what we can't read back
         _LOGGER.warning("Could not read %s; device triggers were not translated", path, exc_info=True)
         return empty
@@ -149,6 +154,8 @@ async def async_translate(hass: HomeAssistant, moved: Moved, ai_entity: str | No
 
     translated: list[str] = []
     unresolved: list[str] = []
+    # Before -> after, for the dry run.
+    changes: list[dict[str, str]] = []
     ai_error: str | None = None
     found = []
     for automation in automations:
@@ -159,6 +166,13 @@ async def async_translate(hass: HomeAssistant, moved: Moved, ai_entity: str | No
             result = await hass.async_add_executor_job(_blueprint, hass.config.path(), automation, moved)
             if result is True:
                 translated.append(f"{name}: blueprint")
+                changes.append(
+                    {
+                        "automation": name,
+                        "before": f"blueprint: {moved.old_domain}",
+                        "after": f"blueprint: {moved.new_domain}",
+                    }
+                )
             elif result:
                 unresolved.append(f"{name}: blueprint ({result})")
             continue
@@ -207,16 +221,18 @@ async def async_translate(hass: HomeAssistant, moved: Moved, ai_entity: str | No
             if (choice := choices[i]) is None:
                 unresolved.append(f"{name}: {label(meaning)}")
                 continue
+            before = label(meaning)  # a device trigger is its own meaning, and is changed in place below
             own = {k: trigger[k] for k in _OWN_KEYS if k in trigger}
             trigger.clear()
             trigger.update(
                 {"trigger": "device", **{k: v for k, v in choice.items() if k not in ("platform", "metadata")}, **own}
             )
             translated.append(f"{name}: {label(choice)}")
+            changes.append({"automation": name, "before": before, "after": label(choice)})
 
-    if translated:
+    if translated and ids is None:
         await hass.async_add_executor_job(_save, path, automations)
-    result: dict[str, Any] = {"translated": translated, "unresolved": unresolved}
+    result: dict[str, Any] = {"translated": translated, "unresolved": unresolved, "changes": changes}
     if ai_error:
         result["ai_error"] = ai_error
     return result
@@ -332,8 +348,16 @@ def _is_topic(key: str, spec: Any) -> bool:
     return "topic" in _text(key, spec)
 
 
-def _load(path: str) -> Any:
-    return load_yaml(path) if os.path.isfile(path) else None
+def _load(path: str, ids: dict[str, str] | None = None) -> Any:
+    if not os.path.isfile(path):
+        return None
+    if ids is None:
+        return load_yaml(path)
+    with open(path, encoding="utf-8") as file:
+        text = file.read()
+    for old_id, new_id in ids.items():
+        text = text.replace(old_id, new_id)
+    return parse_yaml(text)
 
 
 def _save(path: str, data: Any) -> None:

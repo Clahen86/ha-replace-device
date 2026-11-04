@@ -67,7 +67,8 @@ Connect any AI Task entity (e.g. Google Gemini, free) under **Settings → Devic
 1. Pair the new device as you normally would.
 2. Open **Replace device** in the sidebar. Devices without contact are listed with a hint – the last battery level ("change the battery first") or "switched off at the wall?" – and a likely replacement when one is found: tap **Replace with …**. A bulb that is only switched off can be hidden. Or tap **Replace a device**, search for the old one, then the new one. The same physical device or the same model is shown first.
 3. The old and the new device are shown side by side. Each old entity has its match picked (temperature to temperature, battery to battery) – also when the names are in different languages, by comparing the integration's own feature names. Several channels of the same kind (L1/L2, buttons 1–3) pair in order, even when the numbers differ between integrations. A close call is marked **check**. Change one if it's wrong, or pick "— removed".
-4. Read what to check, then tap **Replace now**.
+4. Read what to check. Not sure? Tap **Test first**: it shows exactly what would happen – which entity IDs change, which automations, scripts and dashboards are updated, and how each button trigger is translated – without changing anything. It works for **Move many devices** too.
+5. Tap **Replace now**.
 
 Got two names mixed up (temperature and humidity, say)? Tap **Change** next to the replacement under *Replaced* and move the names to the right entities. Only names change – the device stays where it is.
 
@@ -139,7 +140,8 @@ Tilslut en AI Task-enhed, fx Google Gemini, som er gratis, under **Indstillinger
 1. Par den nye enhed, som du plejer.
 2. Åbn **Udskift enhed** i sidemenuen. Her ser du enheder uden kontakt med et hint, fx det sidste batteriniveau ("skift batteriet først") eller "slukket på kontakten?". Har den fundet en sandsynlig afløser, står den der: Tryk **Udskift med …**. En pære, der bare er slukket, kan skjules. Du kan også trykke **Udskift en enhed**, søge den gamle frem og derefter den nye. Den samme fysiske enhed eller samme model står øverst.
 3. Den gamle og den nye enhed vises side om side. For hver gammel entitet er den matchende valgt, fx temperatur til temperatur og batteri til batteri. Det virker også, når navnene er på forskellige sprog, fordi integrationernes egne navne for funktionerne sammenlignes. Flere kanaler af samme slags (L1/L2, knap 1–3) parres i rækkefølge, også når numrene er forskellige i de to integrationer. Et usikkert valg er markeret med **tjek**. Ret den, hvis den er forkert, eller vælg "— fjernes".
-4. Læs, hvad du skal tjekke, og tryk **Udskift nu**.
+4. Læs, hvad du skal tjekke. I tvivl? Tryk **Test først**. Den viser præcis, hvad der ville ske: hvilke entity-id'er der skifter, hvilke automatiseringer, scripts og dashboards der opdateres, og hvordan hver knaptrigger oversættes. Intet bliver ændret. Det virker også ved **Flyt mange enheder**.
+5. Tryk **Udskift nu**.
 
 Har to navne byttet plads, fx temperatur og fugt? Tryk **Ret** ved udskiftningen under *Udskiftet*, og flyt navnene til de rigtige entiteter. Kun navnene ændres. Enheden bliver, hvor den er.
 

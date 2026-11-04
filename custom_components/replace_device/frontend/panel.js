@@ -137,6 +137,24 @@ const TEXT = {
     migrateDoneText: "{n} entities moved over with their history. Each device can be undone under Replaced.",
     all: "All",
     none: "None",
+    dryRun: "Test first",
+    dryWorking: "Testing…",
+    dryTitle: "Test run – nothing has been changed",
+    dryIntro: "This is what would happen. Go back and press the button to do it for real.",
+    dryEntities: "Takes over the old names and history",
+    dryDropped: "Removed – no match on the new device",
+    dryOwn: "New – keep their own entity ID",
+    dryDevice: "{from} is renamed {to}",
+    dryArea: "Area: {area}",
+    dryRemove: "The old device is removed from its integration",
+    dryKeep: "The old device is kept",
+    dryZ2m: "Renamed in Zigbee2MQTT to {name}",
+    dryUsers: "Automations, scripts and scenes that are pointed at the new device",
+    dryTriggers: "Button triggers that are translated",
+    dryUnresolved: "Button triggers you must check yourself",
+    dryDashboards: "Dashboards updated",
+    dryIntegrations: "Other integrations updated",
+    dryBack: "Back",
   },
   da: {
     title: "Udskift enhed",
@@ -274,6 +292,24 @@ const TEXT = {
     migrateDoneText: "{n} entiteter er flyttet med deres historik. Hver enhed kan fortrydes under Udskiftet.",
     all: "Alle",
     none: "Ingen",
+    dryRun: "Test først",
+    dryWorking: "Tester…",
+    dryTitle: "Testkørsel – intet er ændret",
+    dryIntro: "Sådan ville det gå. Gå tilbage og tryk på knappen for at gøre det for alvor.",
+    dryEntities: "Overtager de gamle navne og historik",
+    dryDropped: "Fjernes – ingen match på den nye enhed",
+    dryOwn: "Nye – beholder deres eget entity-id",
+    dryDevice: "{from} omdøbes til {to}",
+    dryArea: "Område: {area}",
+    dryRemove: "Den gamle enhed fjernes fra sin integration",
+    dryKeep: "Den gamle enhed beholdes",
+    dryZ2m: "Omdøbes i Zigbee2MQTT til {name}",
+    dryUsers: "Automatiseringer, scripts og scener, der peges over på den nye enhed",
+    dryTriggers: "Knaptriggere, der oversættes",
+    dryUnresolved: "Knaptriggere, du selv skal tjekke",
+    dryDashboards: "Dashboards, der opdateres",
+    dryIntegrations: "Andre integrationer, der opdateres",
+    dryBack: "Tilbage",
   },
   de: {
     title: "Gerät ersetzen",
@@ -411,6 +447,24 @@ const TEXT = {
     migrateDoneText: "{n} Entitäten mit ihrem Verlauf übernommen. Jedes Gerät kann unter Ersetzt geändert werden.",
     all: "Alle",
     none: "Keine",
+    dryRun: "Erst testen",
+    dryWorking: "Wird getestet…",
+    dryTitle: "Testlauf – nichts wurde geändert",
+    dryIntro: "So würde es ablaufen. Geh zurück und drücke den Knopf, um es wirklich zu tun.",
+    dryEntities: "Übernimmt die alten Namen und den Verlauf",
+    dryDropped: "Wird entfernt – kein Gegenstück auf dem neuen Gerät",
+    dryOwn: "Neu – behalten ihre eigene Entitäts-ID",
+    dryDevice: "{from} wird in {to} umbenannt",
+    dryArea: "Bereich: {area}",
+    dryRemove: "Das alte Gerät wird aus seiner Integration entfernt",
+    dryKeep: "Das alte Gerät bleibt erhalten",
+    dryZ2m: "In Zigbee2MQTT umbenannt in {name}",
+    dryUsers: "Automationen, Skripte und Szenen, die auf das neue Gerät umgestellt werden",
+    dryTriggers: "Tasten-Auslöser, die übersetzt werden",
+    dryUnresolved: "Tasten-Auslöser, die du selbst prüfen musst",
+    dryDashboards: "Dashboards, die angepasst werden",
+    dryIntegrations: "Andere Integrationen, die angepasst werden",
+    dryBack: "Zurück",
   },
   sv: {
     title: "Byt enhet",
@@ -548,6 +602,24 @@ const TEXT = {
     migrateDoneText: "{n} entiteter flyttades över med sin historik. Varje enhet kan ändras under Bytta.",
     all: "Alla",
     none: "Inga",
+    dryRun: "Testa först",
+    dryWorking: "Testar…",
+    dryTitle: "Testkörning – inget har ändrats",
+    dryIntro: "Så här skulle det gå. Gå tillbaka och tryck på knappen för att göra det på riktigt.",
+    dryEntities: "Tar över de gamla namnen och historiken",
+    dryDropped: "Tas bort – ingen motsvarighet på den nya enheten",
+    dryOwn: "Nya – behåller sitt eget entitets-ID",
+    dryDevice: "{from} döps om till {to}",
+    dryArea: "Område: {area}",
+    dryRemove: "Den gamla enheten tas bort från sin integration",
+    dryKeep: "Den gamla enheten behålls",
+    dryZ2m: "Döps om i Zigbee2MQTT till {name}",
+    dryUsers: "Automationer, skript och scener som pekas om till den nya enheten",
+    dryTriggers: "Knapputlösare som översätts",
+    dryUnresolved: "Knapputlösare du själv måste kontrollera",
+    dryDashboards: "Instrumentpaneler som uppdateras",
+    dryIntegrations: "Andra integrationer som uppdateras",
+    dryBack: "Tillbaka",
   },
   nl: {
     title: "Apparaat vervangen",
@@ -685,6 +757,24 @@ const TEXT = {
     migrateDoneText: "{n} entiteiten met hun geschiedenis overgezet. Elk apparaat kan worden gewijzigd onder Vervangen.",
     all: "Alle",
     none: "Geen",
+    dryRun: "Eerst testen",
+    dryWorking: "Bezig met testen…",
+    dryTitle: "Testrun – er is niets gewijzigd",
+    dryIntro: "Zo zou het gaan. Ga terug en druk op de knop om het echt te doen.",
+    dryEntities: "Neemt de oude namen en geschiedenis over",
+    dryDropped: "Wordt verwijderd – geen tegenhanger op het nieuwe apparaat",
+    dryOwn: "Nieuw – houden hun eigen entiteit-ID",
+    dryDevice: "{from} wordt hernoemd naar {to}",
+    dryArea: "Ruimte: {area}",
+    dryRemove: "Het oude apparaat wordt uit zijn integratie verwijderd",
+    dryKeep: "Het oude apparaat blijft behouden",
+    dryZ2m: "Hernoemd in Zigbee2MQTT naar {name}",
+    dryUsers: "Automatiseringen, scripts en scènes die naar het nieuwe apparaat worden omgezet",
+    dryTriggers: "Knoptriggers die worden vertaald",
+    dryUnresolved: "Knoptriggers die je zelf moet controleren",
+    dryDashboards: "Dashboards die worden bijgewerkt",
+    dryIntegrations: "Andere integraties die worden bijgewerkt",
+    dryBack: "Terug",
   },
 };
 
@@ -1089,7 +1179,8 @@ class ReplaceDevicePanel extends HTMLElement {
           ${this.migrateTarget === "zigbee2mqtt" ? `<label class="switch-row sep"><input type="checkbox" id="renameZ2m" ${this.renameZ2m ? "checked" : ""}><span class="switch"></span>
             <div class="grow"><b>${this.t("renameZ2m")}</b><div class="muted small">${this.t("renameZ2mHint")}</div></div></label>` : ""}
         </div>
-        <div class="actions sticky"><button class="primary big" data-act="doMigrate" ${this.migrateSelected.size + this.groupSelected.size ? "" : "disabled"}><ha-icon icon="mdi:transfer"></ha-icon>${this.t("moveN", { n: this.migrateSelected.size + this.groupSelected.size })}</button></div>`
+        <div class="actions sticky"><button class="ghost" data-act="dryMigrate" ${this.migrateSelected.size ? "" : "disabled"}><ha-icon icon="mdi:test-tube"></ha-icon>${this.t("dryRun")}</button>
+          <button class="primary big" data-act="doMigrate" ${this.migrateSelected.size + this.groupSelected.size ? "" : "disabled"}><ha-icon icon="mdi:transfer"></ha-icon>${this.t("moveN", { n: this.migrateSelected.size + this.groupSelected.size })}</button></div>`
         : `<div class="card empty">${this.t("noPairs", { target: name(this.migrateTarget) })}</div>`;
     }
     return `
@@ -1165,6 +1256,65 @@ class ReplaceDevicePanel extends HTMLElement {
     this.load();
   }
 
+  // Test run: what a replacement or a move would do, worked out by the backend without changing anything.
+  async dryRun() {
+    await this.runDry("match", () => this.ws("dry_run", { old: this.oldId, new: this.newId, mapping: this.mapping, remove_old: this.removeOld, rename_z2m: Boolean(this.plan.new.z2m && this.renameZ2m) })
+      .then((r) => ({ devices: [{ name: this.plan.old.name, ...r }] })));
+  }
+
+  async dryMigrate() {
+    const pairs = this.migratePlan.pairs.filter((p) => this.migrateSelected.has(p.old.id)).map((p) => ({ old: p.old.id, new: p.new.id }));
+    await this.runDry("migrate", () => this.ws("migrate_dry_run", { pairs, remove_old: this.removeOld, rename_z2m: this.migrateTarget === "zigbee2mqtt" && this.renameZ2m }));
+  }
+
+  async runDry(from, job) {
+    const picked = Object.values(this.mapping || {}).filter(Boolean);
+    if (from === "match" && picked.length !== new Set(picked).size) {
+      this.error = this.t("duplicate");
+      return this.render();
+    }
+    this.dryFrom = from;
+    this.testing = true;
+    this.view = "working";
+    this.render();
+    try {
+      this.dry = await job();
+      this.view = "dry";
+      this.error = "";
+    } catch (e) {
+      this.view = from;
+      this.error = this.t("error", { e: e.message || e.code });
+    }
+    this.testing = false;
+    this.render();
+  }
+
+  dryView() {
+    const list = (title, icon, items) => items && items.length
+      ? `<h3 class="in"><ha-icon icon="${icon}"></ha-icon> ${esc(title)}</h3><ul>${items.map((i) => `<li>${i}</li>`).join("")}</ul>` : "";
+    const device = (d) => {
+      const tr = d.triggers || {};
+      return `<div class="card">
+        <h3>${esc(d.name || d.device.to)}</h3>
+        <p>${esc(this.t("dryDevice", { from: d.device.from, to: d.device.to }))}${d.device.area ? ` · ${esc(this.t("dryArea", { area: d.device.area }))}` : ""}</p>
+        ${list(this.t("dryEntities"), "mdi:swap-horizontal", d.entities.map((e) => `<code>${esc(e.from)}</code> → <code>${esc(e.to)}</code>`))}
+        ${list(this.t("dryDropped"), "mdi:delete-outline", d.dropped.map((e) => `<code>${esc(e)}</code>`))}
+        ${list(this.t("dryOwn"), "mdi:new-box", d.own.map((e) => `<code>${esc(e)}</code>`))}
+        ${list(this.t("dryUsers"), "mdi:robot", d.users.map(esc))}
+        ${list(this.t("dryTriggers"), "mdi:gesture-tap-button", (tr.changes || []).map((c) => `${esc(c.automation)}: <code>${esc(c.before)}</code> → <code>${esc(c.after)}</code>`))}
+        ${list(this.t("dryUnresolved"), "mdi:alert", (tr.unresolved || []).map(esc))}
+        ${list(this.t("dryDashboards"), "mdi:view-dashboard", d.dashboards.map(esc))}
+        ${list(this.t("dryIntegrations"), "mdi:puzzle", d.integrations.map(esc))}
+        <p class="muted small">${this.t(d.remove_old ? "dryRemove" : "dryKeep")}${d.z2m_name ? ` · ${esc(this.t("dryZ2m", { name: d.z2m_name }))}` : ""}</p>
+      </div>`;
+    };
+    return `
+      <div class="card hero"><ha-icon icon="mdi:test-tube"></ha-icon><div class="grow"><h2>${this.t("dryTitle")}</h2><p class="muted">${this.t("dryIntro")}</p></div></div>
+      ${this.aiNote(this.dry.ai_error || this.dry.devices.map((d) => d.triggers?.ai_error).find(Boolean))}
+      ${this.dry.devices.map(device).join("")}
+      <div class="actions sticky"><button class="primary big" data-act="dryBack">${this.t("dryBack")}</button></div>`;
+  }
+
   deviceCard(d, kind) {
     return `
       <div class="card devcard ${kind}">
@@ -1222,6 +1372,7 @@ class ReplaceDevicePanel extends HTMLElement {
           <div class="grow"><b>${this.t("renameZ2m")}</b><div class="muted small">${this.t("renameZ2mHint")}</div></div></label>` : ""}
       </div>
       <div class="actions sticky"><button class="ghost" data-act="back">${this.t("back")}</button>
+        <button class="ghost" data-act="dryRun"><ha-icon icon="mdi:test-tube"></ha-icon>${this.t("dryRun")}</button>
         <button class="primary big" data-act="replace"><ha-icon icon="mdi:swap-horizontal"></ha-icon>${esc(this.t("replace", { name: p.old.name }))}</button></div>`;
   }
 
@@ -1294,7 +1445,7 @@ class ReplaceDevicePanel extends HTMLElement {
   }
 
   workingView() {
-    return `<div class="card center"><div class="spinner"></div><h2>${this.t("working")}</h2></div>`;
+    return `<div class="card center"><div class="spinner"></div><h2>${this.t(this.testing ? "dryWorking" : "working")}</h2></div>`;
   }
 
   doneView() {
@@ -1322,7 +1473,7 @@ class ReplaceDevicePanel extends HTMLElement {
     const body = {
       home: () => this.homeView(), pick: () => this.pickView(), match: () => this.matchView(), working: () => this.workingView(),
       done: () => this.doneView(), migrate: () => this.migrateView(), migrated: () => this.migrateDoneView(),
-      edit: () => this.editView(),
+      edit: () => this.editView(), dry: () => this.dryView(),
     }[this.view]();
     this.shadowRoot.innerHTML = `<style>${STYLE}</style>
       <div class="toolbar">${customElements.get("ha-menu-button") ? "<ha-menu-button></ha-menu-button>" : ""}<div class="tb-title">${this.t("title")}</div><span class="beta">beta</span></div>
@@ -1442,6 +1593,13 @@ class ReplaceDevicePanel extends HTMLElement {
       this.openPlan(data.old, data.new);
     } else if (data.act === "replace") {
       this.doReplace();
+    } else if (data.act === "dryRun") {
+      this.dryRun();
+    } else if (data.act === "dryMigrate") {
+      this.dryMigrate();
+    } else if (data.act === "dryBack") {
+      this.view = this.dryFrom;
+      this.render();
     } else if (data.act === "undo") {
       this.undo(data.id);
     } else if (data.act === "undoBatch") {

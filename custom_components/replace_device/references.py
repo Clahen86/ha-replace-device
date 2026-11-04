@@ -17,7 +17,7 @@ from .const import AUTOMATIONS_FILE, DOMAIN, SCRIPTS_FILE
 _LOGGER = logging.getLogger(__name__)
 
 
-def _swap(value: Any, ids: dict[str, str]) -> Any:
+def swap(value: Any, ids: dict[str, str]) -> Any:
     """The same JSON value with ids replaced."""
     text = json.dumps(value, default=str)
     new = text
@@ -47,7 +47,7 @@ async def async_dashboards(hass: HomeAssistant) -> list[tuple[str, Any, dict]]:
 async def async_rewrite_dashboards(hass: HomeAssistant, ids: dict[str, str]) -> list[str]:
     changed = []
     for title, dashboard, config in await async_dashboards(hass):
-        new = _swap(config, ids)
+        new = swap(config, ids)
         if new is not config:
             await dashboard.async_save(new)
             changed.append(title)
@@ -69,7 +69,7 @@ async def async_rewrite_entries(hass: HomeAssistant, ids: dict[str, str], skip: 
     changed = []
     for entry in entries_using(hass, ids, skip):
         hass.config_entries.async_update_entry(
-            entry, data=_swap(dict(entry.data), ids), options=_swap(dict(entry.options), ids)
+            entry, data=swap(dict(entry.data), ids), options=swap(dict(entry.options), ids)
         )
         changed.append(entry.title)
         if entry.state is ConfigEntryState.LOADED:

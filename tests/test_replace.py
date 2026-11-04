@@ -1482,3 +1482,92 @@ async def test_hue_zwave_shelly_shapes(hass: HomeAssistant) -> None:
         registry.async_remove(f"switch.{object_id}")
     assert [e.entity_id for e in remembered(hass, zw)] == ["switch.zw_switch"]
     assert [e.entity_id for e in remembered(hass, sh)] == ["switch.sh_switch"]
+
+
+async def test_dry_run_changes_nothing(hass: HomeAssistant, hass_ws_client, tmp_path) -> None:
+    """ "Test first" shows the blueprint, the zha_event and the device trigger it would change – and changes nothing."""
+    from pathlib import Path
+    from unittest.mock import patch
+
+    hass.config.config_dir = str(tmp_path)
+    blueprints = tmp_path / "blueprints" / "automation" / "damru"
+    blueprints.mkdir(parents=True)
+    (blueprints / "rodret.yaml").write_text((Path(__file__).parent / "fixtures" / "rodret.yaml").read_text())
+    zha_entry = MockConfigEntry(domain="zha", title="ZHA")
+    zha_entry.add_to_hass(hass)
+    mqtt_entry = MockConfigEntry(domain="mqtt", title="Mosquitto broker")
+    mqtt_entry.add_to_hass(hass)
+    devices, entities = dr.async_get(hass), er.async_get(hass)
+    ieee = "08:dd:eb:ff:fe:60:9e:76"
+    zha = devices.async_get_or_create(
+        config_entry_id=zha_entry.entry_id,
+        identifiers={("zha", ieee)},
+        connections={(dr.CONNECTION_ZIGBEE, ieee)},
+        name="Kontakt stue",
+    )
+    z2m = devices.async_get_or_create(
+        config_entry_id=mqtt_entry.entry_id,
+        identifiers={("mqtt", "zigbee2mqtt_0x08ddebfffe609e76")},
+        name="0x08ddebfffe609e76",
+    )
+    entities.async_get_or_create(
+        "sensor",
+        "zha",
+        f"{ieee}-1-1",
+        suggested_object_id="kontakt_stue_batteri",
+        device_id=zha.id,
+        config_entry=zha_entry,
+        original_device_class="battery",
+    )
+    entities.async_get_or_create(
+        "sensor",
+        "mqtt",
+        "0x08ddebfffe609e76_battery_zigbee2mqtt",
+        suggested_object_id="x_battery",
+        device_id=z2m.id,
+        config_entry=mqtt_entry,
+        original_device_class="battery",
+    )
+    automations = (
+        "- id: '1'\n  alias: Sofa lys\n  use_blueprint:\n    path: damru/rodret.yaml\n    input:\n"
+        f"      remote_device: {zha.id}\n      light: light.sofa_lys\n"
+        "- id: '2'\n  alias: Tænd med kontakt\n  triggers:\n  - trigger: event\n    event_type: zha_event\n"
+        f"    event_data:\n      device_ieee: '{ieee}'\n      command: 'on'\n  actions: []\n"
+        "- id: '3'\n  alias: Sluk med kontakt\n  triggers:\n  - trigger: device\n    domain: zha\n"
+        f"    device_id: {zha.id}\n    type: remote_button_short_press\n    subtype: turn_off\n  actions: []\n"
+    )
+    (tmp_path / "automations.yaml").write_text(automations)
+    await _setup(hass)
+    available = [
+        {"platform": "device", "domain": "mqtt", "device_id": z2m.id, "type": "action", "subtype": s}
+        for s in ("on", "off", "brightness_move_up", "brightness_move_down", "brightness_stop")
+    ]
+    client = await hass_ws_client(hass)
+    with patch(
+        "custom_components.replace_device.triggers.async_get_device_automations", return_value={z2m.id: available}
+    ):
+        await client.send_json_auto_id({"type": f"{DOMAIN}/plan", "old": zha.id, "new": z2m.id})
+        plan = (await client.receive_json())["result"]
+        await client.send_json_auto_id(
+            {"type": f"{DOMAIN}/dry_run", "old": zha.id, "new": z2m.id, "mapping": plan["mapping"], "rename_z2m": True}
+        )
+        dry = (await client.receive_json())["result"]
+        await client.send_json_auto_id({"type": f"{DOMAIN}/migrate_dry_run", "pairs": [{"old": zha.id, "new": z2m.id}]})
+        many = (await client.receive_json())["result"]
+
+    assert dry["entities"] == [{"from": "sensor.x_battery", "to": "sensor.kontakt_stue_batteri", "name": ""}]
+    assert dry["device"]["to"] == "Kontakt stue" and dry["remove_old"] is True and dry["z2m_name"] == "Kontakt stue"
+    assert dry["users"] == ["automation: Sluk med kontakt", "automation: Sofa lys"]
+    changes = {c["automation"]: c for c in dry["triggers"]["changes"]}
+    assert changes["Tænd med kontakt"]["after"] == "action / on"
+    assert changes["Sluk med kontakt"] == {
+        "automation": "Sluk med kontakt",
+        "before": "remote_button_short_press / turn_off",
+        "after": "action / off",
+    }
+    assert changes["Sofa lys"]["before"] == "blueprint: zha" and dry["triggers"]["unresolved"] == []
+    assert many["devices"][0]["name"] == "Kontakt stue" and len(many["devices"][0]["triggers"]["changes"]) == 3
+    # Nothing was changed.
+    assert (tmp_path / "automations.yaml").read_text() == automations
+    assert devices.async_get(zha.id) is not None and devices.async_get(z2m.id).name_by_user is None
+    assert entities.async_get("sensor.x_battery") and entities.async_get("sensor.kontakt_stue_batteri")

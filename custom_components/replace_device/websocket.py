@@ -29,6 +29,7 @@ def async_setup(hass: HomeAssistant) -> None:
         ws_remove_device,
         ws_plan,
         ws_replace,
+        ws_dry_run,
         ws_history,
         ws_undo,
         ws_redo,
@@ -37,6 +38,7 @@ def async_setup(hass: HomeAssistant) -> None:
         ws_retranslate,
         ws_migrate_plan,
         ws_migrate,
+        ws_migrate_dry_run,
     ):
         websocket_api.async_register_command(hass, command)
 
@@ -243,6 +245,28 @@ async def ws_replace(hass: HomeAssistant, connection: websocket_api.ActiveConnec
 
 
 @websocket_api.require_admin
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/dry_run",
+        vol.Required("old"): str,
+        vol.Required("new"): str,
+        vol.Required("mapping"): {str: vol.Any(str, None)},
+        vol.Optional("remove_old", default=True): bool,
+        vol.Optional("rename_z2m", default=False): bool,
+    }
+)
+@websocket_api.async_response
+async def ws_dry_run(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """What "Replace now" would do, without doing it."""
+    plan = async_plan(hass, msg["old"], msg["new"], msg["mapping"])
+    replacer = _replacer(hass)
+    if plan is None or replacer is None:
+        connection.send_error(msg["id"], "invalid", "Not a valid replacement")
+        return
+    connection.send_result(msg["id"], await replacer.async_dry_run(plan, msg["remove_old"], msg["rename_z2m"]))
+
+
+@websocket_api.require_admin
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/history"})
 @callback
 def ws_history(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
@@ -422,6 +446,36 @@ async def ws_migrate_plan(hass: HomeAssistant, connection: websocket_api.ActiveC
         for name, old, new in match_groups(hass, msg["source"], msg["target"])
     ]
     connection.send_result(msg["id"], {"pairs": pairs, "missing": missing, "groups": groups, "leftovers": leftovers})
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/migrate_dry_run",
+        vol.Required("pairs"): [{vol.Required("old"): str, vol.Required("new"): str}],
+        vol.Optional("remove_old", default=True): bool,
+        vol.Optional("rename_z2m", default=False): bool,
+    }
+)
+@websocket_api.async_response
+async def ws_migrate_dry_run(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """What "Move" would do for each device, without doing it."""
+    replacer = _replacer(hass)
+    if replacer is None:
+        connection.send_error(msg["id"], "not_loaded", "Replace Device is not set up")
+        return
+    plans = [p for pair in msg["pairs"] if (p := async_plan(hass, pair["old"], pair["new"])) is not None]
+    replacer.ai_error = None
+    await replacer.async_fill_many(plans)
+    devices = []
+    for plan in plans:
+        await replacer.async_fill_with_ai(plan)
+        devices.append(
+            {"name": device_name(plan.old)} | await replacer.async_dry_run(plan, msg["remove_old"], msg["rename_z2m"])
+        )
+    connection.send_result(msg["id"], {"devices": devices, "ai_error": replacer.ai_error})
 
 
 @websocket_api.require_admin

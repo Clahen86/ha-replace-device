@@ -21,10 +21,16 @@ from homeassistant import loader
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import CALLBACK_TYPE, Event, EventStateChangedData, HomeAssistant, callback
-from homeassistant.helpers import device_registry as dr, entity_registry as er, issue_registry as ir
+from homeassistant.helpers import (
+    area_registry as ar,
+    device_registry as dr,
+    entity_registry as er,
+    issue_registry as ir,
+)
 from homeassistant.helpers.event import async_call_later, async_track_state_change_event
 from homeassistant.helpers.storage import Store
 from homeassistant.util.file import write_utf8_file_atomic
+from homeassistant.util.yaml import parse_yaml
 
 from . import ai, references, triggers
 from .const import AUTOMATIONS_FILE, CHECK_AFTER, DOMAIN, SCENES_FILE, SCRIPTS_FILE, TEXTS, Z2M_BASE_TOPIC
@@ -164,21 +170,7 @@ class Replacer:
         }
         old_domain, new_domain = _domain(hass, plan.old), _domain(hass, plan.new)
         # What listens to the old device (ZHA events, Zigbee2MQTT topics), read before the old device is removed.
-        moved = triggers.Moved(
-            new_device_id=plan.new.id,
-            old_domain=old_domain,
-            new_domain=new_domain,
-            old_ieee=next((v for k, v in plan.old.connections if k == dr.CONNECTION_ZIGBEE), None),
-            old_z2m_name=plan.old.name if z2m_ieee(plan.old) else None,
-            old_z2m_ieee=z2m_ieee(plan.old),
-            old_base=z2m_base_topic(hass, plan.old, Z2M_BASE_TOPIC) if z2m_ieee(plan.old) else None,
-            new_z2m_name=(z2m_name(device_name(plan.old)) if rename_z2m else plan.new.name)
-            if z2m_ieee(plan.new)
-            else None,
-            new_base=z2m_base_topic(hass, plan.new, Z2M_BASE_TOPIC) if z2m_ieee(plan.new) else None,
-            new_z2m_ieee=z2m_ieee(plan.new),
-            context=_context(hass, plan),
-        )
+        moved = _moved(hass, plan, rename_z2m)
         old_ids = [o.entity_id for o, _ in pairs]
         temp_ids = [n.entity_id for _, n in pairs]
 
@@ -268,6 +260,43 @@ class Replacer:
             "dashboards": record["dashboards"],
             "integrations": record["integrations"],
             "failed": failed,
+        }
+
+    async def async_dry_run(self, plan: Plan, remove_old: bool, rename_z2m: bool = False) -> dict[str, Any]:
+        """Everything a replacement would do, worked out without changing anything."""
+        hass = self.hass
+        pairs = plan.pairs
+        ids = {plan.old.id: plan.new.id} | {o.id: n.id for o, n in pairs}
+        old_domain, new_domain = _domain(hass, plan.old), _domain(hass, plan.new)
+        moved = _moved(hass, plan, rename_z2m)
+        users = await hass.async_add_executor_job(_users_of_ids, hass.config.path(), ids)
+        translation = await _safely(
+            "trying device triggers",
+            triggers.async_translate(hass, moved, self.ai_entity, ids=ids),
+            {"translated": [], "unresolved": []},
+        )
+        dashboards = await _safely("reading dashboards", references.async_dashboards(hass), [])
+        skip = {d for d in (old_domain, new_domain) if d}
+        used = {n.entity_id for _, n in pairs}
+        area = plan.old.area_id or plan.new.area_id
+        area_entry = ar.async_get(hass).async_get_area(area) if area else None
+        return {
+            "entities": [
+                {"from": n.entity_id, "to": o.entity_id, "name": o.name or o.original_name or ""} for o, n in pairs
+            ],
+            "dropped": [o.entity_id for o in plan.old_entities if not plan.mapping.get(o.entity_id)],
+            "own": [n.entity_id for n in plan.new_entities if n.entity_id not in used],
+            "device": {
+                "from": device_name(plan.new),
+                "to": device_name(plan.old),
+                "area": area_entry and area_entry.name,
+            },
+            "remove_old": remove_old,
+            "z2m_name": moved.new_z2m_name if rename_z2m and moved.new_z2m_name != plan.new.name else None,
+            "users": users,
+            "triggers": translation,
+            "dashboards": [title for title, _, config in dashboards if references.swap(config, ids) is not config],
+            "integrations": [entry.title for entry in references.entries_using(hass, ids, skip)],
         }
 
     async def async_replace_entity(
@@ -619,6 +648,50 @@ class Replacer:
         if reload:
             await self.async_reload(changed)
         return sorted(changed)
+
+
+def _moved(hass: HomeAssistant, plan: Plan, rename_z2m: bool) -> triggers.Moved:
+    return triggers.Moved(
+        new_device_id=plan.new.id,
+        old_domain=_domain(hass, plan.old),
+        new_domain=_domain(hass, plan.new),
+        old_ieee=next((v for k, v in plan.old.connections if k == dr.CONNECTION_ZIGBEE), None),
+        old_z2m_name=plan.old.name if z2m_ieee(plan.old) else None,
+        old_z2m_ieee=z2m_ieee(plan.old),
+        old_base=z2m_base_topic(hass, plan.old, Z2M_BASE_TOPIC) if z2m_ieee(plan.old) else None,
+        new_z2m_name=(z2m_name(device_name(plan.old)) if rename_z2m else plan.new.name) if z2m_ieee(plan.new) else None,
+        new_base=z2m_base_topic(hass, plan.new, Z2M_BASE_TOPIC) if z2m_ieee(plan.new) else None,
+        new_z2m_ieee=z2m_ieee(plan.new),
+        context=_context(hass, plan),
+    )
+
+
+def _users_of_ids(config_dir: str, ids: dict[str, str]) -> list[str]:
+    """Automations, scripts and scenes that store one of the ids, by name – what _rewrite would change."""
+    found: list[str] = []
+    for domains, path in _config_files(config_dir):
+        text = _read(path)
+        if not text or not any(old in text for old in ids):
+            continue
+        try:
+            data = parse_yaml(text)
+        except Exception:  # noqa: BLE001 - !include, !secret …: name the file instead
+            data = None
+        kind = domains[0] if len(domains) == 1 else None
+        items = (
+            [(kind, item) for item in data]
+            if isinstance(data, list) and kind
+            else [(kind, {"alias": key, **value}) for key, value in data.items() if isinstance(value, dict)]
+            if isinstance(data, dict) and kind == "script"
+            else []
+        )
+        named = [
+            f"{k}: {item.get('alias') or item.get('name') or item.get('id') or '?'}"
+            for k, item in items
+            if isinstance(item, dict) and any(old in json.dumps(item, default=str) for old in ids)
+        ]
+        found += named or [os.path.relpath(path, config_dir)]
+    return sorted(found)
 
 
 def _settings(entry: er.RegistryEntry) -> dict[str, Any]:
