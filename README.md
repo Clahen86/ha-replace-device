@@ -73,6 +73,15 @@ Can't find it in the HACS search? Add it as a custom repository first: **HACS** 
 
 <p><img src="docs/panel-dry.png" alt="Test first: what would happen, without changing anything" width="300"></p>
 
+### When entity IDs change by themselves
+
+A cloud sync renames `sensor.living_temp` to `sensor.living_temperature`, or a device that was lost comes back as `sensor.kitchen_temperature_2` – and your automations quietly stop working. Replace Device notices when an entity ID that something uses changes, and a repair offers two ways out:
+
+- **Use the new ID everywhere:** automations, scripts, scenes, dashboards made in the UI and the energy dashboard are updated. Your own YAML files are listed line by line to change yourself.
+- **Give the entity its old ID back:** so everything works as before.
+
+Both can be undone in the list. Changes Replace Device makes itself, and IDs nothing uses, never give a repair.
+
 ### Rename a device
 
 Home Assistant can rename a device and its entity IDs, but automations, scripts, dashboards and helpers keep pointing at the old IDs. **Rename a device** changes the name and the entity IDs, and updates the places the Home Assistant editors manage:
@@ -165,6 +174,15 @@ Kan du ikke finde den i HACS-søgningen? Tilføj den først som brugerdefineret 
 4. Læs, hvad du skal tjekke. I tvivl? Tryk **Test først**. Den viser præcis, hvad der ville ske: hvilke entity-id'er der skifter, hvilke automatiseringer, scripts og dashboards der opdateres, og hvordan hver knaptrigger oversættes. Intet bliver ændret. Det virker også ved **Flyt mange enheder**.
 
 <p><img src="docs/panel-dry.png" alt="Test først: hvad der ville ske, uden at noget ændres" width="300"></p>
+
+### Når entity-id'er skifter af sig selv
+
+En sky-synkronisering omdøber `sensor.stue_temp` til `sensor.stue_temperature`, eller en enhed, der var væk, kommer tilbage som `sensor.kokken_temperatur_2` – og dine automatiseringer holder stille op med at virke. Udskift enhed opdager, når et entity-id, som noget bruger, skifter, og en reparation giver to muligheder:
+
+- **Brug det nye id alle steder:** automatiseringer, scripts, scener, dashboards lavet i brugerfladen og energi-dashboardet bliver rettet. Dine egne YAML-filer bliver vist linje for linje, så du selv kan rette dem.
+- **Giv entiteten sit gamle id igen:** så virker alt som før.
+
+Begge dele kan fortrydes i listen. Ændringer, Udskift enhed selv laver, og id'er, som intet bruger, giver aldrig en reparation.
 
 ### Omdøb en enhed
 

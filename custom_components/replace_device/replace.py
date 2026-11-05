@@ -13,7 +13,7 @@ import json
 import logging
 import os
 import time
-from collections.abc import Awaitable
+from collections.abc import Awaitable, Callable
 from typing import Any
 from uuid import uuid4
 
@@ -116,6 +116,9 @@ class Replacer:
         self._trigger_cache: dict[tuple, dict[int, int]] = {}
         # Why the AI couldn't answer the last time it was asked ("quota", …), None when it did.
         self.ai_error: str | None = None
+        # Replace Device's own renames must not look like entity IDs that changed by themselves (watch.py).
+        self._busy = 0
+        self._quiet_until = 0.0
         # Devices the user said are only switched off, not gone.
         self.hidden: list[str] = []
 
@@ -406,6 +409,8 @@ class Replacer:
             return False
         if record.get("kind") == "rename":
             return await self._async_undo_rename(record)
+        if record.get("kind") == "follow":
+            return await self._async_follow_back(record)
         devices, entities = dr.async_get(self.hass), er.async_get(self.hass)
         # Ids given after the device's name go back first.
         back = tidy.apply(self.hass, [{"from": c["to"], "to": c["from"]} for c in reversed(record.get("tidied") or [])])
@@ -575,6 +580,11 @@ class Replacer:
         record = next((r for r in self.history if r["id"] == record_id and r["undone"]), None)
         if record is None:
             return False
+        if record.get("kind") == "follow":
+            record["undone"] = True  # the new record replaces it
+            return await self.async_follow(
+                record["old_device"]["name"], record["new_device"]["name"], record.get("action", "fix")
+            )
         hass = self.hass
         devices, entities = dr.async_get(hass), er.async_get(hass)
         for item in record["entities"]:
@@ -845,6 +855,61 @@ class Replacer:
         changed, failed = await fix.async_apply_entries(self.hass, entry_ids, ids, exact)
         return {"entries": changed, "entry_ids": entry_ids, "failed": failed}
 
+    # ---------- entity IDs that changed by themselves (watch.py) ----------
+
+    def is_busy(self) -> bool:
+        return self._busy > 0 or time.monotonic() < self._quiet_until
+
+    async def async_follow_places(self, old: str, new: str) -> dict[str, Any]:
+        """Where the old ID is still used: what would be fixed, and the user's own files line by line."""
+        return await self._async_places({old: new}, apply=False)
+
+    async def async_follow(self, old: str, new: str, action: str, picked: dict[str, list[str]] | None = None) -> bool:
+        """An entity ID changed by itself. "fix": every place that uses the old ID gets the new one.
+        "restore": the entity gets its old ID back (when it's free), so everything works as before."""
+        entities = er.async_get(self.hass)
+        if entities.async_get(new) is None:
+            return False
+        record: dict[str, Any] = {
+            "id": uuid4().hex, "at": time.time(), "kind": "follow", "action": action,
+            "old_device": {"id": None, "name": old}, "new_device": {"id": None, "name": new},
+            "entities": [], "ids": {}, "files": [], "batch": None, "undone": False,
+        }
+        if action == "restore":
+            if entities.async_get(old) is not None:
+                return False
+            self._quiet(lambda: entities.async_update_entity(new, new_entity_id=old))
+        else:
+            places = await self._async_places({old: new}, apply=True, picked=picked)
+            record["files"] = places.get("changed", [])
+            if places.get("fixed"):
+                record["fixed"] = places["fixed"]
+        self.history.append(record)
+        self._save()
+        return True
+
+    async def _async_follow_back(self, record: dict[str, Any]) -> bool:
+        old, new = record["old_device"]["name"], record["new_device"]["name"]
+        entities = er.async_get(self.hass)
+        if record.get("action") == "restore":
+            if entities.async_get(old) is not None and entities.async_get(new) is None:
+                self._quiet(lambda: entities.async_update_entity(old, new_entity_id=new))
+        else:
+            await self._async_places({new: old}, apply=True)
+            if fixed := record.get("fixed"):
+                await self._async_fix({new: old}, True, {"entries": fixed["entry_ids"]})
+        record["undone"] = True
+        self._save()
+        return True
+
+    def _quiet(self, job: Any) -> Any:
+        self._busy += 1
+        try:
+            return job()
+        finally:
+            self._busy -= 1
+            self._quiet_until = time.monotonic() + 5
+
     async def _async_tidy(self, entries: list[Any], name: str) -> tuple[list[dict[str, str]], list[str]]:
         """Give entries ids after the device's name and fix what uses the old ids; (renamed, changed file domains)."""
         done = tidy.apply(self.hass, tidy.plan(self.hass, name, entries))
@@ -919,6 +984,29 @@ def _moved(hass: HomeAssistant, plan: Plan, rename_z2m: bool) -> triggers.Moved:
         new_z2m_ieee=z2m_ieee(plan.new),
         context=_context(hass, plan),
     )
+
+
+def _busy_while[**P, R](method: Callable[P, Awaitable[R]]) -> Callable[P, Awaitable[R]]:
+    """While Replace Device works (and a moment after), entity ID changes are its own, not changes by themselves."""
+
+    async def wrapper(self: Replacer, *args: Any, **kwargs: Any) -> Any:
+        self._busy += 1
+        try:
+            return await method(self, *args, **kwargs)
+        finally:
+            self._busy -= 1
+            self._quiet_until = time.monotonic() + 5
+
+    wrapper.__name__ = method.__name__
+    wrapper.__doc__ = method.__doc__
+    return wrapper  # type: ignore[return-value]
+
+
+for _name in (
+    "async_replace", "async_replace_entity", "async_undo", "async_redo", "async_edit",
+    "async_rename", "_async_tidy", "async_tidy_record",
+):
+    setattr(Replacer, _name, _busy_while(getattr(Replacer, _name)))
 
 
 def _users_of_ids(config_dir: str, ids: dict[str, str]) -> list[str]:

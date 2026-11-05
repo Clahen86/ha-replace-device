@@ -113,6 +113,42 @@
     "silent": {
       "title": "{name} stuurt geen waarden",
       "description": "Het nieuwe apparaat heeft **{name}** 10 minuten geleden overgenomen, maar geen van zijn entiteiten heeft nog een waarde. Controleer of het gekoppeld en binnen bereik is. Dit verdwijnt zodra het zich meldt."
+    },
+    "renamed": {
+      "title": "{old} heet nu {new}",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "{old} heet nu {new}",
+            "description": "**{old}** → **{new}**\n\n{count} plekken gebruiken nog het oude ID en werken niet meer.\n\n**Wordt automatisch hersteld:**\n{fixed}\n\n**Zelf aanpassen** (je eigen bestanden, regel voor regel onder Eerst testen in het paneel):\n{by_hand}",
+            "menu_options": {
+              "fix": "Overal het nieuwe ID gebruiken",
+              "restore": "De entiteit haar oude ID teruggeven"
+            }
+          }
+        },
+        "abort": {
+          "unknown_device": "De entiteit bestaat niet meer."
+        }
+      }
+    },
+    "suffix": {
+      "title": "{new} is verschenen – {old} is weg",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "{new} is verschenen – {old} is weg",
+            "description": "**{old}** → **{new}**\n\n{count} plekken gebruiken nog het oude ID en werken niet meer.\n\n**Wordt automatisch hersteld:**\n{fixed}\n\n**Zelf aanpassen** (je eigen bestanden, regel voor regel onder Eerst testen in het paneel):\n{by_hand}",
+            "menu_options": {
+              "fix": "Overal het nieuwe ID gebruiken",
+              "restore": "De entiteit haar oude ID teruggeven"
+            }
+          }
+        },
+        "abort": {
+          "unknown_device": "De entiteit bestaat niet meer."
+        }
+      }
     }
   },
   "options": {

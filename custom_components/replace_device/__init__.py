@@ -12,7 +12,7 @@ from homeassistant.helpers import config_validation as cv, issue_registry as ir
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.loader import async_get_integration
 
-from . import suggest, websocket
+from . import suggest, watch, websocket
 from .const import CONF_AI, DOMAIN
 from .replace import Replacer
 
@@ -44,6 +44,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ReplaceDeviceConfigEntry
     await replacer.async_load()
     entry.runtime_data = replacer
     entry.async_on_unload(suggest.async_watch(hass))
+    entry.async_on_unload(watch.async_watch(hass, replacer))
     entry.async_on_unload(replacer.async_stop)
     entry.async_on_unload(entry.add_update_listener(_options_changed))
     version = (await async_get_integration(hass, DOMAIN)).version

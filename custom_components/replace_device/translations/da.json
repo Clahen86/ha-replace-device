@@ -113,6 +113,42 @@
     "silent": {
       "title": "{name} sender ingen værdier",
       "description": "Den nye enhed overtog **{name}** for 10 minutter siden, men ingen af dens entiteter har en værdi endnu. Tjek, at den er parret og inden for rækkevidde. Det forsvinder, når den melder sig."
+    },
+    "renamed": {
+      "title": "{old} hedder nu {new}",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "{old} hedder nu {new}",
+            "description": "**{old}** → **{new}**\n\n{count} steder bruger stadig det gamle id, så de virker ikke længere.\n\n**Rettes automatisk:**\n{fixed}\n\n**Ret selv** (dine egne filer, vist linje for linje under Test først i panelet):\n{by_hand}",
+            "menu_options": {
+              "fix": "Brug det nye id alle steder",
+              "restore": "Giv entiteten sit gamle id igen"
+            }
+          }
+        },
+        "abort": {
+          "unknown_device": "Entiteten findes ikke længere."
+        }
+      }
+    },
+    "suffix": {
+      "title": "{new} er dukket op – {old} er væk",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "{new} er dukket op – {old} er væk",
+            "description": "**{old}** → **{new}**\n\n{count} steder bruger stadig det gamle id, så de virker ikke længere.\n\n**Rettes automatisk:**\n{fixed}\n\n**Ret selv** (dine egne filer, vist linje for linje under Test først i panelet):\n{by_hand}",
+            "menu_options": {
+              "fix": "Brug det nye id alle steder",
+              "restore": "Giv entiteten sit gamle id igen"
+            }
+          }
+        },
+        "abort": {
+          "unknown_device": "Entiteten findes ikke længere."
+        }
+      }
     }
   },
   "options": {

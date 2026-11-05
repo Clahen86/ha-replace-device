@@ -113,6 +113,42 @@
     "silent": {
       "title": "{name} skickar inga värden",
       "description": "Den nya enheten tog över **{name}** för 10 minuter sedan, men ingen av dess entiteter har något värde än. Kontrollera att den är parad och inom räckvidd. Detta försvinner när den rapporterar."
+    },
+    "renamed": {
+      "title": "{old} heter nu {new}",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "{old} heter nu {new}",
+            "description": "**{old}** → **{new}**\n\n{count} ställen använder fortfarande det gamla ID:t och fungerar inte längre.\n\n**Rättas automatiskt:**\n{fixed}\n\n**Ändra själv** (dina egna filer, rad för rad under Testa först i panelen):\n{by_hand}",
+            "menu_options": {
+              "fix": "Använd det nya ID:t överallt",
+              "restore": "Ge entiteten sitt gamla ID igen"
+            }
+          }
+        },
+        "abort": {
+          "unknown_device": "Entiteten finns inte längre."
+        }
+      }
+    },
+    "suffix": {
+      "title": "{new} har dykt upp – {old} är borta",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "{new} har dykt upp – {old} är borta",
+            "description": "**{old}** → **{new}**\n\n{count} ställen använder fortfarande det gamla ID:t och fungerar inte längre.\n\n**Rättas automatiskt:**\n{fixed}\n\n**Ändra själv** (dina egna filer, rad för rad under Testa först i panelen):\n{by_hand}",
+            "menu_options": {
+              "fix": "Använd det nya ID:t överallt",
+              "restore": "Ge entiteten sitt gamla ID igen"
+            }
+          }
+        },
+        "abort": {
+          "unknown_device": "Entiteten finns inte längre."
+        }
+      }
     }
   },
   "options": {

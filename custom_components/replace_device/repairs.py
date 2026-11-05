@@ -9,7 +9,7 @@ import voluptuous as vol
 from homeassistant.components.repairs import ConfirmRepairFlow, RepairsFlow
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
-from homeassistant.helpers import device_registry as dr, selector
+from homeassistant.helpers import device_registry as dr, entity_registry as er, selector
 
 from .const import CONF_OLD, CONF_REMOVE_OLD, DOMAIN
 from .flows import confirm_schema, describe
@@ -19,7 +19,53 @@ from .replace import async_plan, device_name
 async def async_create_fix_flow(hass: HomeAssistant, issue_id: str, data: dict[str, Any] | None) -> RepairsFlow:
     if issue_id.startswith("suggest_") and data:
         return SuggestFlow(data)
+    if issue_id.startswith("renamed_") and data:
+        return RenamedFlow(data)
     return ConfirmRepairFlow()
+
+
+class RenamedFlow(RepairsFlow):
+    """An entity ID changed by itself: fix what uses the old ID, or give the entity its old ID back."""
+
+    def __init__(self, data: dict[str, Any]) -> None:
+        self._old: str = data["old"]
+        self._new: str = data["new"]
+
+    def _replacer(self) -> Any:
+        entries = self.hass.config_entries.async_loaded_entries(DOMAIN)
+        return entries[0].runtime_data if entries else None
+
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        replacer = self._replacer()
+        if replacer is None or er.async_get(self.hass).async_get(self._new) is None:
+            return self.async_abort(reason="unknown_device")
+        places = await replacer.async_follow_places(self._old, self._new)
+        fixed = [u for u in places.get("users", [])] + [f"Dashboard: {d}" for d in places.get("dashboards", [])]
+        if places.get("energy"):
+            fixed.append("Energy")
+        by_hand = (places.get("yaml") or []) + (places.get("esphome") or []) + (places.get("integrations") or [])
+        options = ["fix"] + (["restore"] if er.async_get(self.hass).async_get(self._old) is None else [])
+        return self.async_show_menu(
+            step_id="init",
+            menu_options=options,
+            description_placeholders={
+                "old": self._old, "new": self._new,
+                "fixed": "\n".join(f"- {x}" for x in fixed) or "-",
+                "by_hand": "\n".join(f"- {x}" for x in by_hand) or "-",
+            },
+        )
+
+    async def async_step_fix(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        replacer = self._replacer()
+        if replacer is None or not await replacer.async_follow(self._old, self._new, "fix"):
+            return self.async_abort(reason="unknown_device")
+        return self.async_create_entry(data={})
+
+    async def async_step_restore(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        replacer = self._replacer()
+        if replacer is None or not await replacer.async_follow(self._old, self._new, "restore"):
+            return self.async_abort(reason="unknown_device")
+        return self.async_create_entry(data={})
 
 
 class SuggestFlow(RepairsFlow):

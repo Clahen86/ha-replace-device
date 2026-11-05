@@ -2,6 +2,8 @@
 
 const TEXT = {
   en: {
+    followFixed: "The new ID is used everywhere",
+    followRestored: "The entity got its old ID back",
     historyAll: "Replaced ({n})",
     dryOldMarked: "The old device is called {name}, so you can see it can be deleted",
     title: "Replace device",
@@ -219,6 +221,8 @@ const TEXT = {
     dryBack: "Back",
   },
   da: {
+    followFixed: "Det nye id bruges alle steder",
+    followRestored: "Entiteten fik sit gamle id igen",
     historyAll: "Udskiftet ({n})",
     dryOldMarked: "Den gamle enhed kommer til at hedde {name}, så du kan se, den kan slettes",
     title: "Udskift enhed",
@@ -436,6 +440,8 @@ const TEXT = {
     dryBack: "Tilbage",
   },
   de: {
+    followFixed: "Die neue ID wird überall verwendet",
+    followRestored: "Die Entität hat ihre alte ID zurück",
     historyAll: "Ersetzt ({n})",
     dryOldMarked: "Das alte Gerät heißt dann {name}, damit du siehst, dass es gelöscht werden kann",
     needsAction: "Braucht einen Blick",
@@ -653,6 +659,8 @@ const TEXT = {
     dryBack: "Zurück",
   },
   sv: {
+    followFixed: "Det nya ID:t används överallt",
+    followRestored: "Entiteten fick sitt gamla ID igen",
     historyAll: "Utbytta ({n})",
     dryOldMarked: "Den gamla enheten får namnet {name}, så du ser att den kan tas bort",
     needsAction: "Behöver en titt",
@@ -870,6 +878,8 @@ const TEXT = {
     dryBack: "Tillbaka",
   },
   nl: {
+    followFixed: "Het nieuwe ID wordt overal gebruikt",
+    followRestored: "De entiteit heeft haar oude ID terug",
     historyAll: "Vervangen ({n})",
     dryOldMarked: "Het oude apparaat heet dan {name}, zodat je ziet dat het verwijderd kan worden",
     needsAction: "Moet bekeken worden",
@@ -1441,6 +1451,15 @@ class ReplaceDevicePanel extends HTMLElement {
   }
 
   historyRow(h) {
+    if (h.kind === "follow") {
+      return `
+      <div class="hist">
+        <ha-icon icon="mdi:link-variant"></ha-icon>
+        <div class="grow"><b class="mono">${esc(h.old_device.name)}</b> → <span class="mono">${esc(h.new_device.name)}</span>
+          <div class="muted small">${new Date(h.at * 1000).toLocaleString(this._hass.language)} · ${this.t(h.action === "restore" ? "followRestored" : "followFixed")}</div></div>
+        ${h.undone ? `<span class="tag">${this.t("undone")}</span>` : `<button class="ghost small-btn" data-act="undo" data-id="${h.id}">${this.t("undo")}</button>`}
+      </div>`;
+    }
     if (h.kind === "rename") {
       return `
       <div class="hist">

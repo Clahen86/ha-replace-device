@@ -1921,3 +1921,73 @@ async def test_replace_shows_package_lines(hass: HomeAssistant, tmp_path) -> Non
     await hass.async_block_till_done()
     assert (tmp_path / "packages" / "k.yaml").read_text() == package
     assert result["packages"] == ["packages/k.yaml"]
+
+
+async def test_entity_id_that_changes_by_itself(hass: HomeAssistant, tmp_path) -> None:
+    """A cloud sync renames an entity: a repair offers to fix the automation, undo puts it back; restore renames back."""
+    from custom_components.replace_device.watch import issue_id
+
+    hass.config.config_dir = str(tmp_path)
+    (tmp_path / "automations.yaml").write_text(
+        "- id: '1'\n  alias: Varm\n  triggers:\n  - trigger: state\n    entity_id: sensor.stue_temp\n  actions: []\n"
+    )
+    registry = er.async_get(hass)
+    registry.async_get_or_create("sensor", "xiaomi", "t1", suggested_object_id="stue_temp")
+    entry = await _setup(hass)
+    replacer = entry.runtime_data
+
+    # Replace Device's own rename is not reported.
+    replacer._quiet(lambda: registry.async_update_entity("sensor.stue_temp", new_entity_id="sensor.mine"))
+    replacer._quiet(lambda: registry.async_update_entity("sensor.mine", new_entity_id="sensor.stue_temp"))
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=11))
+    await hass.async_block_till_done()
+    assert not [i for (d, i) in ir.async_get(hass).issues if d == DOMAIN and i.startswith("renamed_")]
+
+    # The integration renames it by itself.
+    replacer._quiet_until = 0
+    registry.async_update_entity("sensor.stue_temp", new_entity_id="sensor.stue_temperature")
+    await hass.async_block_till_done()
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=11))
+    await hass.async_block_till_done()
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id("sensor.stue_temp", "sensor.stue_temperature"))
+    assert issue is not None and issue.translation_placeholders["count"] == "1"
+
+    flow = await repairs.async_create_fix_flow(hass, issue.issue_id, issue.data)
+    flow.hass = hass
+    menu = await flow.async_step_init()
+    assert menu["type"] == "menu" and menu["menu_options"] == ["fix", "restore"]
+    assert (await flow.async_step_fix())["type"] == "create_entry"
+    assert "sensor.stue_temperature" in (tmp_path / "automations.yaml").read_text()
+
+    record = replacer.history[-1]
+    assert record["kind"] == "follow"
+    assert await replacer.async_undo(record["id"])
+    assert "entity_id: sensor.stue_temp\n" in (tmp_path / "automations.yaml").read_text()
+
+    # Or: give the entity its old ID back.
+    assert await replacer.async_follow("sensor.stue_temp", "sensor.stue_temperature", "restore")
+    assert registry.async_get("sensor.stue_temp") is not None
+    assert await replacer.async_undo(replacer.history[-1]["id"])
+    assert registry.async_get("sensor.stue_temperature") is not None
+
+
+async def test_unused_rename_and_suffix(hass: HomeAssistant, tmp_path) -> None:
+    """A rename nothing uses gives no repair; a device back as "…_2" while the old one is gone does."""
+    from custom_components.replace_device.watch import issue_id
+
+    hass.config.config_dir = str(tmp_path)
+    (tmp_path / "automations.yaml").write_text(
+        "- id: '1'\n  alias: Lys\n  triggers:\n  - trigger: state\n    entity_id: sensor.gang_lux\n  actions: []\n"
+    )
+    registry = er.async_get(hass)
+    registry.async_get_or_create("sensor", "xiaomi", "x", suggested_object_id="nobody_uses_me")
+    await _setup(hass)
+    registry.async_update_entity("sensor.nobody_uses_me", new_entity_id="sensor.still_nobody")
+    registry.async_get_or_create("sensor", "xiaomi", "lux2", suggested_object_id="gang_lux_2")
+    await hass.async_block_till_done()
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=11))
+    await hass.async_block_till_done()
+    ids = {i for (d, i) in ir.async_get(hass).issues if d == DOMAIN}
+    assert issue_id("sensor.nobody_uses_me", "sensor.still_nobody") not in ids
+    suffix = ir.async_get(hass).async_get_issue(DOMAIN, issue_id("sensor.gang_lux", "sensor.gang_lux_2"))
+    assert suffix is not None and suffix.translation_key == "suffix"

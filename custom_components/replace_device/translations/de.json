@@ -113,6 +113,42 @@
     "silent": {
       "title": "{name} sendet keine Werte",
       "description": "Das neue Gerät hat **{name}** vor 10 Minuten übernommen, aber noch keine seiner Entitäten hat einen Wert. Prüfe, ob es gekoppelt und in Reichweite ist. Diese Meldung verschwindet, sobald es sich meldet."
+    },
+    "renamed": {
+      "title": "{old} heißt jetzt {new}",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "{old} heißt jetzt {new}",
+            "description": "**{old}** → **{new}**\n\n{count} Stellen nutzen noch die alte ID und funktionieren nicht mehr.\n\n**Wird automatisch korrigiert:**\n{fixed}\n\n**Selbst ändern** (deine eigenen Dateien, Zeile für Zeile unter Erst testen im Panel):\n{by_hand}",
+            "menu_options": {
+              "fix": "Überall die neue ID verwenden",
+              "restore": "Der Entität ihre alte ID zurückgeben"
+            }
+          }
+        },
+        "abort": {
+          "unknown_device": "Die Entität gibt es nicht mehr."
+        }
+      }
+    },
+    "suffix": {
+      "title": "{new} ist aufgetaucht – {old} ist weg",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "{new} ist aufgetaucht – {old} ist weg",
+            "description": "**{old}** → **{new}**\n\n{count} Stellen nutzen noch die alte ID und funktionieren nicht mehr.\n\n**Wird automatisch korrigiert:**\n{fixed}\n\n**Selbst ändern** (deine eigenen Dateien, Zeile für Zeile unter Erst testen im Panel):\n{by_hand}",
+            "menu_options": {
+              "fix": "Überall die neue ID verwenden",
+              "restore": "Der Entität ihre alte ID zurückgeben"
+            }
+          }
+        },
+        "abort": {
+          "unknown_device": "Die Entität gibt es nicht mehr."
+        }
+      }
     }
   },
   "options": {

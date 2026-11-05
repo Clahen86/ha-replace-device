@@ -288,6 +288,7 @@ def ws_history(hass: HomeAssistant, connection: websocket_api.ActiveConnection, 
             "batch": r.get("batch"),
             "unresolved": r.get("triggers", {}).get("unresolved", []),
             "kind": r.get("kind", "replace"),
+            "action": r.get("action"),
             "renamed": len(r.get("renamed") or []),
             "done": bool(r.get("done")),
             # What is still open, so the list can show it first.
@@ -295,7 +296,7 @@ def ws_history(hass: HomeAssistant, connection: websocket_api.ActiveConnection, 
                 "buttons": len(r.get("triggers", {}).get("unresolved", [])),
                 "ids": len(replacer.tidy_plan(r["id"]) or []),
             }
-            if replacer and not r["undone"] and r.get("kind") != "rename" and not r.get("done")
+            if replacer and not r["undone"] and r.get("kind") not in ("rename", "follow") and not r.get("done")
             else {},
         }
         for r in (replacer.history if replacer else [])
@@ -457,7 +458,7 @@ def _took_over(hass: HomeAssistant) -> dict[str, dr.DeviceEntry]:
     registry = dr.async_get(hass)
     keys: dict[str, dr.DeviceEntry] = {}
     for record in replacer.history if replacer else []:
-        if record["undone"] or record.get("kind") == "rename":
+        if record["undone"] or record.get("kind") in ("rename", "follow"):
             continue
         if not (new := registry.async_get(record["new_device"].get("id") or "")):
             continue
