@@ -62,10 +62,15 @@ def files_preview(config_dir: str, files: list[str], ids: dict[str, str], exact:
     return found
 
 
-def apply_files(config_dir: str, files: list[str], ids: dict[str, str], exact: bool) -> list[str]:
-    """Back up and change the files the user picked. Returns the files changed."""
+BACKUP = ".bak-replace-device-"
+
+
+def apply_files(
+    config_dir: str, files: list[str], ids: dict[str, str], exact: bool
+) -> tuple[list[str], list[str]]:
+    """Back up and change the files the user picked. Returns (files changed, backup files made)."""
     stamp = time.strftime("%Y%m%dT%H%M%S")
-    changed = []
+    changed, backups = [], []
     for rel in files:
         path = os.path.realpath(os.path.join(config_dir, rel))
         if not path.startswith(os.path.realpath(config_dir) + os.sep) or os.path.basename(path) == "secrets.yaml":
@@ -73,10 +78,24 @@ def apply_files(config_dir: str, files: list[str], ids: dict[str, str], exact: b
         text = _read(path)
         if text is None or (new := swap_text(text, ids, exact)) == text:
             continue
-        shutil.copy2(path, f"{path}.bak-replace-device-{stamp}")
+        backup = f"{path}{BACKUP}{stamp}"
+        shutil.copy2(path, backup)
         write_utf8_file_atomic(path, new)
         changed.append(rel)
-    return changed
+        backups.append(backup)
+    return changed, backups
+
+
+def remove_backups(config_dir: str, paths: list[str]) -> None:
+    """Delete our own old backups (undo only works for 30 days, so they are not needed after that)."""
+    root = os.path.realpath(config_dir) + os.sep
+    for path in paths:
+        real = os.path.realpath(path)
+        if real.startswith(root) and BACKUP in os.path.basename(real) and os.path.isfile(real):
+            try:
+                os.remove(real)
+            except OSError:
+                _LOGGER.debug("Could not remove old backup %s", real)
 
 
 def entries_preview(hass: HomeAssistant, ids: dict[str, str], exact: bool, skip: set[str]) -> list[dict[str, Any]]:

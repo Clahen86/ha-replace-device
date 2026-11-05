@@ -1916,3 +1916,28 @@ async def test_replace_with_picked_package(hass: HomeAssistant, tmp_path) -> Non
     assert await replacer.async_undo(result["id"])
     await hass.async_block_till_done()
     assert (tmp_path / "packages" / "k.yaml").read_text() == package
+
+
+async def test_old_backups_are_deleted_after_30_days(hass: HomeAssistant, tmp_path) -> None:
+    """Our own backups older than the undo history are deleted at start; others and newer ones stay."""
+    import time as _time
+
+    hass.config.config_dir = str(tmp_path)
+    old = tmp_path / "templates.yaml.bak-replace-device-20260101T000000"
+    new = tmp_path / "templates.yaml.bak-replace-device-20261104T000000"
+    mine = tmp_path / "templates.yaml.bak-mine"
+    for f in (old, new, mine):
+        f.write_text("x")
+    entry = MockConfigEntry(domain="replace_device")
+    entry.add_to_hass(hass)
+    from custom_components.replace_device.replace import Replacer
+
+    replacer = Replacer(hass)
+    await replacer.store.async_save({"history": [], "hidden": [], "backups": [
+        {"path": str(old), "at": _time.time() - 31 * 86400},
+        {"path": str(new), "at": _time.time() - 86400},
+        {"path": str(mine), "at": _time.time() - 99 * 86400},
+    ]})
+    await replacer.async_load()
+    assert not old.exists() and new.exists() and mine.exists()
+    assert [b["path"] for b in replacer.backups] == [str(new)]

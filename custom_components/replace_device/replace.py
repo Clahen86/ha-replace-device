@@ -118,6 +118,7 @@ class Replacer:
         self.ai_error: str | None = None
         # Devices the user said are only switched off, not gone.
         self.hidden: list[str] = []
+        self.backups: list[dict[str, Any]] = []
 
     @callback
     def async_stop(self) -> None:
@@ -129,6 +130,12 @@ class Replacer:
         data = await self.store.async_load() or {}
         self.history = [h for h in data.get("history", []) if h["at"] >= cutoff]
         self.hidden = data.get("hidden", [])
+        # Backups of files the user let us change are deleted with the undo history, after 30 days.
+        backups = data.get("backups", [])
+        self.backups = [b for b in backups if b["at"] >= cutoff]
+        if old := [b["path"] for b in backups if b["at"] < cutoff]:
+            await self.hass.async_add_executor_job(fix.remove_backups, self.hass.config.path(), old)
+            self._save()
 
     async def async_replace(
         self,
@@ -696,7 +703,9 @@ class Replacer:
         self._save()
 
     def _save(self) -> None:
-        self.store.async_delay_save(lambda: {"history": self.history, "hidden": self.hidden}, 1)
+        self.store.async_delay_save(
+            lambda: {"history": self.history, "hidden": self.hidden, "backups": self.backups}, 1
+        )
 
     async def async_reload(self, domains: set[str]) -> None:
         """Reload what was changed. A broken file must not stop the replacement; HA tells the user about it."""
@@ -853,9 +862,11 @@ class Replacer:
     async def _async_fix(self, ids: dict[str, str], exact: bool, picked: dict[str, list[str]]) -> dict[str, Any]:
         """Change the files and settings the user picked (files are backed up first)."""
         config_dir = self.hass.config.path()
-        files = await self.hass.async_add_executor_job(
+        files, backups = await self.hass.async_add_executor_job(
             fix.apply_files, config_dir, list(picked.get("files") or []), ids, exact
         )
+        self.backups += [{"path": b, "at": time.time()} for b in backups]
+        self._save()
         entry_ids = list(picked.get("entries") or [])
         changed, failed = await fix.async_apply_entries(self.hass, entry_ids, ids, exact)
         return {"files": files, "entries": changed, "entry_ids": entry_ids, "failed": failed}
