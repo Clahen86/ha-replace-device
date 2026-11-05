@@ -32,7 +32,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util.file import write_utf8_file_atomic
 from homeassistant.util.yaml import parse_yaml
 
-from . import ai, references, rename, tidy, triggers
+from . import ai, fix, references, rename, tidy, triggers
 from .const import AUTOMATIONS_FILE, CHECK_AFTER, DOMAIN, SCENES_FILE, SCRIPTS_FILE, TEXTS, Z2M_BASE_TOPIC
 from .hardware import z2m_base_topic, z2m_ieee, z2m_name
 from .matching import match, unsure
@@ -137,6 +137,7 @@ class Replacer:
         rename_z2m: bool = False,
         reload: bool = True,
         batch: str | None = None,
+        picked: dict[str, list[str]] | None = None,
     ) -> dict[str, Any]:
         hass = self.hass
         devices, entities = dr.async_get(hass), er.async_get(hass)
@@ -244,6 +245,11 @@ class Replacer:
         # Other integrations' settings and hand-written packages are only listed: the user changes them.
         record["integrations"] = [e.title for e in references.entries_using(hass, record["ids"], skip)]
         record["packages"] = await hass.async_add_executor_job(_packages_using, hass.config.path(), record["ids"])
+        # ... unless the user ticked them in the test run after seeing the change.
+        if picked and (picked.get("files") or picked.get("entries")):
+            record["fixed"] = await self._async_fix(record["ids"], False, picked)
+            record["packages"] = [f for f in record["packages"] if f not in record["fixed"]["files"]]
+            record["integrations"] = [t for t in record["integrations"] if t not in record["fixed"]["entries"]]
         # The entities only the new device has get ids after the device's name, like the others.
         own = [entities.async_get(n.entity_id) for n in plan.new_entities if n.entity_id not in set(temp_ids)]
         record["tidied"], tidied_files = await _safely(
@@ -342,6 +348,7 @@ class Replacer:
             "dashboards": [title for title, _, config in dashboards if references.swap(config, ids) is not config],
             "integrations": [entry.title for entry in references.entries_using(hass, ids, skip)],
             "packages": await hass.async_add_executor_job(_packages_using, hass.config.path(), ids),
+            "fixable": await self._async_fixable(ids, False, packages=True, skip=skip),
         }
 
     async def async_replace_entity(
@@ -433,6 +440,8 @@ class Replacer:
         back = {new: old for old, new in record["ids"].items()}
         await self._rewrite(back, reload=reload)
         await references.async_rewrite_dashboards(self.hass, back)
+        if fixed := record.get("fixed"):
+            await self._async_fix(back, False, {"files": fixed["files"], "entries": fixed["entry_ids"]})
         record["undone"] = True
         self._save()
         return True
@@ -589,6 +598,8 @@ class Replacer:
             )
             changed |= set(translation.get("saved") or [])
         await _safely("updating dashboards", references.async_rewrite_dashboards(hass, record["ids"]), [])
+        if fixed := record.get("fixed"):
+            await self._async_fix(record["ids"], False, {"files": fixed["files"], "entries": fixed["entry_ids"]})
         if reload:
             await self.async_reload(changed)
         record["undone"] = False
@@ -699,7 +710,9 @@ class Replacer:
 
     # ---------- renaming a device ----------
 
-    async def _async_places(self, ids: dict[str, str], apply: bool) -> dict[str, Any]:
+    async def _async_places(
+        self, ids: dict[str, str], apply: bool, picked: dict[str, list[str]] | None = None
+    ) -> dict[str, Any]:
         """Everywhere Home Assistant uses the entity ids; with apply, they are changed there."""
         hass = self.hass
         config_dir = hass.config.path()
@@ -727,12 +740,27 @@ class Replacer:
             "outside": await hass.async_add_executor_job(references.outside_users, config_dir, list(ids)),
         }
         if not apply:
+            result["fixable"] = {
+                "files": await hass.async_add_executor_job(
+                    fix.files_preview, config_dir, result["yaml"] + result["esphome"], ids, True
+                ),
+                "entries": fix.entries_preview(hass, ids, True, set()),
+            }
             return result
         # Hand-written YAML (configuration.yaml, packages, ESPHome) and other integrations' settings are only
         # listed in "yaml", "esphome" and "integrations": the user changes them.
         changed = set(await self._rewrite(ids, reload=False, exact=True))
         await _safely("updating dashboards", references.async_rewrite_dashboards(hass, ids, exact=True), [])
         await _safely("updating the energy dashboard", references.async_rewrite_energy(hass, ids), False)
+        if picked and (picked.get("files") or picked.get("entries")):
+            result["fixed"] = await self._async_fix(ids, True, picked)
+            for key in ("yaml", "esphome"):
+                result[key] = [f for f in result[key] if f not in result["fixed"]["files"]]
+            result["integrations"] = [t for t in result["integrations"] if t not in result["fixed"]["entries"]]
+            if result["fixed"]["files"] and hass.services.has_service("homeassistant", "reload_all"):
+                await _safely(
+                    "reloading YAML", hass.services.async_call("homeassistant", "reload_all", blocking=True), None
+                )
         await self.async_reload(changed)
         result["changed"] = sorted(changed)
         return result
@@ -757,7 +785,9 @@ class Replacer:
             **places,
         }
 
-    async def async_rename(self, device_id: str, name: str) -> dict[str, Any] | None:
+    async def async_rename(
+        self, device_id: str, name: str, picked: dict[str, list[str]] | None = None
+    ) -> dict[str, Any] | None:
         """Rename a device, its entity ids, and everything that uses them. It can be undone."""
         hass = self.hass
         device, changes = self._rename_plan(device_id, name)
@@ -782,8 +812,10 @@ class Replacer:
         }
         self.history.append(record)
         self._save()
-        places = await self._async_places({c["from"]: c["to"] for c in done}, apply=True)
+        places = await self._async_places({c["from"]: c["to"] for c in done}, apply=True, picked=picked)
         record["files"] = places.get("changed", [])
+        if places.get("fixed"):
+            record["fixed"] = places["fixed"]
         if z2m_ieee(device):
             await _safely("renaming in Zigbee2MQTT", _rename_in_z2m(hass, device, name), False)
         self._save()
@@ -799,9 +831,34 @@ class Replacer:
                 old_name = record["old_device"]["name"]
                 await _safely("renaming in Zigbee2MQTT", _rename_in_z2m(hass, device, old_name), False)
         await self._async_places({c["from"]: c["to"] for c in back}, apply=True)
+        if fixed := record.get("fixed"):
+            await self._async_fix(
+                {c["from"]: c["to"] for c in back}, True, {"files": fixed["files"], "entries": fixed["entry_ids"]}
+            )
         record["undone"] = True
         self._save()
         return True
+
+    async def _async_fixable(
+        self, ids: dict[str, str], exact: bool, packages: bool = False, skip: set[str] | None = None
+    ) -> dict[str, Any]:
+        """What the user can pick in the test run: their own files and other integrations' settings forms."""
+        config_dir = self.hass.config.path()
+        files = await self.hass.async_add_executor_job(_packages_using, config_dir, ids) if packages else []
+        return {
+            "files": await self.hass.async_add_executor_job(fix.files_preview, config_dir, files, ids, exact),
+            "entries": fix.entries_preview(self.hass, ids, exact, skip or set()),
+        }
+
+    async def _async_fix(self, ids: dict[str, str], exact: bool, picked: dict[str, list[str]]) -> dict[str, Any]:
+        """Change the files and settings the user picked (files are backed up first)."""
+        config_dir = self.hass.config.path()
+        files = await self.hass.async_add_executor_job(
+            fix.apply_files, config_dir, list(picked.get("files") or []), ids, exact
+        )
+        entry_ids = list(picked.get("entries") or [])
+        changed, failed = await fix.async_apply_entries(self.hass, entry_ids, ids, exact)
+        return {"files": files, "entries": changed, "entry_ids": entry_ids, "failed": failed}
 
     async def _async_tidy(self, entries: list[Any], name: str) -> tuple[list[dict[str, str]], list[str]]:
         """Give entries ids after the device's name and fix what uses the old ids; (renamed, changed file domains)."""

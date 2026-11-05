@@ -1834,3 +1834,85 @@ def test_packages_are_only_listed(tmp_path) -> None:
     (tmp_path / "packages" / "b.yaml").write_text("sensor: []\n")
     assert _packages_using(str(tmp_path), {"abc123": "def456"}) == ["packages/sub/a.yaml"]
     assert all(not path.startswith(str(tmp_path / "packages")) for _, path in _config_files(str(tmp_path)))
+
+
+async def test_rename_with_picked_fixes(hass: HomeAssistant, tmp_path) -> None:
+    """Files and helpers the user ticks are changed (files backed up first, helpers through their own form); undo too."""
+    hass.config.config_dir = str(tmp_path)
+    mqtt_entry = MockConfigEntry(domain="mqtt", title="Mosquitto broker")
+    mqtt_entry.add_to_hass(hass)
+    group = MockConfigEntry(
+        domain="group", title="Alle temperaturer",
+        options={
+            "group_type": "sensor", "name": "Alle temperaturer", "type": "mean", "hide_members": False,
+            "ignore_non_numeric": False, "entities": ["sensor.kokken_sensor_temperature", "sensor.other"],
+        },
+    )
+    group.add_to_hass(hass)
+    devices, entities = dr.async_get(hass), er.async_get(hass)
+    device = devices.async_get_or_create(
+        config_entry_id=mqtt_entry.entry_id, identifiers={("mqtt", "zigbee2mqtt_0x00158d0001a2b3")}, name="0x00158d"
+    )
+    devices.async_update_device(device.id, name_by_user="Køkken sensor")
+    entities.async_get_or_create(
+        "sensor", "mqtt", "t", suggested_object_id="kokken_sensor_temperature", device_id=device.id,
+        config_entry=mqtt_entry, has_entity_name=True, original_name="Temperature",
+    )
+    (tmp_path / "configuration.yaml").write_text("template: !include templates.yaml\n")
+    templates = "- sensor:\n  - name: Varm\n    state: \"{{ states('sensor.kokken_sensor_temperature') }}\"\n"
+    (tmp_path / "templates.yaml").write_text(templates)
+    (tmp_path / "automations.yaml").write_text("[]\n")
+    (tmp_path / "esphome").mkdir()
+    esphome = "sensor:\n  - platform: homeassistant\n    entity_id: sensor.kokken_sensor_temperature\n"
+    (tmp_path / "esphome" / "display.yaml").write_text(esphome)
+    entry = await _setup(hass)
+    replacer = entry.runtime_data
+
+    dry = await replacer.async_rename_dry_run(device.id, "Spisekammer")
+    files = {f["file"]: f["lines"] for f in dry["fixable"]["files"]}
+    assert set(files) == {"templates.yaml", "esphome/display.yaml"}
+    assert files["esphome/display.yaml"] == [
+        {"before": "entity_id: sensor.kokken_sensor_temperature", "after": "entity_id: sensor.spisekammer_temperature"}
+    ]
+    assert [e["title"] for e in dry["fixable"]["entries"]] == ["Alle temperaturer"]
+
+    # Only what was ticked: templates.yaml and the group, not the ESPHome file.
+    picked = {"files": ["templates.yaml", "../outside.yaml"], "entries": [group.entry_id]}
+    result = await replacer.async_rename(device.id, "Spisekammer", picked)
+    await hass.async_block_till_done()
+    assert result["fixed"]["files"] == ["templates.yaml"] and result["fixed"]["entries"] == ["Alle temperaturer"]
+    assert "sensor.spisekammer_temperature" in (tmp_path / "templates.yaml").read_text()
+    assert [p.name for p in tmp_path.glob("templates.yaml.bak-replace-device-*")]
+    assert (tmp_path / "esphome" / "display.yaml").read_text() == esphome
+    assert result["esphome"] == ["esphome/display.yaml"] and not result["integrations"]
+    assert group.options["entities"] == ["sensor.spisekammer_temperature", "sensor.other"]
+
+    assert await replacer.async_undo(result["id"])
+    await hass.async_block_till_done()
+    assert (tmp_path / "templates.yaml").read_text() == templates
+    assert group.options["entities"] == ["sensor.kokken_sensor_temperature", "sensor.other"]
+
+
+async def test_replace_with_picked_package(hass: HomeAssistant, tmp_path) -> None:
+    """A package file the user ticks gets the new device id (backed up first); undo changes it back."""
+    from custom_components.replace_device.replace import async_plan
+
+    hass.config.config_dir = str(tmp_path)
+    old = _device(hass, "zha", "old", "Kitchen", OLD_SENSORS)
+    new = _device(hass, "mqtt", "new", "0x00158d0001", NEW_SENSORS)
+    (tmp_path / "packages").mkdir()
+    package = f"automation:\n  - triggers:\n    - device_id: {old.id}\n"
+    (tmp_path / "packages" / "k.yaml").write_text(package)
+    entry = await _setup(hass)
+    replacer = entry.runtime_data
+    dry = await replacer.async_dry_run(async_plan(hass, old.id, new.id), True)
+    assert [f["file"] for f in dry["fixable"]["files"]] == ["packages/k.yaml"]
+    result = await replacer.async_replace(
+        async_plan(hass, old.id, new.id), False, picked={"files": ["packages/k.yaml"], "entries": []}
+    )
+    await hass.async_block_till_done()
+    assert new.id in (tmp_path / "packages" / "k.yaml").read_text()
+    assert [p.name for p in (tmp_path / "packages").glob("k.yaml.bak-replace-device-*")]
+    assert await replacer.async_undo(result["id"])
+    await hass.async_block_till_done()
+    assert (tmp_path / "packages" / "k.yaml").read_text() == package

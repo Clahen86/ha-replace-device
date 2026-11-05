@@ -103,6 +103,10 @@ def _plan(hass: HomeAssistant, plan: Plan) -> dict[str, Any]:
     }
 
 
+
+# Files and other integrations' settings the user ticked in the test run after seeing the change.
+FIX_SCHEMA = {vol.Optional("files", default=[]): [str], vol.Optional("entries", default=[]): [str]}
+
 @websocket_api.require_admin
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/devices"})
 @websocket_api.async_response
@@ -230,6 +234,7 @@ async def ws_plan(hass: HomeAssistant, connection: websocket_api.ActiveConnectio
 @websocket_api.websocket_command(
     {
         vol.Required("type"): f"{DOMAIN}/replace",
+        vol.Optional("fix", default={}): FIX_SCHEMA,
         vol.Required("old"): str,
         vol.Required("new"): str,
         vol.Required("mapping"): {str: vol.Any(str, None)},
@@ -245,7 +250,8 @@ async def ws_replace(hass: HomeAssistant, connection: websocket_api.ActiveConnec
     if plan is None or replacer is None or len(picked) != len(set(picked)):
         connection.send_error(msg["id"], "invalid", "Not a valid replacement")
         return
-    connection.send_result(msg["id"], await replacer.async_replace(plan, msg["remove_old"], msg["rename_z2m"]))
+    result = await replacer.async_replace(plan, msg["remove_old"], msg["rename_z2m"], picked=msg["fix"])
+    connection.send_result(msg["id"], result)
 
 
 @websocket_api.require_admin
@@ -340,13 +346,18 @@ async def ws_rename_dry_run(hass: HomeAssistant, connection: websocket_api.Activ
 
 @websocket_api.require_admin
 @websocket_api.websocket_command(
-    {vol.Required("type"): f"{DOMAIN}/rename", vol.Required("device"): str, vol.Required("name"): str}
+    {
+        vol.Required("type"): f"{DOMAIN}/rename",
+        vol.Required("device"): str,
+        vol.Required("name"): str,
+        vol.Optional("fix", default={}): FIX_SCHEMA,
+    }
 )
 @websocket_api.async_response
 async def ws_rename(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     """Rename a device, its entity ids and everything that uses them."""
     replacer = _replacer(hass)
-    result = await replacer.async_rename(msg["device"], msg["name"]) if replacer else None
+    result = await replacer.async_rename(msg["device"], msg["name"], msg["fix"]) if replacer else None
     if result is None:
         connection.send_error(msg["id"], "invalid", "Pick a device and a name")
         return
@@ -560,6 +571,7 @@ async def ws_migrate_dry_run(
 @websocket_api.websocket_command(
     {
         vol.Required("type"): f"{DOMAIN}/migrate",
+        vol.Optional("fix", default={}): FIX_SCHEMA,
         vol.Required("pairs"): [{vol.Required("old"): str, vol.Required("new"): str}],
         vol.Optional("groups", default=[]): [
             {vol.Required("name"): str, vol.Required("old"): str, vol.Required("new"): str}
@@ -588,7 +600,9 @@ async def ws_migrate(hass: HomeAssistant, connection: websocket_api.ActiveConnec
             failed.append(pair["old"])
             continue
         await replacer.async_fill_with_ai(plan)
-        result = await replacer.async_replace(plan, msg["remove_old"], msg["rename_z2m"], reload=False, batch=batch)
+        result = await replacer.async_replace(
+            plan, msg["remove_old"], msg["rename_z2m"], reload=False, batch=batch, picked=msg["fix"]
+        )
         done.append(result["id"])
         moved += result["moved"]
         reload.update(result["changed"])
