@@ -128,7 +128,8 @@
           }
         },
         "abort": {
-          "unknown_device": "Entiteten findes ikke længere."
+          "unknown_device": "Entiteten findes ikke længere.",
+          "already_fixed": "Allerede i orden – entity-id'et er tilbage, som det var."
         }
       }
     },
@@ -146,7 +147,8 @@
           }
         },
         "abort": {
-          "unknown_device": "Entiteten findes ikke længere."
+          "unknown_device": "Entiteten findes ikke længere.",
+          "already_fixed": "Allerede i orden – entity-id'et er tilbage, som det var."
         }
       }
     }

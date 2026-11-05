@@ -30,6 +30,7 @@ class RenamedFlow(RepairsFlow):
     def __init__(self, data: dict[str, Any]) -> None:
         self._old: str = data["old"]
         self._new: str = data["new"]
+        self._kind: str = data.get("kind", "renamed")
 
     def _replacer(self) -> Any:
         entries = self.hass.config_entries.async_loaded_entries(DOMAIN)
@@ -37,8 +38,15 @@ class RenamedFlow(RepairsFlow):
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         replacer = self._replacer()
-        if replacer is None or er.async_get(self.hass).async_get(self._new) is None:
-            return self.async_abort(reason="unknown_device")
+        registry = er.async_get(self.hass)
+        if replacer is None or registry.async_get(self._new) is None or (
+            self._kind == "renamed" and registry.async_get(self._old) is not None
+        ):
+            # Already in order again (e.g. the device got its own name back): the repair removes itself.
+            from .watch import async_clear_resolved
+
+            async_clear_resolved(self.hass)
+            return self.async_abort(reason="already_fixed")
         places = await replacer.async_follow_places(self._old, self._new)
         fixed = [u for u in places.get("users", [])] + [f"Dashboard: {d}" for d in places.get("dashboards", [])]
         if places.get("energy"):

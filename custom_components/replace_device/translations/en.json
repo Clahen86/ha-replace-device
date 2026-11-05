@@ -128,7 +128,8 @@
           }
         },
         "abort": {
-          "unknown_device": "The entity is gone."
+          "unknown_device": "The entity is gone.",
+          "already_fixed": "Already in order – the entity ID is back as it was."
         }
       }
     },
@@ -146,7 +147,8 @@
           }
         },
         "abort": {
-          "unknown_device": "The entity is gone."
+          "unknown_device": "The entity is gone.",
+          "already_fixed": "Already in order – the entity ID is back as it was."
         }
       }
     }

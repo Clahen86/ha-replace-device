@@ -128,7 +128,8 @@
           }
         },
         "abort": {
-          "unknown_device": "Die Entität gibt es nicht mehr."
+          "unknown_device": "Die Entität gibt es nicht mehr.",
+          "already_fixed": "Bereits in Ordnung – die Entitäts-ID ist wieder wie vorher."
         }
       }
     },
@@ -146,7 +147,8 @@
           }
         },
         "abort": {
-          "unknown_device": "Die Entität gibt es nicht mehr."
+          "unknown_device": "Die Entität gibt es nicht mehr.",
+          "already_fixed": "Bereits in Ordnung – die Entitäts-ID ist wieder wie vorher."
         }
       }
     }

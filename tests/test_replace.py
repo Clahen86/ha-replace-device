@@ -1939,7 +1939,7 @@ async def test_entity_id_that_changes_by_itself(hass: HomeAssistant, tmp_path) -
     # Replace Device's own rename is not reported.
     replacer._quiet(lambda: registry.async_update_entity("sensor.stue_temp", new_entity_id="sensor.mine"))
     replacer._quiet(lambda: registry.async_update_entity("sensor.mine", new_entity_id="sensor.stue_temp"))
-    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=11))
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=61))
     await hass.async_block_till_done()
     assert not [i for (d, i) in ir.async_get(hass).issues if d == DOMAIN and i.startswith("renamed_")]
 
@@ -1947,7 +1947,7 @@ async def test_entity_id_that_changes_by_itself(hass: HomeAssistant, tmp_path) -
     replacer._quiet_until = 0
     registry.async_update_entity("sensor.stue_temp", new_entity_id="sensor.stue_temperature")
     await hass.async_block_till_done()
-    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=11))
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=61))
     await hass.async_block_till_done()
     issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id("sensor.stue_temp", "sensor.stue_temperature"))
     assert issue is not None and issue.translation_placeholders["count"] == "1"
@@ -1985,9 +1985,31 @@ async def test_unused_rename_and_suffix(hass: HomeAssistant, tmp_path) -> None:
     registry.async_update_entity("sensor.nobody_uses_me", new_entity_id="sensor.still_nobody")
     registry.async_get_or_create("sensor", "xiaomi", "lux2", suggested_object_id="gang_lux_2")
     await hass.async_block_till_done()
-    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=11))
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=61))
     await hass.async_block_till_done()
     ids = {i for (d, i) in ir.async_get(hass).issues if d == DOMAIN}
     assert issue_id("sensor.nobody_uses_me", "sensor.still_nobody") not in ids
     suffix = ir.async_get(hass).async_get_issue(DOMAIN, issue_id("sensor.gang_lux", "sensor.gang_lux_2"))
     assert suffix is not None and suffix.translation_key == "suffix"
+
+
+
+async def test_renamed_repair_clears_itself(hass: HomeAssistant, tmp_path) -> None:
+    """A device paired again gets a temporary ID and its own back: the repair goes away by itself."""
+    from custom_components.replace_device.watch import issue_id
+
+    hass.config.config_dir = str(tmp_path)
+    (tmp_path / "automations.yaml").write_text(
+        "- id: '1'\n  alias: Varm\n  triggers:\n  - trigger: state\n    entity_id: climate.bad\n  actions: []\n"
+    )
+    registry = er.async_get(hass)
+    registry.async_get_or_create("climate", "mqtt", "x1", suggested_object_id="bad")
+    await _setup(hass)
+    registry.async_update_entity("climate.bad", new_entity_id="climate.0x54ef")
+    await hass.async_block_till_done()
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=61))
+    await hass.async_block_till_done()
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id("climate.bad", "climate.0x54ef"))
+    registry.async_update_entity("climate.0x54ef", new_entity_id="climate.bad")  # its own name back
+    await hass.async_block_till_done()
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id("climate.bad", "climate.0x54ef")) is None

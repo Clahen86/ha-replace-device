@@ -22,8 +22,9 @@ if TYPE_CHECKING:
     from .replace import Replacer
 
 SUFFIX = re.compile(r"^(.+)_(\d{1,2})$")
-# Wait a moment: an integration that renames many entities does it in one go.
-DELAY = 10
+# Wait a minute: a device that is paired again often gets a temporary name (its 0x… address) and its own name back
+# right after, and an integration that renames many entities does it in one go.
+DELAY = 60
 
 
 def issue_id(old: str, new: str) -> str:
@@ -38,8 +39,21 @@ def count(places: dict[str, Any]) -> int:
 
 
 @callback
+def async_clear_resolved(hass: HomeAssistant) -> None:
+    """Remove repairs that no longer apply: the new ID is gone again, or the old ID is back."""
+    registry = er.async_get(hass)
+    for (domain, issue), entry in list(ir.async_get(hass).issues.items()):
+        if domain != DOMAIN or not issue.startswith("renamed_") or not entry.data:
+            continue
+        old, new, kind = entry.data.get("old"), entry.data.get("new"), entry.data.get("kind")
+        if registry.async_get(new) is None or (kind == "renamed" and registry.async_get(old) is not None):
+            ir.async_delete_issue(hass, DOMAIN, issue)
+
+
+@callback
 def async_watch(hass: HomeAssistant, replacer: Replacer) -> CALLBACK_TYPE:
     pending: list[CALLBACK_TYPE] = []
+    async_clear_resolved(hass)
 
     async def _check(old: str, new: str, kind: str) -> None:
         registry = er.async_get(hass)
@@ -58,6 +72,8 @@ def async_watch(hass: HomeAssistant, replacer: Replacer) -> CALLBACK_TYPE:
 
     @callback
     def _changed(event: Event) -> None:
+        # Any change can put things right again (the ID back, the entity gone): tidy up stale repairs first.
+        async_clear_resolved(hass)
         if replacer.is_busy():
             return  # Replace Device's own work (a replacement, a rename, an undo …)
         data = event.data
