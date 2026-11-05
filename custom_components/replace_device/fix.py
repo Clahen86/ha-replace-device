@@ -1,27 +1,24 @@
-"""Changes the user picks one by one in the test run: their own YAML files and other integrations' settings.
+"""The user's own YAML files and other integrations' settings that use an old id.
 
-Nothing here runs unless the user ticked the file or the entry after seeing the change (before → after).
-- Files: a copy of the file is saved next to it first (<file>.bak-replace-device-<time>), then the ids are changed.
-- Other integrations: only through the integration's own options flow - the same form the user would fill in by
-  hand - so the integration validates and saves its own settings. Entries without such a form stay on the list.
+- Files (packages/, files configuration.yaml includes, custom_sentences/, ESPHome) are hand-written configuration:
+  they are never written. The test run shows every line to change (before → after), for the user to do by hand.
+- Other integrations: only if the user ticks one in the test run, and only through the integration's own options
+  flow - the same form the user would fill in by hand - so the integration validates and saves its own settings.
+  Entries without such a form stay on the list.
 """
 
 from __future__ import annotations
 
 import logging
 import os
-import shutil
-import time
 from typing import Any
 
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
-from homeassistant.util.file import write_utf8_file_atomic
 
 from . import references, tidy
 
 _LOGGER = logging.getLogger(__name__)
-MAX_LINES = 8
 
 
 def _read(path: str) -> str | None:
@@ -41,16 +38,19 @@ def swap_text(text: str, ids: dict[str, str], exact: bool) -> str:
     return text
 
 
-def _lines(before: str, after: str) -> list[dict[str, str]]:
-    """The changed lines, for the user to look at before ticking the file."""
-    old, new = before.splitlines(), after.splitlines()
-    if len(old) != len(new):
-        return [{"before": "…", "after": "…"}]
-    return [{"before": o.strip(), "after": n.strip()} for o, n in zip(old, new, strict=True) if o != n][:MAX_LINES]
+def _lines(before: str, after: str) -> list[dict[str, Any]]:
+    """Every changed line with its line number. Only ids change, never line breaks, so the lines pair up."""
+    return [
+        {"line": n, "before": o, "after": a}
+        for n, (o, a) in enumerate(zip(before.splitlines(), after.splitlines(), strict=False), start=1)
+        if o != a
+    ]
 
 
 def files_preview(config_dir: str, files: list[str], ids: dict[str, str], exact: bool) -> list[dict[str, Any]]:
-    """For each file (relative to config_dir) that would change: its changed lines."""
+    """For each of the user's own files (relative to config_dir) that uses an id: the full change, line by line.
+
+    These files are never written - the user makes the change by hand."""
     found = []
     for rel in files:
         path = os.path.join(config_dir, rel)
@@ -60,42 +60,6 @@ def files_preview(config_dir: str, files: list[str], ids: dict[str, str], exact:
         if new != text:
             found.append({"file": rel, "lines": _lines(text, new)})
     return found
-
-
-BACKUP = ".bak-replace-device-"
-
-
-def apply_files(
-    config_dir: str, files: list[str], ids: dict[str, str], exact: bool
-) -> tuple[list[str], list[str]]:
-    """Back up and change the files the user picked. Returns (files changed, backup files made)."""
-    stamp = time.strftime("%Y%m%dT%H%M%S")
-    changed, backups = [], []
-    for rel in files:
-        path = os.path.realpath(os.path.join(config_dir, rel))
-        if not path.startswith(os.path.realpath(config_dir) + os.sep) or os.path.basename(path) == "secrets.yaml":
-            continue  # only files inside the config folder, never secrets
-        text = _read(path)
-        if text is None or (new := swap_text(text, ids, exact)) == text:
-            continue
-        backup = f"{path}{BACKUP}{stamp}"
-        shutil.copy2(path, backup)
-        write_utf8_file_atomic(path, new)
-        changed.append(rel)
-        backups.append(backup)
-    return changed, backups
-
-
-def remove_backups(config_dir: str, paths: list[str]) -> None:
-    """Delete our own old backups (undo only works for 30 days, so they are not needed after that)."""
-    root = os.path.realpath(config_dir) + os.sep
-    for path in paths:
-        real = os.path.realpath(path)
-        if real.startswith(root) and BACKUP in os.path.basename(real) and os.path.isfile(real):
-            try:
-                os.remove(real)
-            except OSError:
-                _LOGGER.debug("Could not remove old backup %s", real)
 
 
 def entries_preview(hass: HomeAssistant, ids: dict[str, str], exact: bool, skip: set[str]) -> list[dict[str, Any]]:

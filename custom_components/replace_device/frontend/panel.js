@@ -82,7 +82,9 @@ const TEXT = {
     otherIntegrations: "Change by hand in these integrations: {list}",
     packagesByHand: "Change by hand in packages: {list}",
     fixTitle: "You can also let it change these",
-    fixHint: "Tick what may be changed. Files are backed up first (.bak-replace-device-…); integrations are changed through their own settings form.",
+    fixHint: "Tick the helpers that may be changed. They are changed through their own settings form.",
+    handTitle: "Change by hand in your own files",
+    handLine: "line {n}",
     fixDone: "Changed after your OK: {list}",
     fixFailed: "Could not change (do it by hand): {list}",
     dashboardsUpdated: "Dashboards updated: {list}",
@@ -295,7 +297,9 @@ const TEXT = {
     otherIntegrations: "Ret selv i disse integrationer: {list}",
     packagesByHand: "Ret selv i packages: {list}",
     fixTitle: "Den kan også rette disse",
-    fixHint: "Sæt flueben ved det, der må rettes. Filer bliver kopieret først (.bak-replace-device-…), og integrationer rettes via deres egen indstillingsside.",
+    fixHint: "Sæt flueben ved de hjælpere, der må rettes. De rettes via deres egen indstillingsside.",
+    handTitle: "Ret selv i dine egne filer",
+    handLine: "linje {n}",
     fixDone: "Rettet efter dit ok: {list}",
     fixFailed: "Kunne ikke rettes (ret selv): {list}",
     dashboardsUpdated: "Dashboards, der opdateres: {list}",
@@ -508,7 +512,9 @@ const TEXT = {
     otherIntegrations: "Selbst ändern in diesen Integrationen: {list}",
     packagesByHand: "Selbst ändern in Packages: {list}",
     fixTitle: "Das kann es auch ändern",
-    fixHint: "Hake an, was geändert werden darf. Dateien werden vorher gesichert (.bak-replace-device-…), Integrationen über ihr eigenes Einstellungsformular geändert.",
+    fixHint: "Hake die Helfer an, die geändert werden dürfen. Sie werden über ihr eigenes Einstellungsformular geändert.",
+    handTitle: "Selbst ändern in deinen eigenen Dateien",
+    handLine: "Zeile {n}",
     fixDone: "Nach deinem OK geändert: {list}",
     fixFailed: "Konnte nicht geändert werden (selbst ändern): {list}",
     dashboardsUpdated: "Dashboards angepasst: {list}",
@@ -721,7 +727,9 @@ const TEXT = {
     otherIntegrations: "Ändra själv i dessa integrationer: {list}",
     packagesByHand: "Ändra själv i packages: {list}",
     fixTitle: "Den kan också ändra dessa",
-    fixHint: "Kryssa i det som får ändras. Filer säkerhetskopieras först (.bak-replace-device-…), integrationer ändras via sitt eget inställningsformulär.",
+    fixHint: "Kryssa i hjälparna som får ändras. De ändras via sitt eget inställningsformulär.",
+    handTitle: "Ändra själv i dina egna filer",
+    handLine: "rad {n}",
     fixDone: "Ändrat efter ditt OK: {list}",
     fixFailed: "Kunde inte ändras (ändra själv): {list}",
     dashboardsUpdated: "Instrumentpaneler uppdaterade: {list}",
@@ -934,7 +942,9 @@ const TEXT = {
     otherIntegrations: "Zelf aanpassen in deze integraties: {list}",
     packagesByHand: "Zelf aanpassen in packages: {list}",
     fixTitle: "Dit kan het ook aanpassen",
-    fixHint: "Vink aan wat mag worden aangepast. Bestanden worden eerst geback-upt (.bak-replace-device-…), integraties via hun eigen instellingenformulier.",
+    fixHint: "Vink de helpers aan die mogen worden aangepast. Ze worden via hun eigen instellingenformulier aangepast.",
+    handTitle: "Zelf aanpassen in je eigen bestanden",
+    handLine: "regel {n}",
     fixDone: "Aangepast na je OK: {list}",
     fixFailed: "Kon niet worden aangepast (zelf doen): {list}",
     dashboardsUpdated: "Dashboards bijgewerkt: {list}",
@@ -1137,19 +1147,16 @@ class ReplaceDevicePanel extends HTMLElement {
     this.migratePlan = null;
     this.migrateSelected = new Set();
     this.groupSelected = new Set();
-    this.picked = { files: new Set(), entries: new Set() };
+    this.picked = { entries: new Set() };
   }
 
   // What the user ticked in the test run: their own files and other integrations' settings.
   pickedFix() {
-    return { files: [...this.picked.files], entries: [...this.picked.entries] };
+    return { entries: [...this.picked.entries] };
   }
 
   fixBlock(fixable) {
-    const items = [
-      ...(fixable?.files || []).map((f) => ({ kind: "files", id: f.file, name: f.file, icon: "mdi:file-code-outline", lines: f.lines })),
-      ...(fixable?.entries || []).map((e) => ({ kind: "entries", id: e.entry_id, name: e.title, icon: "mdi:puzzle", lines: e.lines })),
-    ];
+    const items = (fixable?.entries || []).map((e) => ({ kind: "entries", id: e.entry_id, name: e.title, icon: "mdi:puzzle", lines: e.lines }));
     if (!items.length) return "";
     const row = (it) => `<label class="mrow fixrow"><input type="checkbox" data-fix="${it.kind}" data-fixid="${esc(it.id)}" ${this.picked[it.kind].has(it.id) ? "checked" : ""}><span class="box"></span>
         <div class="grow"><div class="dname"><ha-icon icon="${it.icon}"></ha-icon> ${esc(it.name)}</div>
@@ -1158,9 +1165,17 @@ class ReplaceDevicePanel extends HTMLElement {
       <p class="muted small">${this.t("fixHint")}</p>${items.map(row).join("")}`;
   }
 
+  // The user's own files: every line to change by hand (they are never written).
+  handBlock(files) {
+    if (!files?.length) return "";
+    const file = (f) => `<details class="dmore" open><summary class="mono">${esc(f.file)}</summary>
+        ${f.lines.map((l) => `<div class="mono small fixline"><span class="muted">${esc(this.t("handLine", { n: l.line }))}</span><br><span class="red-text">− ${esc(l.before.trim())}</span><br><span class="ok-text">+ ${esc(l.after.trim())}</span></div>`).join("")}</details>`;
+    return `<h3 class="dsec warn-text"><ha-icon icon="mdi:file-document-edit-outline"></ha-icon>${this.t("handTitle")}</h3>${files.map(file).join("")}`;
+  }
+
   fixResult(fixed) {
     if (!fixed) return "";
-    const done = [...(fixed.files || []), ...(fixed.entries || [])];
+    const done = [...(fixed.entries || [])];
     return `${done.length ? `<p class="ok-text">${esc(this.t("fixDone", { list: done.join(", ") }))}</p>` : ""}
       ${(fixed.failed || []).length ? `<p class="warn-text">${esc(this.t("fixFailed", { list: fixed.failed.join(", ") }))}</p>` : ""}`;
   }
@@ -1228,7 +1243,7 @@ class ReplaceDevicePanel extends HTMLElement {
       this.render();
     }
     try {
-      if (!mapping) this.picked = { files: new Set(), entries: new Set() };
+      if (!mapping) this.picked = { entries: new Set() };
       this.plan = await this.ws("plan", { old: oldId, new: newId, ...(mapping ? { mapping } : {}) });
       this.mapping = { ...this.plan.mapping };
       this.view = "match";
@@ -1593,7 +1608,7 @@ class ReplaceDevicePanel extends HTMLElement {
         ${this.aiNote(r.ai_error || r.triggers?.ai_error)}
         ${r.triggers?.translated?.length || r.translated ? `<p class="hint left-hint"><ha-icon icon="mdi:gesture-tap-button"></ha-icon><span>${this.t("pressOnce")}</span></p>` : ""}
         ${r.integrations?.length ? `<p class="warn-text">${esc(this.t("otherIntegrations", { list: r.integrations.join(", ") }))}</p>` : ""}
-        ${r.packages?.length ? `<p class="warn-text">${esc(this.t("packagesByHand", { list: r.packages.join(", ") }))}</p>` : ""}
+        ${r.hand_files?.length ? `<div class="card left">${this.handBlock(r.hand_files)}</div>` : r.packages?.length ? `<p class="warn-text">${esc(this.t("packagesByHand", { list: r.packages.join(", ") }))}</p>` : ""}
         ${this.fixResult(r.fixed)}
         ${r.dashboards?.length ? `<p class="ok-text">${esc(this.t("dashboardsUpdated", { list: r.dashboards.join(", ") }))}</p>` : ""}
         ${(r.triggers?.unresolved || r.unresolved || []).length ? `<div class="card warn left"><b>${this.t("triggersOpen")}</b><ul>${(r.triggers?.unresolved || r.unresolved).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
@@ -1701,9 +1716,10 @@ class ReplaceDevicePanel extends HTMLElement {
       ...(r.dashboards || []).map((x) => ["mdi:view-dashboard", x]),
       ...(r.energy ? [["mdi:lightning-bolt", this.t("renameEnergy")]] : []),
     ];
-    const canFix = new Set([...(r.fixable?.files || []).map((f) => f.file), ...(r.fixable?.entries || []).map((e) => e.title)]);
+    const canFix = new Set((r.fixable?.entries || []).map((e) => e.title));
+    const shown = new Set((r.hand_files || []).map((f) => f.file));
     const hand = [
-      ...(r.yaml || []).filter((x) => !canFix.has(x)).map((x) => ["mdi:file-code-outline", x]),
+      ...(r.yaml || []).filter((x) => !shown.has(x)).map((x) => ["mdi:file-code-outline", x]),
       ...(r.integrations || []).filter((x) => !canFix.has(x)).map((x) => ["mdi:puzzle", x]),
     ];
     const chip = ([i, x]) => `<span class="chip sm"><ha-icon icon="${i}"></ha-icon>${esc(x)}</span>`;
@@ -1711,8 +1727,8 @@ class ReplaceDevicePanel extends HTMLElement {
       ${chips.length ? `<h3 class="dsec"><ha-icon icon="mdi:sync"></ha-icon>${this.t("renameFixed")}</h3><div class="dchips">${chips.map(chip).join("")}</div>`
         : `<p class="muted small">${this.t("renameNothingUses")}</p>`}
       ${hand.length ? `<h3 class="dsec warn-text"><ha-icon icon="mdi:file-document-edit-outline"></ha-icon>${this.t("renameByHand")}</h3><div class="dchips">${hand.map(chip).join("")}</div>` : ""}
-      ${(r.esphome || []).filter((x) => !canFix.has(x)).length ? `<h3 class="dsec warn-text"><ha-icon icon="mdi:chip"></ha-icon>${this.t("renameEsphome")}</h3><div class="dchips">${r.esphome.filter((x) => !canFix.has(x)).map((x) => chip(["mdi:file-code-outline", x])).join("")}</div>` : ""}
-      ${this.fixBlock(r.fixable)}${this.fixResult(r.fixed)}
+      ${(r.esphome || []).length ? `<h3 class="dsec warn-text"><ha-icon icon="mdi:chip"></ha-icon>${this.t("renameEsphome")}</h3><div class="dchips">${r.esphome.map((x) => chip(["mdi:file-code-outline", x])).join("")}</div>` : ""}
+      ${this.handBlock(r.hand_files)}${this.fixBlock(r.fixable)}${this.fixResult(r.fixed)}
       ${(r.outside || []).length ? `<h3 class="dsec red-text"><ha-icon icon="mdi:alert-octagon"></ha-icon>${this.t("renameOutside")}</h3><div class="dchips">${r.outside.map((x) => chip(["mdi:file-alert-outline", x])).join("")}</div>` : ""}`;
   }
 
@@ -1772,10 +1788,10 @@ class ReplaceDevicePanel extends HTMLElement {
         ...d.users.map((u) => [userIcon(u), u.replace(/^(automation|script|scene): /, "")]),
         ...d.dashboards.map((x) => ["mdi:view-dashboard", x]),
       ];
-      const canFix = new Set([...(d.fixable?.files || []).map((f) => f.file), ...(d.fixable?.entries || []).map((e) => e.title)]);
+      const canFix = new Set((d.fixable?.entries || []).map((e) => e.title));
       const handInt = (d.integrations || []).filter((x) => !canFix.has(x));
-      const handPkg = (d.packages || []).filter((x) => !canFix.has(x));
-      const handOther = [...handInt, ...handPkg];
+      const handPkg = (d.packages || []).filter((x) => !(d.hand_files || []).some((f) => f.file === x));
+      const handOther = [...handInt, ...handPkg, ...(d.hand_files || [])];
       const toCheck = open.length + byHand.length + handOther.length;
       const entityRow = (e) => `<div class="drow">
           <ha-icon icon="${icon(e.to)}"></ha-icon>
@@ -1834,6 +1850,7 @@ class ReplaceDevicePanel extends HTMLElement {
           ${tile(toCheck || "✓", toCheck ? this.t("sumCheck") : this.t("dryAllGood"), toCheck ? "amber" : "green")}
         </div>
         ${section(this.t("dryCheck"), "mdi:alert", checks, "warn-text")}
+        ${this.handBlock(d.hand_files)}
         ${this.fixBlock(d.fixable)}
         ${section(this.t("dryEntities"), "mdi:swap-horizontal", entities)}
         ${section(this.t("dryTriggers"), "mdi:gesture-tap-button", buttons)}
@@ -2017,7 +2034,7 @@ class ReplaceDevicePanel extends HTMLElement {
         ${this.aiNote(r.ai_error || r.triggers?.ai_error)}
         ${r.triggers?.translated?.length || r.translated ? `<p class="hint left-hint"><ha-icon icon="mdi:gesture-tap-button"></ha-icon><span>${this.t("pressOnce")}</span></p>` : ""}
         ${r.integrations?.length ? `<p class="warn-text">${esc(this.t("otherIntegrations", { list: r.integrations.join(", ") }))}</p>` : ""}
-        ${r.packages?.length ? `<p class="warn-text">${esc(this.t("packagesByHand", { list: r.packages.join(", ") }))}</p>` : ""}
+        ${r.hand_files?.length ? `<div class="card left">${this.handBlock(r.hand_files)}</div>` : r.packages?.length ? `<p class="warn-text">${esc(this.t("packagesByHand", { list: r.packages.join(", ") }))}</p>` : ""}
         ${this.fixResult(r.fixed)}
         ${r.dashboards?.length ? `<p class="ok-text">${esc(this.t("dashboardsUpdated", { list: r.dashboards.join(", ") }))}</p>` : ""}
         ${(r.triggers?.unresolved || r.unresolved || []).length ? `<div class="card warn left"><b>${this.t("triggersOpen")}</b><ul>${(r.triggers?.unresolved || r.unresolved).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}

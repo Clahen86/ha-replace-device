@@ -118,7 +118,6 @@ class Replacer:
         self.ai_error: str | None = None
         # Devices the user said are only switched off, not gone.
         self.hidden: list[str] = []
-        self.backups: list[dict[str, Any]] = []
 
     @callback
     def async_stop(self) -> None:
@@ -130,12 +129,6 @@ class Replacer:
         data = await self.store.async_load() or {}
         self.history = [h for h in data.get("history", []) if h["at"] >= cutoff]
         self.hidden = data.get("hidden", [])
-        # Backups of files the user let us change are deleted with the undo history, after 30 days.
-        backups = data.get("backups", [])
-        self.backups = [b for b in backups if b["at"] >= cutoff]
-        if old := [b["path"] for b in backups if b["at"] < cutoff]:
-            await self.hass.async_add_executor_job(fix.remove_backups, self.hass.config.path(), old)
-            self._save()
 
     async def async_replace(
         self,
@@ -253,9 +246,8 @@ class Replacer:
         record["integrations"] = [e.title for e in references.entries_using(hass, record["ids"], skip)]
         record["packages"] = await hass.async_add_executor_job(_packages_using, hass.config.path(), record["ids"])
         # ... unless the user ticked them in the test run after seeing the change.
-        if picked and (picked.get("files") or picked.get("entries")):
+        if picked and picked.get("entries"):
             record["fixed"] = await self._async_fix(record["ids"], False, picked)
-            record["packages"] = [f for f in record["packages"] if f not in record["fixed"]["files"]]
             record["integrations"] = [t for t in record["integrations"] if t not in record["fixed"]["entries"]]
         # The entities only the new device has get ids after the device's name, like the others.
         own = [entities.async_get(n.entity_id) for n in plan.new_entities if n.entity_id not in set(temp_ids)]
@@ -283,6 +275,11 @@ class Replacer:
             "triggers": translation,
             "dashboards": record["dashboards"],
             "integrations": record["integrations"],
+            "packages": record["packages"],
+            "hand_files": await hass.async_add_executor_job(
+                fix.files_preview, hass.config.path(), record["packages"], record["ids"], False
+            ),
+            "fixed": record.get("fixed"),
             "failed": failed,
         }
 
@@ -316,6 +313,7 @@ class Replacer:
             c["from"]: c["to"]
             for c in tidy.plan(hass, device_name(plan.old), [e for e in own_entries if e], free=freed)
         }
+        packages = await hass.async_add_executor_job(_packages_using, hass.config.path(), ids)
         return {
             "entities": [
                 {
@@ -354,8 +352,12 @@ class Replacer:
             "triggers": translation,
             "dashboards": [title for title, _, config in dashboards if references.swap(config, ids) is not config],
             "integrations": [entry.title for entry in references.entries_using(hass, ids, skip)],
-            "packages": await hass.async_add_executor_job(_packages_using, hass.config.path(), ids),
-            "fixable": await self._async_fixable(ids, False, packages=True, skip=skip),
+            "packages": packages,
+            # The user's own package files: every line to change by hand. Helpers with a form can be ticked.
+            "hand_files": await hass.async_add_executor_job(
+                fix.files_preview, hass.config.path(), packages, ids, False
+            ),
+            "fixable": {"entries": fix.entries_preview(hass, ids, False, skip)},
         }
 
     async def async_replace_entity(
@@ -448,7 +450,7 @@ class Replacer:
         await self._rewrite(back, reload=reload)
         await references.async_rewrite_dashboards(self.hass, back)
         if fixed := record.get("fixed"):
-            await self._async_fix(back, False, {"files": fixed["files"], "entries": fixed["entry_ids"]})
+            await self._async_fix(back, False, {"entries": fixed["entry_ids"]})
         record["undone"] = True
         self._save()
         return True
@@ -606,7 +608,7 @@ class Replacer:
             changed |= set(translation.get("saved") or [])
         await _safely("updating dashboards", references.async_rewrite_dashboards(hass, record["ids"]), [])
         if fixed := record.get("fixed"):
-            await self._async_fix(record["ids"], False, {"files": fixed["files"], "entries": fixed["entry_ids"]})
+            await self._async_fix(record["ids"], False, {"entries": fixed["entry_ids"]})
         if reload:
             await self.async_reload(changed)
         record["undone"] = False
@@ -703,9 +705,7 @@ class Replacer:
         self._save()
 
     def _save(self) -> None:
-        self.store.async_delay_save(
-            lambda: {"history": self.history, "hidden": self.hidden, "backups": self.backups}, 1
-        )
+        self.store.async_delay_save(lambda: {"history": self.history, "hidden": self.hidden}, 1)
 
     async def async_reload(self, domains: set[str]) -> None:
         """Reload what was changed. A broken file must not stop the replacement; HA tells the user about it."""
@@ -748,28 +748,21 @@ class Replacer:
             "energy": await _safely("reading the energy dashboard", references.async_energy_uses(hass, ids), False),
             "outside": await hass.async_add_executor_job(references.outside_users, config_dir, list(ids)),
         }
+        # Every line to change by hand in the user's own files; helpers with a form can be ticked.
+        result["hand_files"] = await hass.async_add_executor_job(
+            fix.files_preview, config_dir, result["yaml"] + result["esphome"], ids, True
+        )
         if not apply:
-            result["fixable"] = {
-                "files": await hass.async_add_executor_job(
-                    fix.files_preview, config_dir, result["yaml"] + result["esphome"], ids, True
-                ),
-                "entries": fix.entries_preview(hass, ids, True, set()),
-            }
+            result["fixable"] = {"entries": fix.entries_preview(hass, ids, True, set())}
             return result
         # Hand-written YAML (configuration.yaml, packages, ESPHome) and other integrations' settings are only
         # listed in "yaml", "esphome" and "integrations": the user changes them.
         changed = set(await self._rewrite(ids, reload=False, exact=True))
         await _safely("updating dashboards", references.async_rewrite_dashboards(hass, ids, exact=True), [])
         await _safely("updating the energy dashboard", references.async_rewrite_energy(hass, ids), False)
-        if picked and (picked.get("files") or picked.get("entries")):
+        if picked and picked.get("entries"):
             result["fixed"] = await self._async_fix(ids, True, picked)
-            for key in ("yaml", "esphome"):
-                result[key] = [f for f in result[key] if f not in result["fixed"]["files"]]
             result["integrations"] = [t for t in result["integrations"] if t not in result["fixed"]["entries"]]
-            if result["fixed"]["files"] and hass.services.has_service("homeassistant", "reload_all"):
-                await _safely(
-                    "reloading YAML", hass.services.async_call("homeassistant", "reload_all", blocking=True), None
-                )
         await self.async_reload(changed)
         result["changed"] = sorted(changed)
         return result
@@ -841,35 +834,16 @@ class Replacer:
                 await _safely("renaming in Zigbee2MQTT", _rename_in_z2m(hass, device, old_name), False)
         await self._async_places({c["from"]: c["to"] for c in back}, apply=True)
         if fixed := record.get("fixed"):
-            await self._async_fix(
-                {c["from"]: c["to"] for c in back}, True, {"files": fixed["files"], "entries": fixed["entry_ids"]}
-            )
+            await self._async_fix({c["from"]: c["to"] for c in back}, True, {"entries": fixed["entry_ids"]})
         record["undone"] = True
         self._save()
         return True
 
-    async def _async_fixable(
-        self, ids: dict[str, str], exact: bool, packages: bool = False, skip: set[str] | None = None
-    ) -> dict[str, Any]:
-        """What the user can pick in the test run: their own files and other integrations' settings forms."""
-        config_dir = self.hass.config.path()
-        files = await self.hass.async_add_executor_job(_packages_using, config_dir, ids) if packages else []
-        return {
-            "files": await self.hass.async_add_executor_job(fix.files_preview, config_dir, files, ids, exact),
-            "entries": fix.entries_preview(self.hass, ids, exact, skip or set()),
-        }
-
     async def _async_fix(self, ids: dict[str, str], exact: bool, picked: dict[str, list[str]]) -> dict[str, Any]:
-        """Change the files and settings the user picked (files are backed up first)."""
-        config_dir = self.hass.config.path()
-        files, backups = await self.hass.async_add_executor_job(
-            fix.apply_files, config_dir, list(picked.get("files") or []), ids, exact
-        )
-        self.backups += [{"path": b, "at": time.time()} for b in backups]
-        self._save()
+        """Change the integrations the user ticked, through their own options flow."""
         entry_ids = list(picked.get("entries") or [])
         changed, failed = await fix.async_apply_entries(self.hass, entry_ids, ids, exact)
-        return {"files": files, "entries": changed, "entry_ids": entry_ids, "failed": failed}
+        return {"entries": changed, "entry_ids": entry_ids, "failed": failed}
 
     async def _async_tidy(self, entries: list[Any], name: str) -> tuple[list[dict[str, str]], list[str]]:
         """Give entries ids after the device's name and fix what uses the old ids; (renamed, changed file domains)."""

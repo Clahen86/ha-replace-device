@@ -104,8 +104,8 @@ def _plan(hass: HomeAssistant, plan: Plan) -> dict[str, Any]:
 
 
 
-# Files and other integrations' settings the user ticked in the test run after seeing the change.
-FIX_SCHEMA = {vol.Optional("files", default=[]): [str], vol.Optional("entries", default=[]): [str]}
+# Other integrations the user ticked in the test run, changed through their own options flow.
+FIX_SCHEMA = {vol.Optional("entries", default=[]): [str]}
 
 @websocket_api.require_admin
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/devices"})
@@ -589,6 +589,9 @@ async def ws_migrate(hass: HomeAssistant, connection: websocket_api.ActiveConnec
         return
     batch = str(int(time.time() * 1000))
     done, failed, moved, reload, unresolved, translated = [], [], 0, set(), [], 0
+    integrations: list[str] = []
+    hand_files: list[dict[str, Any]] = []
+    fixed_all: dict[str, list[str]] = {"entries": [], "failed": []}
     plans = {pair["old"]: async_plan(hass, pair["old"], pair["new"]) for pair in msg["pairs"]}
     # One AI call for every device that needs help, not one per device.
     replacer.ai_error = None
@@ -609,6 +612,12 @@ async def ws_migrate(hass: HomeAssistant, connection: websocket_api.ActiveConnec
         unresolved += result["triggers"]["unresolved"]
         ai_error = ai_error or result["triggers"].get("ai_error")
         translated += len(result["triggers"]["translated"])
+        # What the user changes by hand, and what was changed after their tick, for all devices together.
+        integrations += [t for t in result["integrations"] if t not in integrations]
+        hand_files += result["hand_files"]
+        if fixed := result.get("fixed"):
+            for key in ("entries", "failed"):
+                fixed_all[key] += [t for t in fixed[key] if t not in fixed_all[key]]
     entities = er.async_get(hass)
     for group in msg["groups"]:
         old, new = entities.async_get(group["old"]), entities.async_get(group["new"])
@@ -630,5 +639,9 @@ async def ws_migrate(hass: HomeAssistant, connection: websocket_api.ActiveConnec
             "unresolved": unresolved,
             "translated": translated,
             "ai_error": ai_error,
+            "integrations": integrations,
+            "packages": sorted({f["file"] for f in hand_files}),
+            "hand_files": hand_files,
+            "fixed": fixed_all if fixed_all["entries"] or fixed_all["failed"] else None,
         },
     )

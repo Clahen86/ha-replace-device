@@ -1836,8 +1836,8 @@ def test_packages_are_only_listed(tmp_path) -> None:
     assert all(not path.startswith(str(tmp_path / "packages")) for _, path in _config_files(str(tmp_path)))
 
 
-async def test_rename_with_picked_fixes(hass: HomeAssistant, tmp_path) -> None:
-    """Files and helpers the user ticks are changed (files backed up first, helpers through their own form); undo too."""
+async def test_rename_with_picked_helper_and_hand_files(hass: HomeAssistant, tmp_path) -> None:
+    """Own files are never written but every line to change is shown; a ticked helper changes via its own form."""
     hass.config.config_dir = str(tmp_path)
     mqtt_entry = MockConfigEntry(domain="mqtt", title="Mosquitto broker")
     mqtt_entry.add_to_hass(hass)
@@ -1859,42 +1859,41 @@ async def test_rename_with_picked_fixes(hass: HomeAssistant, tmp_path) -> None:
         config_entry=mqtt_entry, has_entity_name=True, original_name="Temperature",
     )
     (tmp_path / "configuration.yaml").write_text("template: !include templates.yaml\n")
-    templates = "- sensor:\n  - name: Varm\n    state: \"{{ states('sensor.kokken_sensor_temperature') }}\"\n"
+    lines = [f"# line {n}" for n in range(1, 13)]
+    lines[10] = "- sensor:\n  - name: Varm\n    state: \"{{ states('sensor.kokken_sensor_temperature') }}\""
+    templates = "\n".join(lines) + "\n"
     (tmp_path / "templates.yaml").write_text(templates)
     (tmp_path / "automations.yaml").write_text("[]\n")
-    (tmp_path / "esphome").mkdir()
-    esphome = "sensor:\n  - platform: homeassistant\n    entity_id: sensor.kokken_sensor_temperature\n"
-    (tmp_path / "esphome" / "display.yaml").write_text(esphome)
     entry = await _setup(hass)
     replacer = entry.runtime_data
 
     dry = await replacer.async_rename_dry_run(device.id, "Spisekammer")
-    files = {f["file"]: f["lines"] for f in dry["fixable"]["files"]}
-    assert set(files) == {"templates.yaml", "esphome/display.yaml"}
-    assert files["esphome/display.yaml"] == [
-        {"before": "entity_id: sensor.kokken_sensor_temperature", "after": "entity_id: sensor.spisekammer_temperature"}
-    ]
+    assert dry["hand_files"] == [{
+        "file": "templates.yaml",
+        "lines": [{
+            "line": 13,
+            "before": "    state: \"{{ states('sensor.kokken_sensor_temperature') }}\"",
+            "after": "    state: \"{{ states('sensor.spisekammer_temperature') }}\"",
+        }],
+    }]
     assert [e["title"] for e in dry["fixable"]["entries"]] == ["Alle temperaturer"]
 
-    # Only what was ticked: templates.yaml and the group, not the ESPHome file.
-    picked = {"files": ["templates.yaml", "../outside.yaml"], "entries": [group.entry_id]}
-    result = await replacer.async_rename(device.id, "Spisekammer", picked)
+    # A file in the request is ignored: own files are never written.
+    result = await replacer.async_rename(device.id, "Spisekammer", {"entries": [group.entry_id], "files": ["templates.yaml"]})
     await hass.async_block_till_done()
-    assert result["fixed"]["files"] == ["templates.yaml"] and result["fixed"]["entries"] == ["Alle temperaturer"]
-    assert "sensor.spisekammer_temperature" in (tmp_path / "templates.yaml").read_text()
-    assert [p.name for p in tmp_path.glob("templates.yaml.bak-replace-device-*")]
-    assert (tmp_path / "esphome" / "display.yaml").read_text() == esphome
-    assert result["esphome"] == ["esphome/display.yaml"] and not result["integrations"]
+    assert result["fixed"]["entries"] == ["Alle temperaturer"]
+    assert (tmp_path / "templates.yaml").read_text() == templates
+    assert not list(tmp_path.glob("*.bak-replace-device-*"))
+    assert result["hand_files"][0]["file"] == "templates.yaml"
     assert group.options["entities"] == ["sensor.spisekammer_temperature", "sensor.other"]
 
     assert await replacer.async_undo(result["id"])
     await hass.async_block_till_done()
-    assert (tmp_path / "templates.yaml").read_text() == templates
     assert group.options["entities"] == ["sensor.kokken_sensor_temperature", "sensor.other"]
 
 
-async def test_replace_with_picked_package(hass: HomeAssistant, tmp_path) -> None:
-    """A package file the user ticks gets the new device id (backed up first); undo changes it back."""
+async def test_replace_shows_package_lines(hass: HomeAssistant, tmp_path) -> None:
+    """A package file with the old device id is shown line by line in the test run and never changed."""
     from custom_components.replace_device.replace import async_plan
 
     hass.config.config_dir = str(tmp_path)
@@ -1906,38 +1905,11 @@ async def test_replace_with_picked_package(hass: HomeAssistant, tmp_path) -> Non
     entry = await _setup(hass)
     replacer = entry.runtime_data
     dry = await replacer.async_dry_run(async_plan(hass, old.id, new.id), True)
-    assert [f["file"] for f in dry["fixable"]["files"]] == ["packages/k.yaml"]
-    result = await replacer.async_replace(
-        async_plan(hass, old.id, new.id), False, picked={"files": ["packages/k.yaml"], "entries": []}
-    )
-    await hass.async_block_till_done()
-    assert new.id in (tmp_path / "packages" / "k.yaml").read_text()
-    assert [p.name for p in (tmp_path / "packages").glob("k.yaml.bak-replace-device-*")]
-    assert await replacer.async_undo(result["id"])
+    assert dry["hand_files"] == [{
+        "file": "packages/k.yaml",
+        "lines": [{"line": 3, "before": f"    - device_id: {old.id}", "after": f"    - device_id: {new.id}"}],
+    }]
+    result = await replacer.async_replace(async_plan(hass, old.id, new.id), False, picked={"entries": []})
     await hass.async_block_till_done()
     assert (tmp_path / "packages" / "k.yaml").read_text() == package
-
-
-async def test_old_backups_are_deleted_after_30_days(hass: HomeAssistant, tmp_path) -> None:
-    """Our own backups older than the undo history are deleted at start; others and newer ones stay."""
-    import time as _time
-
-    hass.config.config_dir = str(tmp_path)
-    old = tmp_path / "templates.yaml.bak-replace-device-20260101T000000"
-    new = tmp_path / "templates.yaml.bak-replace-device-20261104T000000"
-    mine = tmp_path / "templates.yaml.bak-mine"
-    for f in (old, new, mine):
-        f.write_text("x")
-    entry = MockConfigEntry(domain="replace_device")
-    entry.add_to_hass(hass)
-    from custom_components.replace_device.replace import Replacer
-
-    replacer = Replacer(hass)
-    await replacer.store.async_save({"history": [], "hidden": [], "backups": [
-        {"path": str(old), "at": _time.time() - 31 * 86400},
-        {"path": str(new), "at": _time.time() - 86400},
-        {"path": str(mine), "at": _time.time() - 99 * 86400},
-    ]})
-    await replacer.async_load()
-    assert not old.exists() and new.exists() and mine.exists()
-    assert [b["path"] for b in replacer.backups] == [str(new)]
+    assert result["packages"] == ["packages/k.yaml"]
