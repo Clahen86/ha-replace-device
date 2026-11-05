@@ -79,7 +79,8 @@ const TEXT = {
     stateClassDiffers: "{name}: changes from {old} to {new} – long-term statistics may restart.",
     statisticsGone: "{name}: the new one keeps no long-term statistics. Afterwards Home Assistant asks what to do with the old ones (Developer tools → Statistics).",
     deviceActions: "Device actions of the old integration can't be moved: {list}",
-    otherIntegrations: "Also updated: {list}",
+    otherIntegrations: "Change by hand in these integrations: {list}",
+    packagesByHand: "Change by hand in packages: {list}",
     dashboardsUpdated: "Dashboards updated: {list}",
     warnCount: "{n} things to check",
     groupsTitle: "Zigbee groups",
@@ -149,7 +150,7 @@ const TEXT = {
     renameNothingUses: "Nothing else uses these entity IDs.",
     renameDone: "{name} has its new name",
     renameDoneText: "{n} entity IDs renamed and updated everywhere they are used.",
-    renameRestart: "YAML files were changed. If something doesn't pick up the new name, restart Home Assistant.",
+    renameByHand: "Not changed (hand-written configuration and other integrations) – change the entity IDs yourself:",
     renamedLine: "Renamed · {n} entity IDs",
     sumIds: "Entity IDs",
     sumPlaces: "Places",
@@ -287,7 +288,8 @@ const TEXT = {
     stateClassDiffers: "{name}: skifter fra {old} til {new} – langtidsstatistikken kan starte forfra.",
     statisticsGone: "{name}: den nye gemmer ingen langtidsstatistik. Bagefter spørger Home Assistant, hvad der skal ske med den gamle (Udviklerværktøjer → Statistik).",
     deviceActions: "Enhedshandlinger fra den gamle integration kan ikke flyttes: {list}",
-    otherIntegrations: "Bliver også opdateret: {list}",
+    otherIntegrations: "Ret selv i disse integrationer: {list}",
+    packagesByHand: "Ret selv i packages: {list}",
     dashboardsUpdated: "Dashboards, der opdateres: {list}",
     warnCount: "{n} ting at tjekke",
     groupsTitle: "Zigbee-grupper",
@@ -357,7 +359,7 @@ const TEXT = {
     renameNothingUses: "Intet andet bruger disse entity-id'er.",
     renameDone: "{name} har fået sit nye navn",
     renameDoneText: "{n} entity-id'er omdøbt og rettet alle de steder, de bruges.",
-    renameRestart: "Der er ændret i YAML-filer. Hvis noget ikke har fået det nye navn, så genstart Home Assistant.",
+    renameByHand: "Ændres ikke (håndskrevet konfiguration og andre integrationer) – ret selv entity-id'erne:",
     renamedLine: "Omdøbt · {n} entity-id'er",
     sumIds: "Entity-id'er",
     sumPlaces: "Steder",
@@ -495,7 +497,8 @@ const TEXT = {
     stateClassDiffers: "{name}: ändert sich von {old} zu {new} – die Langzeitstatistik kann neu beginnen.",
     statisticsGone: "{name}: das neue speichert keine Langzeitstatistik. Danach fragt Home Assistant, was mit der alten geschehen soll (Entwicklerwerkzeuge → Statistiken).",
     deviceActions: "Geräte-Aktionen der alten Integration können nicht übernommen werden: {list}",
-    otherIntegrations: "Ebenfalls angepasst: {list}",
+    otherIntegrations: "Selbst ändern in diesen Integrationen: {list}",
+    packagesByHand: "Selbst ändern in Packages: {list}",
     dashboardsUpdated: "Dashboards angepasst: {list}",
     warnCount: "{n} Dinge zu prüfen",
     groupsTitle: "Zigbee-Gruppen",
@@ -565,7 +568,7 @@ const TEXT = {
     renameNothingUses: "Nichts anderes nutzt diese Entitäts-IDs.",
     renameDone: "{name} hat den neuen Namen",
     renameDoneText: "{n} Entitäts-IDs umbenannt und überall angepasst.",
-    renameRestart: "YAML-Dateien wurden geändert. Wenn etwas den neuen Namen nicht übernimmt, starte Home Assistant neu.",
+    renameByHand: "Nicht geändert (handgeschriebene Konfiguration und andere Integrationen) – Entitäts-IDs selbst ändern:",
     renamedLine: "Umbenannt · {n} Entitäts-IDs",
     sumIds: "Entitäts-IDs",
     sumPlaces: "Stellen",
@@ -703,7 +706,8 @@ const TEXT = {
     stateClassDiffers: "{name}: ändras från {old} till {new} – långtidsstatistiken kan börja om.",
     statisticsGone: "{name}: den nya sparar ingen långtidsstatistik. Efteråt frågar Home Assistant vad som ska hända med den gamla (Utvecklarverktyg → Statistik).",
     deviceActions: "Enhetsåtgärder från den gamla integrationen kan inte flyttas: {list}",
-    otherIntegrations: "Också uppdaterade: {list}",
+    otherIntegrations: "Ändra själv i dessa integrationer: {list}",
+    packagesByHand: "Ändra själv i packages: {list}",
     dashboardsUpdated: "Instrumentpaneler uppdaterade: {list}",
     warnCount: "{n} saker att kontrollera",
     groupsTitle: "Zigbee-grupper",
@@ -773,7 +777,7 @@ const TEXT = {
     renameNothingUses: "Inget annat använder dessa entitets-ID.",
     renameDone: "{name} har fått sitt nya namn",
     renameDoneText: "{n} entitets-ID har bytt namn och uppdaterats överallt.",
-    renameRestart: "YAML-filer har ändrats. Om något inte fått det nya namnet, starta om Home Assistant.",
+    renameByHand: "Ändras inte (handskriven konfiguration och andra integrationer) – ändra entitets-ID:n själv:",
     renamedLine: "Bytt namn · {n} entitets-ID",
     sumIds: "Entitets-ID",
     sumPlaces: "Ställen",
@@ -911,7 +915,8 @@ const TEXT = {
     stateClassDiffers: "{name}: verandert van {old} naar {new} – de langetermijnstatistieken kunnen opnieuw beginnen.",
     statisticsGone: "{name}: het nieuwe bewaart geen langetermijnstatistieken. Daarna vraagt Home Assistant wat er met de oude moet gebeuren (Ontwikkelhulpmiddelen → Statistieken).",
     deviceActions: "Apparaatacties van de oude integratie kunnen niet worden overgezet: {list}",
-    otherIntegrations: "Ook bijgewerkt: {list}",
+    otherIntegrations: "Zelf aanpassen in deze integraties: {list}",
+    packagesByHand: "Zelf aanpassen in packages: {list}",
     dashboardsUpdated: "Dashboards bijgewerkt: {list}",
     warnCount: "{n} dingen om te controleren",
     groupsTitle: "Zigbee-groepen",
@@ -981,7 +986,7 @@ const TEXT = {
     renameNothingUses: "Niets anders gebruikt deze entiteit-ID's.",
     renameDone: "{name} heeft de nieuwe naam",
     renameDoneText: "{n} entiteit-ID's hernoemd en overal bijgewerkt.",
-    renameRestart: "Er zijn YAML-bestanden gewijzigd. Als iets de nieuwe naam niet oppikt, herstart Home Assistant.",
+    renameByHand: "Niet gewijzigd (handgeschreven configuratie en andere integraties) – pas de entiteit-ID's zelf aan:",
     renamedLine: "Hernoemd · {n} entiteit-ID's",
     sumIds: "Entiteit-ID's",
     sumPlaces: "Plekken",
@@ -1230,7 +1235,7 @@ class ReplaceDevicePanel extends HTMLElement {
   }
 
   icon(e) {
-    return e.icon || CLASS_ICON[e.device_class] || DOMAIN_ICON[e.domain] || "mdi:shape";
+    return esc(e.icon || CLASS_ICON[e.device_class] || DOMAIN_ICON[e.domain] || "mdi:shape");
   }
 
   // ---------- views ----------
@@ -1320,7 +1325,8 @@ class ReplaceDevicePanel extends HTMLElement {
     if (c.outside?.length) lines.push(["bad", this.t("outside", { list: c.outside.join(", ") })]);
     if (c.yaml_dashboards?.length) lines.push(["bad", this.t("yamlDashboards", { list: c.yaml_dashboards.join(", ") })]);
     if (c.device_actions?.length) lines.push(["warn", this.t("deviceActions", { list: c.device_actions.join(", ") })]);
-    if (c.integrations?.length) lines.push(["info", this.t("otherIntegrations", { list: c.integrations.join(", ") })]);
+    if (c.integrations?.length) lines.push(["warn", this.t("otherIntegrations", { list: c.integrations.join(", ") })]);
+    if (c.packages?.length) lines.push(["warn", this.t("packagesByHand", { list: c.packages.join(", ") })]);
     if (c.dashboards?.length) lines.push(["info", this.t("dashboardsUpdated", { list: c.dashboards.join(", ") })]);
     return lines;
   }
@@ -1539,7 +1545,8 @@ class ReplaceDevicePanel extends HTMLElement {
         ${r.triggers?.translated?.length ? `<p class="ok-text">${this.t("triggersDone", { n: r.triggers.translated.length })}</p>` : ""}
         ${this.aiNote(r.ai_error || r.triggers?.ai_error)}
         ${r.triggers?.translated?.length || r.translated ? `<p class="hint left-hint"><ha-icon icon="mdi:gesture-tap-button"></ha-icon><span>${this.t("pressOnce")}</span></p>` : ""}
-        ${r.integrations?.length ? `<p class="ok-text">${esc(this.t("otherIntegrations", { list: r.integrations.join(", ") }))}</p>` : ""}
+        ${r.integrations?.length ? `<p class="warn-text">${esc(this.t("otherIntegrations", { list: r.integrations.join(", ") }))}</p>` : ""}
+        ${r.packages?.length ? `<p class="warn-text">${esc(this.t("packagesByHand", { list: r.packages.join(", ") }))}</p>` : ""}
         ${r.dashboards?.length ? `<p class="ok-text">${esc(this.t("dashboardsUpdated", { list: r.dashboards.join(", ") }))}</p>` : ""}
         ${(r.triggers?.unresolved || r.unresolved || []).length ? `<div class="card warn left"><b>${this.t("triggersOpen")}</b><ul>${(r.triggers?.unresolved || r.unresolved).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
         <div class="actions"><button class="primary" data-act="home">${this.t("home")}</button></div>
@@ -1644,14 +1651,17 @@ class ReplaceDevicePanel extends HTMLElement {
     const chips = [
       ...(r.users || []).map((u) => [u.startsWith("script") ? "mdi:script-text" : u.startsWith("scene") ? "mdi:palette" : "mdi:robot", u.replace(/^(automation|script|scene): /, "")]),
       ...(r.dashboards || []).map((x) => ["mdi:view-dashboard", x]),
-      ...(r.integrations || []).map((x) => ["mdi:puzzle", x]),
-      ...(r.yaml || []).map((x) => ["mdi:file-code-outline", x]),
       ...(r.energy ? [["mdi:lightning-bolt", this.t("renameEnergy")]] : []),
+    ];
+    const hand = [
+      ...(r.yaml || []).map((x) => ["mdi:file-code-outline", x]),
+      ...(r.integrations || []).map((x) => ["mdi:puzzle", x]),
     ];
     const chip = ([i, x]) => `<span class="chip sm"><ha-icon icon="${i}"></ha-icon>${esc(x)}</span>`;
     return `
       ${chips.length ? `<h3 class="dsec"><ha-icon icon="mdi:sync"></ha-icon>${this.t("renameFixed")}</h3><div class="dchips">${chips.map(chip).join("")}</div>`
         : `<p class="muted small">${this.t("renameNothingUses")}</p>`}
+      ${hand.length ? `<h3 class="dsec warn-text"><ha-icon icon="mdi:file-document-edit-outline"></ha-icon>${this.t("renameByHand")}</h3><div class="dchips">${hand.map(chip).join("")}</div>` : ""}
       ${(r.esphome || []).length ? `<h3 class="dsec warn-text"><ha-icon icon="mdi:chip"></ha-icon>${this.t("renameEsphome")}</h3><div class="dchips">${r.esphome.map((x) => chip(["mdi:file-code-outline", x])).join("")}</div>` : ""}
       ${(r.outside || []).length ? `<h3 class="dsec red-text"><ha-icon icon="mdi:alert-octagon"></ha-icon>${this.t("renameOutside")}</h3><div class="dchips">${r.outside.map((x) => chip(["mdi:file-alert-outline", x])).join("")}</div>` : ""}`;
   }
@@ -1664,8 +1674,7 @@ class ReplaceDevicePanel extends HTMLElement {
         <div class="card center"><div class="check"><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="24"/><path d="M14 27l8 8 16-16"/></svg></div>
           <h2>${esc(this.t("renameDone", { name: this.renameName }))}</h2>
           <p class="muted">${esc(this.t("renameDoneText", { n: r.entities.length }))}</p></div>
-        <div class="card">${this.renamePlaces(r)}
-          ${(r.yaml || []).length ? `<p class="hint"><ha-icon icon="mdi:information-outline"></ha-icon><span>${this.t("renameRestart")}</span></p>` : ""}</div>
+        <div class="card">${this.renamePlaces(r)}</div>
         <div class="actions"><button class="ghost" data-act="undo" data-id="${r.id}">${this.t("undo")}</button><button class="primary" data-act="home">${this.t("home")}</button></div>`;
     }
     const r = this.renameDry;
@@ -1697,7 +1706,7 @@ class ReplaceDevicePanel extends HTMLElement {
   dryView() {
     const code = (this._hass?.language || "en").split("-")[0];
     const press = (l) => esc(pressWords(l, code));
-    const icon = (id) => DOMAIN_ICON[String(id).split(".")[0]] || "mdi:shape";
+    const icon = (id) => esc(DOMAIN_ICON[String(id).split(".")[0]] || "mdi:shape");
     const usedIn = (list) => !Array.isArray(list) ? "" : list.length
       ? `<div class="dchips"><span class="muted small">${this.t("usedIn")}:</span>${list.map((u) => `<span class="chip sm"><ha-icon icon="${u.startsWith("Dashboard") ? "mdi:view-dashboard" : "mdi:robot"}"></ha-icon>${esc(u.replace(/^Dashboard: /, ""))}</span>`).join("")}</div>`
       : `<div class="muted small">${this.t("notUsed")}</div>`;
@@ -1712,9 +1721,9 @@ class ReplaceDevicePanel extends HTMLElement {
       const updated = [
         ...d.users.map((u) => [userIcon(u), u.replace(/^(automation|script|scene): /, "")]),
         ...d.dashboards.map((x) => ["mdi:view-dashboard", x]),
-        ...d.integrations.map((x) => ["mdi:puzzle", x]),
       ];
-      const toCheck = open.length + byHand.length;
+      const handOther = [...(d.integrations || []), ...(d.packages || [])];
+      const toCheck = open.length + byHand.length + handOther.length;
       const entityRow = (e) => `<div class="drow">
           <ha-icon icon="${icon(e.to)}"></ha-icon>
           <div class="grow"><div class="dname">${esc(e.name || e.to)}</div>
@@ -1744,6 +1753,8 @@ class ReplaceDevicePanel extends HTMLElement {
           <div class="grow"><div class="dname">${esc(c.automation)}</div>
             <div class="press"><span>${press(c.before)}</span><ha-icon icon="mdi:arrow-right"></ha-icon><span>${press(c.after)}</span></div>
             <div class="muted small">${esc(this.t("byHand", { file: c.by_hand }))}</div></div></div>`),
+        ...(d.integrations || []).map((x) => `<div class="drow warnrow"><ha-icon icon="mdi:puzzle"></ha-icon><div class="grow"><div class="dname">${esc(x)}</div><div class="muted small">${esc(this.t("otherIntegrations", { list: x }))}</div></div></div>`),
+        ...(d.packages || []).map((x) => `<div class="drow warnrow"><ha-icon icon="mdi:file-document-edit-outline"></ha-icon><div class="grow"><div class="dname">${esc(x)}</div><div class="muted small">${esc(this.t("byHand", { file: x }))}</div></div></div>`),
         ...open.map((u) => {
           const at = u.indexOf(": ");
           const [name, what] = at > 0 ? [u.slice(0, at), u.slice(at + 2)] : [u, ""];
@@ -1951,7 +1962,8 @@ class ReplaceDevicePanel extends HTMLElement {
         ${r.triggers?.translated?.length ? `<p class="ok-text">${this.t("triggersDone", { n: r.triggers.translated.length })}</p>` : ""}
         ${this.aiNote(r.ai_error || r.triggers?.ai_error)}
         ${r.triggers?.translated?.length || r.translated ? `<p class="hint left-hint"><ha-icon icon="mdi:gesture-tap-button"></ha-icon><span>${this.t("pressOnce")}</span></p>` : ""}
-        ${r.integrations?.length ? `<p class="ok-text">${esc(this.t("otherIntegrations", { list: r.integrations.join(", ") }))}</p>` : ""}
+        ${r.integrations?.length ? `<p class="warn-text">${esc(this.t("otherIntegrations", { list: r.integrations.join(", ") }))}</p>` : ""}
+        ${r.packages?.length ? `<p class="warn-text">${esc(this.t("packagesByHand", { list: r.packages.join(", ") }))}</p>` : ""}
         ${r.dashboards?.length ? `<p class="ok-text">${esc(this.t("dashboardsUpdated", { list: r.dashboards.join(", ") }))}</p>` : ""}
         ${(r.triggers?.unresolved || r.unresolved || []).length ? `<div class="card warn left"><b>${this.t("triggersOpen")}</b><ul>${(r.triggers?.unresolved || r.unresolved).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
 

@@ -24,11 +24,11 @@ When a device breaks and you buy a new one, Home Assistant sees a stranger: new 
 | **History and statistics** | Graphs and long-term statistics continue. Energy totals too – a new meter starting at 0 kWh is handled as a reset. |
 | **Your settings** | Names, icons, areas, labels, categories, voice aliases, display precision and unit settings. |
 | **The device** | The new device gets the old one's name and area – also in Zigbee2MQTT, if you want. If the old device stays (its integration won't let go, or you keep it), it's renamed "… (old – can be deleted)" so it's easy to spot. |
-| **Automations and scripts** | Everything that points at the old device by ID: `automations.yaml`, `scripts.yaml`, `scenes.yaml` and `packages/`. |
+| **Automations and scripts** | Everything that points at the old device by ID in `automations.yaml`, `scripts.yaml` and `scenes.yaml`. Files in `packages/` are your own, so they are listed for you to change. |
 | **Entity IDs of new entities** | Entities only the new device has (e.g. Zigbee2MQTT's extra sensors) get IDs after the device's name, like `sensor.kitchen_sensor_linkquality` instead of `sensor.0x00158d…_linkquality`. For replacements made before, use **Edit → Tidy up entity IDs**. |
 | **Button triggers** | Triggers with other names in the new integration are translated (ZHA `remote_button_short_press` → Zigbee2MQTT `action: single`), and so are `zha_event` triggers and Zigbee2MQTT MQTT topics – also in `wait_for_trigger` and in `scripts.yaml`. In `packages/` and YAML dashboards, which are your own files, it lists what to change by hand. |
 | **Blueprints** | Inputs meant for the old integration are moved to the right ones – e.g. a "ZHA / Zigbee2MQTT" remote blueprint gets the Zigbee2MQTT name and base topic instead of the ZHA device. |
-| **Dashboards and other integrations** | Dashboards made in the UI, and integrations that store the device (e.g. Battery Notes). |
+| **Dashboards and other integrations** | Dashboards made in the UI are updated. Other integrations that store the device (e.g. Battery Notes) own their settings, so they are listed for you to change. |
 | **Zigbee groups** | Make the group again in the new integration with the same name, and it takes over the old group's entity ID and history. |
 
 A note is added to the logbook, and if the new device sends no values after 10 minutes, you get a repair.
@@ -75,15 +75,15 @@ Can't find it in the HACS search? Add it as a custom repository first: **HACS** 
 
 ### Rename a device
 
-Home Assistant can rename a device and its entity IDs, but automations, scripts, dashboards and helpers keep pointing at the old IDs. **Rename a device** changes the name and the entity IDs, and updates every place Home Assistant can reach:
+Home Assistant can rename a device and its entity IDs, but automations, scripts, dashboards and helpers keep pointing at the old IDs. **Rename a device** changes the name and the entity IDs, and updates the places the Home Assistant editors manage:
 
-- automations, scripts and scenes (also inside templates and blueprint inputs) and `packages/`
-- dashboards made in the UI, helpers (groups, templates, utility meters …) and other integrations that store the ID
-- the energy dashboard, your own YAML files that `configuration.yaml` includes, and the voice assistant's `custom_sentences/`
-- ESPHome files that read from Home Assistant (install the device again afterwards)
+- automations, scripts and scenes (also inside templates and blueprint inputs)
+- dashboards made in the UI and the energy dashboard
 - the name in Zigbee2MQTT
 
-History and statistics follow by themselves. Code outside Home Assistant (Node-RED, AppDaemon) is listed for you to change. Tap **Test first** to see every change before it happens, and **Undo** in the list puts it all back.
+It lists the rest for you to change, because those are your own files or other integrations' settings: helpers and other integrations that store the ID, `packages/` and other YAML files that `configuration.yaml` includes, the voice assistant's `custom_sentences/`, ESPHome files, and code outside Home Assistant (Node-RED, AppDaemon).
+
+History and statistics follow by themselves. Tap **Test first** to see every change before it happens, and **Undo** in the list puts it all back.
 
 <p><img src="docs/panel-rename.png" alt="Rename a device: the entity IDs that change and every place that is updated" width="300"></p>
 
@@ -119,11 +119,11 @@ Når en enhed går i stykker, og du køber en ny, ser Home Assistant en fremmed.
 - **Historik og statistik:** Grafer og langtidsstatistik fortsætter. Det gælder også energi. En ny måler, der starter på 0 kWh, bliver regnet som en nulstilling.
 - **Dine indstillinger:** Navne, ikoner, områder, etiketter, kategorier, stemme-aliasser, antal decimaler og enheder.
 - **Enheden:** Den nye enhed får den gamles navn og område, og hvis du vil, også i Zigbee2MQTT. Bliver den gamle enhed liggende (fordi integrationen ikke vil slippe den, eller fordi du beholder den), får den navnet "… (gammel – kan slettes)", så den er nem at finde.
-- **Automatiseringer og scripts:** Alt, der peger på den gamle enhed via id, i `automations.yaml`, `scripts.yaml`, `scenes.yaml` og `packages/`.
+- **Automatiseringer og scripts:** Alt, der peger på den gamle enhed via id, i `automations.yaml`, `scripts.yaml` og `scenes.yaml`. Filer i `packages/` er dine egne, så dem viser den, så du selv kan rette dem.
 - **Entity-id'er på nye entiteter:** Entiteter, som kun den nye enhed har (fx Zigbee2MQTT's ekstra sensorer), får id'er efter enhedens navn, fx `sensor.kokken_sensor_linkquality` i stedet for `sensor.0x00158d…_linkquality`. Ved tidligere udskiftninger: **Ret → Ryd op i entity-id'er**.
 - **Knaptriggere:** Triggere, der hedder noget andet i den nye integration, bliver oversat (ZHA `remote_button_short_press` → Zigbee2MQTT `action: single`). Det samme gælder `zha_event`-triggere og Zigbee2MQTT-MQTT-emner, også i `wait_for_trigger` og i `scripts.yaml`. I `packages/` og YAML-dashboards, som er dine egne filer, viser den, hvad du selv skal rette.
 - **Blueprints:** Felter til den gamle integration bliver flyttet til de rigtige. Fx får en "ZHA / Zigbee2MQTT"-fjernbetjeningsblueprint Zigbee2MQTT-navnet og base topic i stedet for ZHA-enheden.
-- **Dashboards og andre integrationer:** Dashboards lavet i brugerfladen og integrationer, der gemmer enheden (fx Battery Notes).
+- **Dashboards og andre integrationer:** Dashboards lavet i brugerfladen bliver rettet. Andre integrationer, der gemmer enheden (fx Battery Notes), ejer selv deres indstillinger, så dem viser den, så du selv kan rette dem.
 - **Zigbee-grupper:** Lav gruppen igen i den nye integration med samme navn, så overtager den den gamle gruppes entity-id og historik.
 
 Der kommer en note i logbogen. Sender den nye enhed ingen værdier efter 10 minutter, får du en reparation.
@@ -168,15 +168,15 @@ Kan du ikke finde den i HACS-søgningen? Tilføj den først som brugerdefineret 
 
 ### Omdøb en enhed
 
-Home Assistant kan omdøbe en enhed og dens entity-id'er, men automatiseringer, scripts, dashboards og hjælpere peger stadig på de gamle id'er. **Omdøb en enhed** skifter navnet og entity-id'erne og retter alle de steder, Home Assistant kan nå:
+Home Assistant kan omdøbe en enhed og dens entity-id'er, men automatiseringer, scripts, dashboards og hjælpere peger stadig på de gamle id'er. **Omdøb en enhed** skifter navnet og entity-id'erne og retter de steder, Home Assistants editorer styrer:
 
-- automatiseringer, scripts og scener (også i skabeloner og blueprint-input) og `packages/`
-- dashboards lavet i brugerfladen, hjælpere (grupper, skabeloner, utility meter …) og andre integrationer, der gemmer id'et
-- energi-dashboardet, dine egne YAML-filer, som `configuration.yaml` inkluderer, og stemmeassistentens `custom_sentences/`
-- ESPHome-filer, der læser fra Home Assistant (installer enheden igen bagefter)
+- automatiseringer, scripts og scener (også i skabeloner og blueprint-input)
+- dashboards lavet i brugerfladen og energi-dashboardet
 - navnet i Zigbee2MQTT
 
-Historik og statistik følger med af sig selv. Kode uden for Home Assistant (Node-RED, AppDaemon) bliver listet, så du kan rette den selv. Tryk **Test først** for at se alle ændringer, før de sker, og **Fortryd** i listen sætter det hele tilbage.
+Resten viser den, så du selv kan rette det, fordi det er dine egne filer eller andre integrationers indstillinger: hjælpere og andre integrationer, der gemmer id'et, `packages/` og andre YAML-filer, som `configuration.yaml` inkluderer, stemmeassistentens `custom_sentences/`, ESPHome-filer og kode uden for Home Assistant (Node-RED, AppDaemon).
+
+Historik og statistik følger med af sig selv. Tryk **Test først** for at se alle ændringer, før de sker, og **Fortryd** i listen sætter det hele tilbage.
 
 <p><img src="docs/panel-rename.png" alt="Omdøb en enhed: de entity-id'er der skifter, og alle steder der rettes" width="300"></p>
 

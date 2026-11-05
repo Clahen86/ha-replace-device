@@ -241,9 +241,9 @@ class Replacer:
         record["dashboards"] = await _safely(
             "updating dashboards", references.async_rewrite_dashboards(hass, record["ids"]), []
         )
-        record["integrations"] = await _safely(
-            "updating other integrations", references.async_rewrite_entries(hass, record["ids"], skip), []
-        )
+        # Other integrations' settings and hand-written packages are only listed: the user changes them.
+        record["integrations"] = [e.title for e in references.entries_using(hass, record["ids"], skip)]
+        record["packages"] = await hass.async_add_executor_job(_packages_using, hass.config.path(), record["ids"])
         # The entities only the new device has get ids after the device's name, like the others.
         own = [entities.async_get(n.entity_id) for n in plan.new_entities if n.entity_id not in set(temp_ids)]
         record["tidied"], tidied_files = await _safely(
@@ -258,8 +258,6 @@ class Replacer:
                 "renaming in Zigbee2MQTT", _rename_in_z2m(hass, plan.new, device_name(plan.old)), False
             )
 
-        # 5. The new entities' first minutes under their own ids are not needed.
-        await _safely("cleaning up history", _clean_recorder(hass, temp_ids), None)
         await _safely("writing the logbook", _logbook(hass, plan, old_ids), None)
         self._timers.append(_check_later(hass, plan, old_ids))
         self._save()
@@ -343,6 +341,7 @@ class Replacer:
             "triggers": translation,
             "dashboards": [title for title, _, config in dashboards if references.swap(config, ids) is not config],
             "integrations": [entry.title for entry in references.entries_using(hass, ids, skip)],
+            "packages": await hass.async_add_executor_job(_packages_using, hass.config.path(), ids),
         }
 
     async def async_replace_entity(
@@ -379,7 +378,6 @@ class Replacer:
                 old.entity_id, domain, dict(new.options.get(domain, {})) | dict(options)
             )
         record["files"] = await self._rewrite(record["ids"], reload)
-        await _clean_recorder(hass, [temp_id])
         self.history.append(record)
         self._save()
         return {"id": record["id"], "moved": 1, "changed": record["files"]}
@@ -435,7 +433,6 @@ class Replacer:
         back = {new: old for old, new in record["ids"].items()}
         await self._rewrite(back, reload=reload)
         await references.async_rewrite_dashboards(self.hass, back)
-        await references.async_rewrite_entries(self.hass, back, set())
         record["undone"] = True
         self._save()
         return True
@@ -592,7 +589,6 @@ class Replacer:
             )
             changed |= set(translation.get("saved") or [])
         await _safely("updating dashboards", references.async_rewrite_dashboards(hass, record["ids"]), [])
-        await _safely("updating other integrations", references.async_rewrite_entries(hass, record["ids"], set()), [])
         if reload:
             await self.async_reload(changed)
         record["undone"] = False
@@ -720,7 +716,10 @@ class Replacer:
         ]
         result: dict[str, Any] = {
             "users": await hass.async_add_executor_job(_users_of_ids, config_dir, ids),
-            "yaml": [os.path.relpath(p, config_dir) for p, kind, _ in yaml_changes if kind == "config"],
+            "yaml": sorted(
+                {os.path.relpath(p, config_dir) for p, kind, _ in yaml_changes if kind == "config"}
+                | set(await hass.async_add_executor_job(_packages_using, config_dir, ids))
+            ),
             "esphome": [os.path.relpath(p, config_dir) for p, kind, _ in yaml_changes if kind == "esphome"],
             "dashboards": [t for t, _, c in dashboards if references.swap(c, ids, True) is not c],
             "integrations": [e.title for e in entries],
@@ -729,19 +728,12 @@ class Replacer:
         }
         if not apply:
             return result
+        # Hand-written YAML (configuration.yaml, packages, ESPHome) and other integrations' settings are only
+        # listed in "yaml", "esphome" and "integrations": the user changes them.
         changed = set(await self._rewrite(ids, reload=False, exact=True))
-        for path, _kind, text in yaml_changes:
-            await hass.async_add_executor_job(write_utf8_file_atomic, path, text)
         await _safely("updating dashboards", references.async_rewrite_dashboards(hass, ids, exact=True), [])
-        await _safely("updating other integrations", references.async_rewrite_entries(hass, ids, set(), True), [])
         await _safely("updating the energy dashboard", references.async_rewrite_energy(hass, ids), False)
         await self.async_reload(changed)
-        if yaml_changes and hass.services.has_service("homeassistant", "reload_all"):
-            await _safely(
-                "reloading YAML",
-                hass.services.async_call("homeassistant", "reload_all", blocking=True),
-                None,
-            )
         result["changed"] = sorted(changed)
         return result
 
@@ -1024,20 +1016,23 @@ def _domain(hass: HomeAssistant, device: dr.DeviceEntry) -> str | None:
 
 
 def _config_files(config_dir: str) -> list[tuple[tuple[str, ...], str]]:
-    """The files the editors write, and every YAML file in packages/ (which can hold all three)."""
-    files: list[tuple[tuple[str, ...], str]] = [
+    """The files the automation, script and scene editors write - the only YAML files that are changed."""
+    return [
         (("automation",), os.path.join(config_dir, AUTOMATIONS_FILE)),
         (("script",), os.path.join(config_dir, SCRIPTS_FILE)),
         (("scene",), os.path.join(config_dir, SCENES_FILE)),
     ]
-    packages = os.path.join(config_dir, "packages")
-    for root, _dirs, names in os.walk(packages):
-        files += [
-            (("automation", "script", "scene"), os.path.join(root, n))
-            for n in sorted(names)
-            if n.endswith((".yaml", ".yml"))
-        ]
-    return files
+
+
+def _packages_using(config_dir: str, ids: dict[str, str]) -> list[str]:
+    """Package files (hand-written configuration) that mention one of the ids. They are only listed, never changed."""
+    found = []
+    for root, _dirs, names in os.walk(os.path.join(config_dir, "packages")):
+        for name in sorted(names):
+            path = os.path.join(root, name)
+            if name.endswith((".yaml", ".yml")) and (text := _read(path)) and any(old in text for old in ids):
+                found.append(os.path.relpath(path, config_dir))
+    return found
 
 
 async def _safely[T](what: str, job: Awaitable[T], default: T) -> T:
@@ -1124,16 +1119,6 @@ async def _wait_until_gone(hass: HomeAssistant, entity_ids: list[str]) -> None:
         await asyncio.sleep(0)
     for entity_id in entity_ids:
         hass.states.async_remove(entity_id)
-
-
-async def _clean_recorder(hass: HomeAssistant, entity_ids: list[str]) -> None:
-    if "recorder" not in hass.config.components or not entity_ids:
-        return
-    from homeassistant.components.recorder import get_instance
-
-    get_instance(hass).async_clear_statistics(entity_ids)
-    if hass.services.has_service("recorder", "purge_entities"):
-        await hass.services.async_call("recorder", "purge_entities", {"entity_id": entity_ids, "keep_days": 0})
 
 
 async def _logbook(hass: HomeAssistant, plan: Plan, entity_ids: list[str]) -> None:

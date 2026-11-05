@@ -8,7 +8,6 @@ import logging
 import os
 from typing import Any
 
-from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.util.yaml import load_yaml
 
@@ -67,22 +66,6 @@ def entries_using(hass: HomeAssistant, ids: dict[str, str], skip: set[str]) -> l
         if entry.domain not in skip | {DOMAIN}
         and any(old in json.dumps([dict(entry.data), dict(entry.options)], default=str) for old in ids)
     ]
-
-
-async def async_rewrite_entries(
-    hass: HomeAssistant, ids: dict[str, str], skip: set[str], exact: bool = False
-) -> list[str]:
-    """Point other integrations (and helpers: groups, templates, utility meters …) at the new ids, and reload them."""
-    changed = []
-    for entry in entries_using(hass, ids, skip):
-        data, options = swap(dict(entry.data), ids, exact), swap(dict(entry.options), ids, exact)
-        if data == dict(entry.data) and options == dict(entry.options):
-            continue
-        hass.config_entries.async_update_entry(entry, data=data, options=options)
-        changed.append(entry.title)
-        if entry.state is ConfigEntryState.LOADED:
-            hass.config_entries.async_schedule_reload(entry.entry_id)
-    return changed
 
 
 async def _energy(hass: HomeAssistant) -> Any:

@@ -463,7 +463,8 @@ async def test_translate_triggers_ai_and_undo_all(hass: HomeAssistant, hass_ws_c
     }
     assert trigger_shake["subtype"] == "shake"  # answered by the AI
     assert trigger_rotated["domain"] == "zha" and trigger_rotated["device_id"] == new.id
-    assert new.id in (tmp_path / "packages" / "gang.yaml").read_text()
+    # Packages are hand-written configuration: listed for the user, never changed.
+    assert new.id not in (tmp_path / "packages" / "gang.yaml").read_text()
 
     # Undo all: the automation is as before, with the old device.
     await client.send_json_auto_id({"type": "replace_device/undo", "batch": result["batch"]})
@@ -607,7 +608,8 @@ async def test_checks_other_places_and_groups(hass: HomeAssistant, hass_ws_clien
     result = (await client.receive_json())["result"]
     await hass.async_block_till_done()
     assert result["devices"] == 2 and not result["failed"]
-    assert notes.data == {"device_id": new.id}
+    # Other integrations' settings are only reported (they own their data), never written.
+    assert notes.data == {"device_id": old.id}
     dashboard = await hass.data[LOVELACE_DATA].dashboards[None].async_load(False)
     assert dashboard["views"][0]["cards"][0]["device_id"] == new.id
     assert registry.async_get("light.stue_loft").platform == "mqtt"
@@ -1697,8 +1699,9 @@ async def test_own_entities_get_ids_after_the_device(hass: HomeAssistant, tmp_pa
     text = (tmp_path / "automations.yaml").read_text()
     assert "sensor.rogalarm_gang_voltage\n" in text and "states('sensor.rogalarm_gang_voltage_2')" in text
     assert "0x54ef" not in text
-    assert "sensor.rogalarm_gang_voltage'" in (tmp_path / "templates.yaml").read_text()
-    assert helper.options["entities"] == ["sensor.rogalarm_gang_voltage"]
+    # Hand-written YAML and other integrations' settings are listed, not changed.
+    assert "sensor.0x54ef441001314fb2_voltage" in (tmp_path / "templates.yaml").read_text()
+    assert helper.options["entities"] == ["sensor.0x54ef441001314fb2_voltage"]
     assert replacer.tidy_plan(result["id"]) == []
 
     # A Zigbee2MQTT update adds an entity later: "Tidy up" in Edit gives it a name too.
@@ -1773,7 +1776,8 @@ async def test_rename_device_everywhere(hass: HomeAssistant, tmp_path) -> None:
         "sensor.kokken_sensor_temperature": "sensor.spisekammer_temperature",
         "sensor.0x00158d0001a2b3_linkquality": "sensor.spisekammer_linkquality",
     }
-    assert dry["yaml"] == ["custom_sentences/da/k.yaml", "templates.yaml"] and dry["esphome"] == ["esphome/display.yaml"]
+    assert sorted(dry["yaml"]) == ["custom_sentences/da/k.yaml", "packages/p.yaml", "templates.yaml"]
+    assert dry["esphome"] == ["esphome/display.yaml"]
     assert dry["integrations"] == ["Alle temperaturer"]
     assert entities.async_get("sensor.kokken_sensor_temperature")  # nothing changed yet
 
@@ -1782,14 +1786,15 @@ async def test_rename_device_everywhere(hass: HomeAssistant, tmp_path) -> None:
     assert devices.async_get(device.id).name_by_user == "Spisekammer"
     assert entities.async_get("sensor.spisekammer_temperature").unique_id == "t"
     assert entities.async_get("sensor.spisekammer_linkquality").unique_id == "l"
+    # The editors' files are changed; hand-written YAML, ESPHome and other integrations are only listed.
     templates = (tmp_path / "templates.yaml").read_text()
-    assert "states('sensor.spisekammer_temperature')" in templates and "sensor.kokken_sensor_temperature_avg" in templates
+    assert "states('sensor.kokken_sensor_temperature')" in templates
     assert "sensor.spisekammer_temperature" in (tmp_path / "automations.yaml").read_text()
     assert "sensor.spisekammer_linkquality" in (tmp_path / "scripts.yaml").read_text()
-    assert "sensor.spisekammer_temperature:" in (tmp_path / "packages" / "p.yaml").read_text()
-    assert "sensor.spisekammer_temperature" in (tmp_path / "esphome" / "display.yaml").read_text()
+    assert "sensor.kokken_sensor_temperature:" in (tmp_path / "packages" / "p.yaml").read_text()
+    assert "sensor.kokken_sensor_temperature" in (tmp_path / "esphome" / "display.yaml").read_text()
     assert "kokken_sensor" in (tmp_path / "secrets.yaml").read_text()
-    assert group.options["entities"] == ["sensor.spisekammer_temperature", "sensor.other"]
+    assert group.options["entities"] == ["sensor.kokken_sensor_temperature", "sensor.other"]
     assert entities.async_get("sensor.kokken_sensor_temperature_avg")
 
     assert await replacer.async_undo(result["id"])
@@ -1818,3 +1823,14 @@ async def test_old_device_that_stays_says_so(hass: HomeAssistant) -> None:
     assert devices.async_get(new.id).name_by_user == "Kitchen"
     assert await replacer.async_undo(result["id"])
     assert devices.async_get(old.id).name_by_user is None
+
+
+def test_packages_are_only_listed(tmp_path) -> None:
+    """Package files that mention an old id are listed for the user; they are never part of the files changed."""
+    from custom_components.replace_device.replace import _config_files, _packages_using
+
+    (tmp_path / "packages" / "sub").mkdir(parents=True)
+    (tmp_path / "packages" / "sub" / "a.yaml").write_text("automation:\n  - triggers:\n    - device_id: abc123\n")
+    (tmp_path / "packages" / "b.yaml").write_text("sensor: []\n")
+    assert _packages_using(str(tmp_path), {"abc123": "def456"}) == ["packages/sub/a.yaml"]
+    assert all(not path.startswith(str(tmp_path / "packages")) for _, path in _config_files(str(tmp_path)))
