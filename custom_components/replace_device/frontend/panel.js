@@ -85,6 +85,7 @@ const TEXT = {
     fixHint: "Tick the helpers that may be changed. They are changed through their own settings form.",
     handTitle: "Change by hand in your own files",
     handLine: "line {n}",
+    handLines: "{n} lines – tap to see",
     fixDone: "Changed after your OK: {list}",
     fixFailed: "Could not change (do it by hand): {list}",
     dashboardsUpdated: "Dashboards updated: {list}",
@@ -300,6 +301,7 @@ const TEXT = {
     fixHint: "Sæt flueben ved de hjælpere, der må rettes. De rettes via deres egen indstillingsside.",
     handTitle: "Ret selv i dine egne filer",
     handLine: "linje {n}",
+    handLines: "{n} linjer – tryk for at se",
     fixDone: "Rettet efter dit ok: {list}",
     fixFailed: "Kunne ikke rettes (ret selv): {list}",
     dashboardsUpdated: "Dashboards, der opdateres: {list}",
@@ -515,6 +517,7 @@ const TEXT = {
     fixHint: "Hake die Helfer an, die geändert werden dürfen. Sie werden über ihr eigenes Einstellungsformular geändert.",
     handTitle: "Selbst ändern in deinen eigenen Dateien",
     handLine: "Zeile {n}",
+    handLines: "{n} Zeilen – tippen zum Anzeigen",
     fixDone: "Nach deinem OK geändert: {list}",
     fixFailed: "Konnte nicht geändert werden (selbst ändern): {list}",
     dashboardsUpdated: "Dashboards angepasst: {list}",
@@ -730,6 +733,7 @@ const TEXT = {
     fixHint: "Kryssa i hjälparna som får ändras. De ändras via sitt eget inställningsformulär.",
     handTitle: "Ändra själv i dina egna filer",
     handLine: "rad {n}",
+    handLines: "{n} rader – tryck för att se",
     fixDone: "Ändrat efter ditt OK: {list}",
     fixFailed: "Kunde inte ändras (ändra själv): {list}",
     dashboardsUpdated: "Instrumentpaneler uppdaterade: {list}",
@@ -945,6 +949,7 @@ const TEXT = {
     fixHint: "Vink de helpers aan die mogen worden aangepast. Ze worden via hun eigen instellingenformulier aangepast.",
     handTitle: "Zelf aanpassen in je eigen bestanden",
     handLine: "regel {n}",
+    handLines: "{n} regels – tik om te zien",
     fixDone: "Aangepast na je OK: {list}",
     fixFailed: "Kon niet worden aangepast (zelf doen): {list}",
     dashboardsUpdated: "Dashboards bijgewerkt: {list}",
@@ -1168,8 +1173,9 @@ class ReplaceDevicePanel extends HTMLElement {
   // The user's own files: every line to change by hand (they are never written).
   handBlock(files) {
     if (!files?.length) return "";
-    const file = (f) => `<details class="dmore" open><summary class="mono">${esc(f.file)}</summary>
-        ${f.lines.map((l) => `<div class="mono small fixline"><span class="muted">${esc(this.t("handLine", { n: l.line }))}</span><br><span class="red-text">− ${esc(l.before.trim())}</span><br><span class="ok-text">+ ${esc(l.after.trim())}</span></div>`).join("")}</details>`;
+    const line = (l) => `<div class="mono small fixline"><span class="muted">${esc(this.t("handLine", { n: l.line }))}</span><br><span class="red-text">− ${esc(l.before.trim())}</span><br><span class="ok-text">${l.hint ? "→" : "+"} ${esc(l.after.trim())}</span></div>`;
+    const file = (f) => `<details class="dmore handfile"><summary><span class="mono">${esc(f.file)}</span> <span class="muted small">· ${esc(this.t("handLines", { n: f.lines.length }))}</span></summary>
+        ${f.lines.map(line).join("")}</details>`;
     return `<h3 class="dsec warn-text"><ha-icon icon="mdi:file-document-edit-outline"></ha-icon>${this.t("handTitle")}</h3>${files.map(file).join("")}`;
   }
 
@@ -1727,9 +1733,9 @@ class ReplaceDevicePanel extends HTMLElement {
       ${chips.length ? `<h3 class="dsec"><ha-icon icon="mdi:sync"></ha-icon>${this.t("renameFixed")}</h3><div class="dchips">${chips.map(chip).join("")}</div>`
         : `<p class="muted small">${this.t("renameNothingUses")}</p>`}
       ${hand.length ? `<h3 class="dsec warn-text"><ha-icon icon="mdi:file-document-edit-outline"></ha-icon>${this.t("renameByHand")}</h3><div class="dchips">${hand.map(chip).join("")}</div>` : ""}
-      ${(r.esphome || []).length ? `<h3 class="dsec warn-text"><ha-icon icon="mdi:chip"></ha-icon>${this.t("renameEsphome")}</h3><div class="dchips">${r.esphome.map((x) => chip(["mdi:file-code-outline", x])).join("")}</div>` : ""}
+      ${(r.esphome || []).length ? `<p class="muted small"><ha-icon icon="mdi:chip"></ha-icon> ${this.t("renameEsphome")}</p>` : ""}
       ${this.handBlock(r.hand_files)}${this.fixBlock(r.fixable)}${this.fixResult(r.fixed)}
-      ${(r.outside || []).length ? `<h3 class="dsec red-text"><ha-icon icon="mdi:alert-octagon"></ha-icon>${this.t("renameOutside")}</h3><div class="dchips">${r.outside.map((x) => chip(["mdi:file-alert-outline", x])).join("")}</div>` : ""}`;
+      ${(r.outside || []).filter((x) => !shown.has(x)).length ? `<h3 class="dsec red-text"><ha-icon icon="mdi:alert-octagon"></ha-icon>${this.t("renameOutside")}</h3><div class="dchips">${r.outside.filter((x) => !shown.has(x)).map((x) => chip(["mdi:file-alert-outline", x])).join("")}</div>` : ""}`;
   }
 
   renameView() {
@@ -2332,7 +2338,7 @@ button.danger{background:var(--rd-red);color:#fff}.give-back{margin-top:16px}
 .mhead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}.mhead>span{display:flex;gap:6px;flex:none}
 .mrows{display:flex;flex-direction:column}
 .mrow{display:flex;align-items:center;gap:12px;padding:10px 4px;border-bottom:1px solid var(--divider-color,#eceff3);cursor:pointer}.mrow:last-child{border:0}
-.fixrow{align-items:flex-start}.fixrow .box{margin-top:2px}.fixline{margin-top:6px;overflow-wrap:anywhere;word-break:break-word}
+.fixrow{align-items:flex-start}.fixrow .box{margin-top:2px}.fixline{margin-top:6px;overflow-wrap:anywhere;word-break:break-word}.handfile summary{cursor:pointer;padding:8px 0;overflow-wrap:anywhere}
 .mrow input{display:none}.mrow .grow{display:flex;flex-direction:column;gap:2px}
 .box{width:22px;height:22px;border-radius:6px;border:2px solid var(--divider-color,#b8c0ca);flex:none;position:relative}
 input:checked+.box{background:var(--rd-blue);border-color:var(--rd-blue)}input:checked+.box:after{content:"";position:absolute;left:6px;top:2px;width:6px;height:11px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}

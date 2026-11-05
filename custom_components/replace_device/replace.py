@@ -750,7 +750,7 @@ class Replacer:
         }
         # Every line to change by hand in the user's own files; helpers with a form can be ticked.
         result["hand_files"] = await hass.async_add_executor_job(
-            fix.files_preview, config_dir, result["yaml"] + result["esphome"], ids, True
+            fix.files_preview, config_dir, result["yaml"] + result["esphome"] + result["outside"], ids, True
         )
         if not apply:
             result["fixable"] = {"entries": fix.entries_preview(hass, ids, True, set())}

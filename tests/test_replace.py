@@ -1864,10 +1864,18 @@ async def test_rename_with_picked_helper_and_hand_files(hass: HomeAssistant, tmp
     templates = "\n".join(lines) + "\n"
     (tmp_path / "templates.yaml").write_text(templates)
     (tmp_path / "automations.yaml").write_text("[]\n")
+    (tmp_path / "pyscript").mkdir()
+    (tmp_path / "pyscript" / "varme.py").write_text("x = 1\nt = state.get('SENSOR.KOKKEN_SENSOR_TEMPERATURE')\n")
     entry = await _setup(hass)
     replacer = entry.runtime_data
 
     dry = await replacer.async_rename_dry_run(device.id, "Spisekammer")
+    outside = next(f for f in dry["hand_files"] if f["file"] == "pyscript/varme.py")
+    assert outside["lines"] == [{
+        "line": 2, "before": "t = state.get('SENSOR.KOKKEN_SENSOR_TEMPERATURE')",
+        "after": "sensor.kokken_sensor_temperature → sensor.spisekammer_temperature", "hint": True,
+    }]
+    dry["hand_files"] = [f for f in dry["hand_files"] if f["file"] != "pyscript/varme.py"]
     assert dry["hand_files"] == [{
         "file": "templates.yaml",
         "lines": [{

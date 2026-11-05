@@ -59,6 +59,21 @@ def files_preview(config_dir: str, files: list[str], ids: dict[str, str], exact:
         new = swap_text(text, ids, exact)
         if new != text:
             found.append({"file": rel, "lines": _lines(text, new)})
+        elif lines := _mentions(text, ids):
+            # Code outside Home Assistant (AppDaemon, Node-RED …) can spell an id in its own way: show where.
+            found.append({"file": rel, "lines": lines})
+    return found
+
+
+def _mentions(text: str, ids: dict[str, str]) -> list[dict[str, Any]]:
+    """Lines that mention an old id in any spelling, with the new id to use instead."""
+    found = []
+    for n, line in enumerate(text.splitlines(), start=1):
+        low = line.lower()
+        for old, new in ids.items():
+            if len(old) >= 6 and old.lower() in low:
+                found.append({"line": n, "before": line, "after": f"{old} → {new}", "hint": True})
+                break
     return found
 
 
