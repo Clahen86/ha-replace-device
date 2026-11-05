@@ -85,7 +85,7 @@ The rest is your own files or other integrations' settings. Your own files are n
 
 History and statistics follow by themselves. Tap **Test first** to see every change before it happens, and **Undo** in the list puts it all back.
 
-<p><img src="docs/panel-rename.png" alt="Rename a device: the entity IDs that change and every place that is updated" width="300"></p>
+<p><img src="docs/panel-rename.png" alt="Rename a device: the entity IDs that change, what is updated and the lines to change by hand" width="300"></p>
 
 The list on the front page shows what still **needs a look** first (button triggers to check, entity IDs to tidy up). The rest is folded away under **Done**.
 5. Tap **Replace now**.
@@ -178,7 +178,7 @@ Resten er dine egne filer eller andre integrationers indstillinger. Dine egne fi
 
 Historik og statistik følger med af sig selv. Tryk **Test først** for at se alle ændringer, før de sker, og **Fortryd** i listen sætter det hele tilbage.
 
-<p><img src="docs/panel-rename.png" alt="Omdøb en enhed: de entity-id'er der skifter, og alle steder der rettes" width="300"></p>
+<p><img src="docs/panel-rename.png" alt="Omdøb en enhed: de entity-id'er der skifter, hvad der rettes, og de linjer du selv skal rette" width="300"></p>
 
 Listen på forsiden viser øverst, hvad der stadig **kræver handling** (knaptriggere, der skal tjekkes, entity-id'er, der kan ryddes op). Resten er foldet sammen under **Færdige**.
 5. Tryk **Udskift nu**.

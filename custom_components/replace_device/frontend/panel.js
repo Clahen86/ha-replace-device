@@ -86,6 +86,7 @@ const TEXT = {
     handTitle: "Change by hand in your own files",
     handLine: "line {n}",
     handLines: "{n} lines – tap to see",
+    handLine1: "1 line – tap to see",
     fixDone: "Changed after your OK: {list}",
     fixFailed: "Could not change (do it by hand): {list}",
     dashboardsUpdated: "Dashboards updated: {list}",
@@ -141,7 +142,7 @@ const TEXT = {
     migrateStart: "Move many devices",
     renameStart: "Rename a device",
     renameTitle: "Rename a device",
-    renameText: "The device, its entity IDs and every place that uses them get the new name – automations, scripts, dashboards, helpers, YAML and the energy dashboard. History follows.",
+    renameText: "The device and its entity IDs get the new name. Automations, scripts, scenes, dashboards and the energy dashboard follow, and helpers can be ticked. For your own YAML files it shows every line to change. History follows.",
     renamePick: "Pick the device to rename",
     newName: "New name",
     renameDo: "Rename",
@@ -302,6 +303,7 @@ const TEXT = {
     handTitle: "Ret selv i dine egne filer",
     handLine: "linje {n}",
     handLines: "{n} linjer – tryk for at se",
+    handLine1: "1 linje – tryk for at se",
     fixDone: "Rettet efter dit ok: {list}",
     fixFailed: "Kunne ikke rettes (ret selv): {list}",
     dashboardsUpdated: "Dashboards, der opdateres: {list}",
@@ -357,7 +359,7 @@ const TEXT = {
     migrateStart: "Flyt mange enheder",
     renameStart: "Omdøb en enhed",
     renameTitle: "Omdøb en enhed",
-    renameText: "Enheden, dens entity-id'er og alle steder, de bruges, får det nye navn – automatiseringer, scripts, dashboards, hjælpere, YAML og energi-dashboardet. Historikken følger med.",
+    renameText: "Enheden og dens entity-id'er får det nye navn. Automatiseringer, scripts, scener, dashboards og energi-dashboardet følger med, og hjælpere kan du sætte flueben ved. I dine egne YAML-filer viser den hver linje, du skal rette. Historikken følger med.",
     renamePick: "Vælg den enhed, der skal omdøbes",
     newName: "Nyt navn",
     renameDo: "Omdøb",
@@ -518,6 +520,7 @@ const TEXT = {
     handTitle: "Selbst ändern in deinen eigenen Dateien",
     handLine: "Zeile {n}",
     handLines: "{n} Zeilen – tippen zum Anzeigen",
+    handLine1: "1 Zeile – tippen zum Anzeigen",
     fixDone: "Nach deinem OK geändert: {list}",
     fixFailed: "Konnte nicht geändert werden (selbst ändern): {list}",
     dashboardsUpdated: "Dashboards angepasst: {list}",
@@ -573,7 +576,7 @@ const TEXT = {
     migrateStart: "Viele Geräte umziehen",
     renameStart: "Ein Gerät umbenennen",
     renameTitle: "Ein Gerät umbenennen",
-    renameText: "Das Gerät, seine Entitäts-IDs und alle Stellen, die sie nutzen, bekommen den neuen Namen – Automationen, Skripte, Dashboards, Helfer, YAML und das Energie-Dashboard. Der Verlauf bleibt erhalten.",
+    renameText: "Das Gerät und seine Entitäts-IDs bekommen den neuen Namen. Automationen, Skripte, Szenen, Dashboards und das Energie-Dashboard ziehen mit, Helfer kannst du anhaken. Für deine eigenen YAML-Dateien zeigt es jede Zeile, die du ändern musst. Der Verlauf bleibt erhalten.",
     renamePick: "Wähle das Gerät zum Umbenennen",
     newName: "Neuer Name",
     renameDo: "Umbenennen",
@@ -734,6 +737,7 @@ const TEXT = {
     handTitle: "Ändra själv i dina egna filer",
     handLine: "rad {n}",
     handLines: "{n} rader – tryck för att se",
+    handLine1: "1 rad – tryck för att se",
     fixDone: "Ändrat efter ditt OK: {list}",
     fixFailed: "Kunde inte ändras (ändra själv): {list}",
     dashboardsUpdated: "Instrumentpaneler uppdaterade: {list}",
@@ -789,7 +793,7 @@ const TEXT = {
     migrateStart: "Flytta många enheter",
     renameStart: "Byt namn på en enhet",
     renameTitle: "Byt namn på en enhet",
-    renameText: "Enheten, dess entitets-ID och alla ställen som använder dem får det nya namnet – automationer, skript, instrumentpaneler, hjälpare, YAML och energipanelen. Historiken följer med.",
+    renameText: "Enheten och dess entitets-ID får det nya namnet. Automationer, skript, scener, instrumentpaneler och energipanelen följer med, och hjälpare kan du kryssa i. För dina egna YAML-filer visar den varje rad du ska ändra. Historiken följer med.",
     renamePick: "Välj enheten som ska byta namn",
     newName: "Nytt namn",
     renameDo: "Byt namn",
@@ -950,6 +954,7 @@ const TEXT = {
     handTitle: "Zelf aanpassen in je eigen bestanden",
     handLine: "regel {n}",
     handLines: "{n} regels – tik om te zien",
+    handLine1: "1 regel – tik om te zien",
     fixDone: "Aangepast na je OK: {list}",
     fixFailed: "Kon niet worden aangepast (zelf doen): {list}",
     dashboardsUpdated: "Dashboards bijgewerkt: {list}",
@@ -1005,7 +1010,7 @@ const TEXT = {
     migrateStart: "Veel apparaten verhuizen",
     renameStart: "Een apparaat hernoemen",
     renameTitle: "Een apparaat hernoemen",
-    renameText: "Het apparaat, zijn entiteit-ID's en alle plekken die ze gebruiken krijgen de nieuwe naam – automatiseringen, scripts, dashboards, helpers, YAML en het energiedashboard. De geschiedenis blijft.",
+    renameText: "Het apparaat en zijn entiteit-ID's krijgen de nieuwe naam. Automatiseringen, scripts, scènes, dashboards en het energiedashboard gaan mee, en helpers kun je aanvinken. Voor je eigen YAML-bestanden toont het elke regel die je moet aanpassen. De geschiedenis blijft.",
     renamePick: "Kies het apparaat om te hernoemen",
     newName: "Nieuwe naam",
     renameDo: "Hernoemen",
@@ -1174,7 +1179,7 @@ class ReplaceDevicePanel extends HTMLElement {
   handBlock(files) {
     if (!files?.length) return "";
     const line = (l) => `<div class="mono small fixline"><span class="muted">${esc(this.t("handLine", { n: l.line }))}</span><br><span class="red-text">− ${esc(l.before.trim())}</span><br><span class="ok-text">${l.hint ? "→" : "+"} ${esc(l.after.trim())}</span></div>`;
-    const file = (f) => `<details class="dmore handfile"><summary><span class="mono">${esc(f.file)}</span> <span class="muted small">· ${esc(this.t("handLines", { n: f.lines.length }))}</span></summary>
+    const file = (f) => `<details class="dmore handfile"><summary><span class="mono">${esc(f.file)}</span> <span class="muted small">· ${esc(f.lines.length === 1 ? this.t("handLine1") : this.t("handLines", { n: f.lines.length }))}</span></summary>
         ${f.lines.map(line).join("")}</details>`;
     return `<h3 class="dsec warn-text"><ha-icon icon="mdi:file-document-edit-outline"></ha-icon>${this.t("handTitle")}</h3>${files.map(file).join("")}`;
   }
