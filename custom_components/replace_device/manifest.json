@@ -4,11 +4,13 @@
   "after_dependencies": [
     "automation",
     "energy",
+    "hassio",
     "logbook",
     "lovelace",
     "mqtt",
     "recorder",
-    "script"
+    "script",
+    "zha"
   ],
   "codeowners": [
     "@Clahen86"
