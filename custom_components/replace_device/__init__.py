@@ -48,6 +48,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ReplaceDeviceConfigEntry
     entry.async_on_unload(replacer.async_stop)
     entry.async_on_unload(entry.add_update_listener(_options_changed))
     version = (await async_get_integration(hass, DOMAIN)).version
+    # Also the file's time, so the browser fetches the panel again after a fix without a new version.
+    panel = Path(__file__).parent / "frontend" / "panel.js"
+    version = f"{version}-{int(await hass.async_add_executor_job(lambda: panel.stat().st_mtime))}"
     await panel_custom.async_register_panel(
         hass,
         frontend_url_path=PANEL,
