@@ -1585,7 +1585,8 @@ class ReplaceDevicePanel extends HTMLElement {
     const places = this.refOpen[r.entity_id];
     return `<div class="card ref-card ${r.ignored ? "is-hidden" : ""}">
         <div class="dev-head"><div class="dot ${r.ignored ? "grey" : "red"}"></div>
-          <div class="grow"><div class="dev-name">${esc(r.name)}</div><code>${esc(r.entity_id)}</code></div>
+          <div class="grow"><div class="dev-name">${esc(r.name)}</div><code>${esc(r.entity_id)}</code>
+            ${(r.card_names || []).filter((x) => x !== r.name).length ? `<div class="small muted">“${esc(r.card_names.filter((x) => x !== r.name).join("”, “"))}”</div>` : ""}</div>
           <span class="tag ${r.status === "orphan" ? "blue" : "red"}">${this.t(r.status === "orphan" ? "refsOrphan" : "refsMissing")}</span></div>
         <div class="small muted ref-used">${this.t("refsUsedIn")}</div><div class="chips">${used}</div>
         ${match}

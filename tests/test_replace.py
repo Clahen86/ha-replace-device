@@ -2039,3 +2039,18 @@ async def test_dead_references(hass: HomeAssistant) -> None:
     assert refs["light.hall"]["status"] == "missing" and refs["light.hall"]["ignored"]
     assert deadrefs.async_remove_orphan(hass, "sensor.kitchen_temp") and registry.async_get("sensor.kitchen_temp") is None
     assert not deadrefs.async_remove_orphan(hass, "light.kitchen")  # alive: never removed
+
+
+async def test_dead_reference_card_name(hass: HomeAssistant) -> None:
+    """The dashboard card's own name finds the replacement, even when the entity ID is something else entirely."""
+    from custom_components.replace_device import deadrefs
+
+    hass.states.async_set("light.loft_badevaerelse", "on", {"friendly_name": "Badeværelse loft"})
+    hass.states.async_set("light.loft_gang", "on", {"friendly_name": "Gang loft"})
+    hints: dict = {}
+    found: set = set()
+    deadrefs._walk({"views": [{"title": "Badeværelse", "cards": [{"type": "light", "entity": "light.badevarelse1", "name": "Badeværelse loft"}]}]}, found, hints)
+    assert found == {"light.badevarelse1"} and hints["light.badevarelse1"]["names"] == {"Badeværelse loft"}
+    best = deadrefs._candidates(hass, er.async_get(hass), "light.badevarelse1",
+                                ["light.loft_badevaerelse", "light.loft_gang"], hints["light.badevarelse1"])
+    assert best[0]["entity_id"] == "light.loft_badevaerelse" and best[0]["score"] >= deadrefs.SURE
