@@ -2035,7 +2035,9 @@ async def test_dead_references(hass: HomeAssistant) -> None:
     assert set(refs) == {"sensor.kitchen_temp", "light.hall"}  # light.kitchen is alive
     kitchen = refs["sensor.kitchen_temp"]
     assert kitchen["status"] == "orphan" and kitchen["used_in"][0]["kind"] == "automation"
-    assert kitchen["candidates"][0]["entity_id"] == "sensor.kitchen_temp_2" and kitchen["candidates"][0]["score"] >= deadrefs.SURE
+    # The best guess, but from names only: never "sure" (only a rename or the exact same name is).
+    assert kitchen["candidates"][0]["entity_id"] == "sensor.kitchen_temp_2" and kitchen["candidates"][0]["score"] < deadrefs.SURE
+    assert kitchen["candidates"][0]["reason"] == "guess"
     assert refs["light.hall"]["status"] == "missing" and refs["light.hall"]["ignored"]
     assert deadrefs.async_remove_orphan(hass, "sensor.kitchen_temp") and registry.async_get("sensor.kitchen_temp") is None
     assert not deadrefs.async_remove_orphan(hass, "light.kitchen")  # alive: never removed
@@ -2055,3 +2057,26 @@ async def test_dead_reference_card_name(hass: HomeAssistant) -> None:
            "views": sorted(hints["light.badevarelse1"]["views"]), "device_class": None, "unit": None}
     best = deadrefs._candidates(old, deadrefs._pool(hass, er.async_get(hass)))
     assert best[0]["entity_id"] == "light.loft_badevaerelse" and best[0]["score"] >= deadrefs.SURE
+
+
+async def test_facts_leftovers(hass: HomeAssistant) -> None:
+    """Only facts are sure: the same unique ID back under a new ID. Leftovers of a removed integration are found."""
+    from custom_components.replace_device import deadrefs, facts
+
+    registry = er.async_get(hass)
+
+    gone = MockConfigEntry(domain="nonexisting_integration", data={})
+    gone.add_to_hass(hass)
+    stale = registry.async_get_or_create("sensor", "nonexisting_integration", "s1", config_entry=gone, suggested_object_id="stue_lux")
+    hass.config_entries._entries.pop(gone.entry_id)  # the integration is removed, its entity is left behind
+    registry.async_get_or_create("sensor", "other", "s2", suggested_object_id="ok")  # no config entry: not a leftover
+    if registry.async_get(stale.entity_id):  # removing the entry normally removes its entities too
+        found = await facts.async_leftovers(hass)
+        assert {"kind": "entity", "id": stale.entity_id} in [{"kind": f["kind"], "id": f["id"]} for f in found]
+
+    # A guess from names alone is capped below "sure".
+    hass.states.async_set("light.gang_lampe", "on", {"friendly_name": "Gang lampe"})
+    old_ref = {"entity_id": "light.gang_lamp", "name": "gang lamp", "card_names": [], "views": [], "device_class": None, "unit": None}
+    best = deadrefs._candidates(old_ref, deadrefs._pool(hass, registry))
+    assert best and best[0]["entity_id"] == "light.gang_lampe"
+    assert min(best[0]["score"], deadrefs.GUESS_MAX) < deadrefs.SURE

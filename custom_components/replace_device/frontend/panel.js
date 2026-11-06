@@ -2,6 +2,19 @@
 
 const TEXT = {
   en: {
+    refsTabLinks: "Broken links",
+    refsTabLeft: "Leftovers",
+    refsWhy: {"replaced": "Replaced with Replace Device", "renamed": "Renamed – known for sure", "same_name": "Same name and kind in the history", "guess": "Maybe – from the names"},
+    leftHint: "Devices and entities that are surely gone – not just switched off. Each shows why.",
+    leftNone: "No leftovers – nothing is left behind.",
+    leftWhy: {"integration_removed": "Its integration is removed", "not_in_z2m": "Zigbee2MQTT no longer knows it", "not_in_zha": "ZHA no longer knows it", "addon_removed": "The add-on is uninstalled", "not_provided": "Its integration no longer provides it"},
+    leftRemove: "Remove selected ({n})",
+    leftAll: "Select all",
+    leftEntities: "{n} entities",
+    leftDone: "{n} removed.",
+    leftSettling: "Home Assistant started recently – entities that integrations no longer provide are shown after 10 minutes.",
+    leftScan: "Find leftovers",
+    leftWarn: "Removed leftovers can't be undone – but they are surely gone.",
     refsTitle: "Broken links",
     refsHint: "Automations, scripts, scenes and dashboards that point at an entity ID that no longer exists – for example after a device was paired again or renamed. The device itself can be working fine.",
     refsCard: "Broken links",
@@ -253,6 +266,19 @@ const TEXT = {
     dryBack: "Back",
   },
   da: {
+    refsTabLinks: "Døde henvisninger",
+    refsTabLeft: "Rester",
+    refsWhy: {"replaced": "Udskiftet med Replace Device", "renamed": "Omdøbt – det vides med sikkerhed", "same_name": "Samme navn og type i historikken", "guess": "Måske – ud fra navnene"},
+    leftHint: "Enheder og entiteter, der helt sikkert er væk – ikke bare slukkede. Ved hver står hvorfor.",
+    leftNone: "Ingen rester – intet ligger tilbage.",
+    leftWhy: {"integration_removed": "Integrationen er fjernet", "not_in_z2m": "Zigbee2MQTT kender den ikke mere", "not_in_zha": "ZHA kender den ikke mere", "addon_removed": "Add-on'en er afinstalleret", "not_provided": "Integrationen leverer den ikke mere"},
+    leftRemove: "Slet valgte ({n})",
+    leftAll: "Vælg alle",
+    leftEntities: "{n} entiteter",
+    leftDone: "{n} slettet.",
+    leftSettling: "Home Assistant er lige startet – entiteter, som integrationer ikke leverer mere, vises efter 10 minutter.",
+    leftScan: "Find rester",
+    leftWarn: "Slettede rester kan ikke fortrydes – men de er helt sikkert væk.",
     refsTitle: "Døde henvisninger",
     refsHint: "Automationer, scripts, scener og dashboards, der peger på et entity-id, der ikke findes mere – fx efter en genparring eller omdøbning. Selve enheden kan sagtens virke.",
     refsCard: "Døde henvisninger",
@@ -504,6 +530,19 @@ const TEXT = {
     dryBack: "Tilbage",
   },
   de: {
+    refsTabLinks: "Tote Verweise",
+    refsTabLeft: "Reste",
+    refsWhy: {"replaced": "Mit Replace Device ersetzt", "renamed": "Umbenannt – sicher bekannt", "same_name": "Gleicher Name und Typ im Verlauf", "guess": "Vielleicht – nach den Namen"},
+    leftHint: "Geräte und Entitäten, die sicher weg sind – nicht nur ausgeschaltet. Bei jedem steht warum.",
+    leftNone: "Keine Reste – nichts ist übrig.",
+    leftWhy: {"integration_removed": "Die Integration ist entfernt", "not_in_z2m": "Zigbee2MQTT kennt es nicht mehr", "not_in_zha": "ZHA kennt es nicht mehr", "addon_removed": "Das Add-on ist deinstalliert", "not_provided": "Die Integration liefert es nicht mehr"},
+    leftRemove: "Ausgewählte entfernen ({n})",
+    leftAll: "Alle wählen",
+    leftEntities: "{n} Entitäten",
+    leftDone: "{n} entfernt.",
+    leftSettling: "Home Assistant ist gerade gestartet – Entitäten, die Integrationen nicht mehr liefern, erscheinen nach 10 Minuten.",
+    leftScan: "Reste finden",
+    leftWarn: "Entfernte Reste sind nicht rückgängig zu machen – aber sie sind sicher weg.",
     refsTitle: "Tote Verweise",
     refsHint: "Automationen, Skripte, Szenen und Dashboards, die auf eine Entitäts-ID zeigen, die es nicht mehr gibt – z. B. nach neuem Koppeln oder Umbenennen. Das Gerät selbst kann gut funktionieren.",
     refsCard: "Tote Verweise",
@@ -755,6 +794,19 @@ const TEXT = {
     dryBack: "Zurück",
   },
   sv: {
+    refsTabLinks: "Döda hänvisningar",
+    refsTabLeft: "Rester",
+    refsWhy: {"replaced": "Ersatt med Replace Device", "renamed": "Bytt namn – det är säkert", "same_name": "Samma namn och typ i historiken", "guess": "Kanske – utifrån namnen"},
+    leftHint: "Enheter och entiteter som säkert är borta – inte bara avstängda. Vid varje står varför.",
+    leftNone: "Inga rester – inget ligger kvar.",
+    leftWhy: {"integration_removed": "Integrationen är borttagen", "not_in_z2m": "Zigbee2MQTT känner inte till den längre", "not_in_zha": "ZHA känner inte till den längre", "addon_removed": "Tillägget är avinstallerat", "not_provided": "Integrationen levererar den inte längre"},
+    leftRemove: "Ta bort valda ({n})",
+    leftAll: "Välj alla",
+    leftEntities: "{n} entiteter",
+    leftDone: "{n} borttagna.",
+    leftSettling: "Home Assistant har nyss startat – entiteter som integrationer inte längre levererar visas efter 10 minuter.",
+    leftScan: "Hitta rester",
+    leftWarn: "Borttagna rester kan inte ångras – men de är säkert borta.",
     refsTitle: "Döda hänvisningar",
     refsHint: "Automationer, skript, scener och instrumentpaneler som pekar på ett entitets-ID som inte finns längre – t.ex. efter ny parkoppling eller namnbyte. Själva enheten kan fungera fint.",
     refsCard: "Döda hänvisningar",
@@ -1006,6 +1058,19 @@ const TEXT = {
     dryBack: "Tillbaka",
   },
   nl: {
+    refsTabLinks: "Dode verwijzingen",
+    refsTabLeft: "Restanten",
+    refsWhy: {"replaced": "Vervangen met Replace Device", "renamed": "Hernoemd – zeker bekend", "same_name": "Zelfde naam en soort in de geschiedenis", "guess": "Misschien – op basis van de namen"},
+    leftHint: "Apparaten en entiteiten die zeker weg zijn – niet alleen uitgeschakeld. Bij elk staat waarom.",
+    leftNone: "Geen restanten – er is niets achtergebleven.",
+    leftWhy: {"integration_removed": "De integratie is verwijderd", "not_in_z2m": "Zigbee2MQTT kent het niet meer", "not_in_zha": "ZHA kent het niet meer", "addon_removed": "De add-on is verwijderd", "not_provided": "De integratie levert het niet meer"},
+    leftRemove: "Geselecteerde verwijderen ({n})",
+    leftAll: "Alles selecteren",
+    leftEntities: "{n} entiteiten",
+    leftDone: "{n} verwijderd.",
+    leftSettling: "Home Assistant is net gestart – entiteiten die integraties niet meer leveren verschijnen na 10 minuten.",
+    leftScan: "Restanten zoeken",
+    leftWarn: "Verwijderde restanten kunnen niet ongedaan worden gemaakt – maar ze zijn zeker weg.",
     refsTitle: "Dode verwijzingen",
     refsHint: "Automatiseringen, scripts, scènes en dashboards die naar een entiteit-ID wijzen die niet meer bestaat – bijv. na opnieuw koppelen of hernoemen. Het apparaat zelf kan prima werken.",
     refsCard: "Dode verwijzingen",
@@ -1334,6 +1399,9 @@ class ReplaceDevicePanel extends HTMLElement {
     this.refRemoveOld = true;
     this.refNote = "";
     this.refFilter = "all";
+    this.refTab = "links";
+    this.leftovers = null;
+    this.leftSelected = new Set();
     this.refLimit = 12;
   }
 
@@ -1558,6 +1626,12 @@ class ReplaceDevicePanel extends HTMLElement {
       ${history ? `<details class="dmore hist-done"><summary><ha-icon icon="mdi:check-circle"></ha-icon> ${esc(this.t(needs.length ? "historyDone" : "historyAll", { n: this.historyItems.length - needs.length }))}</summary><div class="card list">${history}</div></details>` : ""}`;
   }
 
+  sub(key, k) {
+    const code = (this._hass?.language || "en").split("-")[0];
+    const lang = TEXT[code] ? code : code === "nb" || code === "nn" || code === "no" ? "da" : "en";
+    return (TEXT[lang][key] || TEXT.en[key])[k] || k;
+  }
+
   kindName(k) {
     const code = (this._hass?.language || "en").split("-")[0];
     const lang = TEXT[code] ? code : code === "nb" || code === "nn" || code === "no" ? "da" : "en";
@@ -1588,7 +1662,8 @@ class ReplaceDevicePanel extends HTMLElement {
       ? `<select class="ref-select" data-ref="${esc(r.entity_id)}">${r.candidates.map((x) => `<option value="${esc(x.entity_id)}" ${x.entity_id === chosen ? "selected" : ""}>${esc(x.name)} · ${Math.round(x.score * 100)} %</option>`).join("")}</select>` : "";
     const match = c
       ? `<div class="ref-match ${tone}"><ha-icon icon="mdi:arrow-right-bold-circle"></ha-icon>
-          <div class="grow"><div class="small muted">${this.t("refsBest")}</div><b>${esc(c.name)}</b><div><code>${esc(c.entity_id)}</code></div></div>
+          <div class="grow"><div class="small muted">${this.t("refsBest")}</div><b>${esc(c.name)}</b><div><code>${esc(c.entity_id)}</code></div>
+            <span class="why-tag ${c.reason === "guess" ? "maybe" : "fact"}"><ha-icon icon="${c.reason === "guess" ? "mdi:help-circle-outline" : "mdi:check-decagram"}"></ha-icon>${esc(this.sub("refsWhy", c.reason || "guess"))}</span></div>
           <div class="ref-score"><div class="ring-s" style="--p:${pct}"><span>${pct}</span></div><div class="small muted">${esc(this.t("refsSure", { p: pct }))}</div></div></div>${others}`
       : `<div class="ref-match grey"><ha-icon icon="mdi:help-circle-outline"></ha-icon><div class="grow small">${esc(this.t("refsNoMatch"))}</div></div>`;
     const places = this.refOpen[r.entity_id];
@@ -1610,8 +1685,40 @@ class ReplaceDevicePanel extends HTMLElement {
         </div></div>`;
   }
 
+  refsTabs() {
+    const n = (x) => (x == null ? "" : ` <span>${x}</span>`);
+    return `<div class="fchips tabs-refs">
+      <button class="fchip ${this.refTab === "links" ? "on" : ""}" data-act="refTab" data-k="links"><ha-icon icon="mdi:link-variant-off"></ha-icon> ${this.t("refsTabLinks")}${n(this.refs?.filter((r) => !r.ignored).length)}</button>
+      <button class="fchip ${this.refTab === "left" ? "on" : ""}" data-act="refTab" data-k="left"><ha-icon icon="mdi:broom"></ha-icon> ${this.t("refsTabLeft")}${n(this.leftovers?.leftovers.length)}</button></div>`;
+  }
+
+  leftView() {
+    if (!this.leftovers) return `${this.refsTabs()}<div class="card working"><div class="spinner"></div><p>${this.t("refsScanning")}</p></div>`;
+    const items = this.leftovers.leftovers;
+    const icon = { integration_removed: "mdi:puzzle-remove-outline", not_in_z2m: "mdi:zigbee", not_in_zha: "mdi:zigbee", addon_removed: "mdi:package-variant-remove", not_provided: "mdi:ghost-outline" };
+    const groups = [...new Set(items.map((i) => i.reason))];
+    const key = (i) => `${i.kind}|${i.id}`;
+    const row = (i) => `<label class="mrow fixrow"><input type="checkbox" data-left="${esc(key(i))}" ${this.leftSelected.has(key(i)) ? "checked" : ""}><span class="box"></span>
+        <div class="grow"><div class="dname"><ha-icon icon="${i.kind === "device" ? "mdi:devices" : "mdi:shape-outline"}"></ha-icon> ${esc(i.name)}</div>
+        <div class="small muted">${i.kind === "device" ? esc(this.t("leftEntities", { n: i.entities.length })) : `<code>${esc(i.id)}</code>`}</div></div></label>`;
+    const body = items.length
+      ? groups.map((g) => `<div class="card left-group"><h3 class="in"><span class="lg-icon"><ha-icon icon="${icon[g] || "mdi:help"}"></ha-icon></span>${esc(this.sub("leftWhy", g))} <span class="count grey">${items.filter((i) => i.reason === g).length}</span></h3>
+          ${items.filter((i) => i.reason === g).map(row).join("")}</div>`).join("")
+      : `<div class="card empty"><ha-icon icon="mdi:check-circle"></ha-icon>${this.t("leftNone")}</div>`;
+    return `${this.refsTabs()}
+      <div class="hero card"><div class="hero-icon"><ha-icon icon="mdi:broom"></ha-icon></div><div class="grow"><h2>${this.t("refsTabLeft")}</h2>
+        <p class="muted">${this.t("leftHint")}</p>
+        ${this.leftovers.settled ? "" : `<p class="small warn-text"><ha-icon icon="mdi:timer-sand"></ha-icon> ${this.t("leftSettling")}</p>`}
+        ${items.length ? `<div class="btns"><button class="primary" data-act="leftRemove" ${this.leftSelected.size ? "" : "disabled"}><ha-icon icon="mdi:delete-sweep-outline"></ha-icon>${this.t("leftRemove", { n: this.leftSelected.size })}</button>
+          <button class="ghost" data-act="leftAll">${this.t("leftAll")}</button><button class="ghost" data-act="leftScan"><ha-icon icon="mdi:refresh"></ha-icon>${this.t("refsRescan")}</button></div>
+          <p class="small muted">${this.t("leftWarn")}</p>` : ""}</div></div>
+      ${this.refNote ? `<div class="card ok-note"><ha-icon icon="mdi:check-circle"></ha-icon>${esc(this.refNote)}</div>` : ""}
+      ${body}`;
+  }
+
   refsView() {
-    if (!this.refs) return `<div class="card working"><div class="spinner"></div><p>${this.t("refsScanning")}</p></div>`;
+    if (this.refTab === "left") return this.leftView();
+    if (!this.refs) return `${this.refsTabs()}<div class="card working"><div class="spinner"></div><p>${this.t("refsScanning")}</p></div>`;
     const open = this.refs.filter((r) => !r.ignored);
     const ignored = this.refs.filter((r) => r.ignored);
     const sure = open.filter((r) => r.candidates[0] && r.candidates[0].score >= 0.9 && !this.refChoice[r.entity_id]);
@@ -1637,7 +1744,7 @@ class ReplaceDevicePanel extends HTMLElement {
       : `<div class="card empty"><ha-icon icon="mdi:check-circle"></ha-icon>${this.t("refsNone")}</div>`;
     const hid = ignored.length
       ? `<details class="dmore"><summary>${esc(this.t("refsIgnored", { n: ignored.length }))}</summary><div class="grid refgrid">${ignored.map((r) => this.refRow(r)).join("")}</div></details>` : "";
-    return head + list + hid;
+    return this.refsTabs() + head + list + hid;
   }
 
   async refFix(pairs) {
@@ -2371,6 +2478,12 @@ class ReplaceDevicePanel extends HTMLElement {
         delete this.refOpen[el.dataset.ref];
         this.render();
       }));
+    this.shadowRoot.querySelectorAll("input[data-left]").forEach((el) =>
+      el.addEventListener("change", () => {
+        if (el.checked) this.leftSelected.add(el.dataset.left);
+        else this.leftSelected.delete(el.dataset.left);
+        this.render();
+      }));
     const refRemove = this.shadowRoot.getElementById("refRemoveOld");
     if (refRemove) refRemove.addEventListener("change", () => (this.refRemoveOld = refRemove.checked));
     const remove = this.shadowRoot.getElementById("removeOld");
@@ -2460,6 +2573,36 @@ class ReplaceDevicePanel extends HTMLElement {
           .finally(() => this.render());
       }
       this.render();
+      return;
+    }
+    if (data.act === "refTab") {
+      this.refTab = data.k;
+      this.refNote = "";
+      if (data.k === "left" && !this.leftovers) data = { act: "leftScan" };
+      else return this.render();
+    }
+    if (data.act === "leftScan") {
+      this.leftovers = null;
+      this.leftSelected = new Set();
+      this.render();
+      this.ws("leftovers").then((r) => (this.leftovers = r)).catch((e) => { this.leftovers = { leftovers: [], settled: true }; this.error = this.t("error", { e: e.message || e.code || e }); })
+        .finally(() => this.render());
+      return;
+    }
+    if (data.act === "leftAll") {
+      this.leftSelected = new Set(this.leftovers.leftovers.map((i) => `${i.kind}|${i.id}`));
+      return this.render();
+    }
+    if (data.act === "leftRemove") {
+      const items = [...this.leftSelected].map((k) => ({ kind: k.split("|")[0], id: k.slice(k.indexOf("|") + 1) }));
+      this.view = "working";
+      this.render();
+      this.ws("remove_leftovers", { items }).then(async (r) => {
+        this.refNote = this.t("leftDone", { n: r.removed.length });
+        this.leftovers = await this.ws("leftovers");
+        this.leftSelected = new Set();
+      }).catch((e) => (this.error = this.t("error", { e: e.message || e.code || e })))
+        .finally(() => { this.view = "refs"; this.render(); });
       return;
     }
     if (data.act === "refFilter") {
@@ -2637,6 +2780,12 @@ button.full{width:100%;margin-top:12px}button.big{padding:13px 22px;font-size:16
 .fchip{flex:none;padding:8px 14px;border-radius:99px;border:1px solid var(--divider-color,#d6dce4);background:var(--card-background-color,#fff);color:var(--primary-text-color);font-size:14px;font-weight:500}
 .fchip span{color:var(--secondary-text-color);margin-left:2px}.fchip.on{background:var(--rd-blue);border-color:var(--rd-blue);color:#fff}.fchip.on span{color:#fff;opacity:.85}
 .dot.amber{background:var(--rd-amber);box-shadow:0 0 0 4px rgba(255,166,0,.18)}.count.amber{background:var(--rd-amber)}
+.why-tag{display:inline-flex;align-items:center;gap:4px;margin-top:6px;font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px}
+.why-tag ha-icon{--mdc-icon-size:14px}.why-tag.fact{background:rgba(67,160,71,.14);color:var(--rd-green)}.why-tag.maybe{background:var(--secondary-background-color,#eef1f5);color:var(--secondary-text-color)}
+.tabs-refs{margin-bottom:16px}.tabs-refs .fchip{display:inline-flex;align-items:center;gap:6px}.tabs-refs ha-icon{--mdc-icon-size:18px}
+.left-group h3{margin-bottom:4px}.lg-icon{width:32px;height:32px;border-radius:9px;background:rgba(219,68,55,.12);color:var(--rd-red);display:inline-flex;align-items:center;justify-content:center}
+.lg-icon ha-icon{--mdc-icon-size:18px}.count.grey{background:var(--secondary-text-color)}.warn-text{color:var(--rd-amber)}
+button:disabled{opacity:.45;cursor:default}
 .refgrid{grid-template-columns:repeat(auto-fill,minmax(min(100%,380px),1fr))}
 .ref-select{margin-top:8px}.ref-btns{margin-top:auto;padding-top:12px;display:flex;gap:8px;flex-wrap:wrap}.ref-btns button{flex:1 1 auto;white-space:nowrap}
 .ok-note{display:flex;gap:10px;align-items:center;color:var(--rd-green)}

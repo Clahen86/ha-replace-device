@@ -19,7 +19,7 @@ from .hardware import all_devices, hardware_keys, source, z2m_ieee
 from .remembered import remembered
 from .replace import Plan, Replacer, async_plan, async_remove_device, device_name
 from .suggest import is_dead
-from . import deadrefs
+from . import deadrefs, facts
 
 
 @callback
@@ -30,6 +30,8 @@ def async_setup(hass: HomeAssistant) -> None:
         ws_dead_ref_fix,
         ws_dead_ref_remove,
         ws_dead_ref_ignore,
+        ws_leftovers,
+        ws_remove_leftovers,
         ws_devices,
         ws_hide,
         ws_remove_device,
@@ -669,7 +671,15 @@ async def ws_dead_refs(hass: HomeAssistant, connection: websocket_api.ActiveConn
     replacer = _replacer(hass)
     if replacer is None:
         return _not_loaded(connection, msg)
-    connection.send_result(msg["id"], {"refs": await deadrefs.async_scan(hass, replacer.ignored_refs)})
+    # What Replace Device itself moved (replacements, renames, followed IDs) is a fact, not a guess.
+    known: dict[str, str] = {}
+    for record in replacer.history:
+        if record.get("undone"):
+            continue
+        known.update({k: v for k, v in (record.get("ids") or {}).items() if isinstance(v, str)})
+        if record.get("kind") == "follow" and record.get("action") == "fix":
+            known[record["old_device"]["name"]] = record["new_device"]["name"]
+    connection.send_result(msg["id"], {"refs": await deadrefs.async_scan(hass, replacer.ignored_refs, known)})
 
 
 @websocket_api.websocket_command(
@@ -727,3 +737,32 @@ def ws_dead_ref_ignore(hass: HomeAssistant, connection: websocket_api.ActiveConn
         return _not_loaded(connection, msg)
     replacer.set_ignored_ref(msg["entity_id"], msg["ignored"])
     connection.send_result(msg["id"], {})
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/leftovers"})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_leftovers(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Devices and entities that are surely gone (not just switched off), each with the reason."""
+    replacer = _replacer(hass)
+    if replacer is None:
+        return _not_loaded(connection, msg)
+    settled = time.monotonic() - replacer.started > 600
+    connection.send_result(msg["id"], {"leftovers": await facts.async_leftovers(hass, settled), "settled": settled})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/remove_leftovers",
+        vol.Required("items"): [{vol.Required("kind"): vol.In(["device", "entity"]), vol.Required("id"): str}],
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_remove_leftovers(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Remove leftovers - each is checked again first, so only what is still surely gone goes."""
+    replacer = _replacer(hass)
+    if replacer is None:
+        return _not_loaded(connection, msg)
+    settled = time.monotonic() - replacer.started > 600
+    connection.send_result(msg["id"], {"removed": await facts.async_remove_leftovers(hass, msg["items"], settled)})

@@ -123,6 +123,8 @@ class Replacer:
         self.hidden: list[str] = []
         # Dead references the user said to leave alone.
         self.ignored_refs: list[str] = []
+        # Some integrations add their entities a while after starting: until then nothing is "no longer provided".
+        self.started = time.monotonic()
 
     @callback
     def async_stop(self) -> None:

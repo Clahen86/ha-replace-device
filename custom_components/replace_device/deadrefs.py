@@ -15,7 +15,7 @@ from homeassistant.const import ATTR_FRIENDLY_NAME
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-from . import references
+from . import facts, references
 
 _ID = re.compile(r"^([a-z_]+)\.([a-z0-9_]+)$")
 _SUFFIX = re.compile(r"_\d{1,2}$")
@@ -29,6 +29,8 @@ _DOMAINS = {
 }
 MIN_SCORE = 0.55
 SURE = 0.9
+# A guess from names is never "sure": only facts are (a rename, the same device back, the exact same name).
+GUESS_MAX = 0.85
 
 
 def _walk(value: Any, found: set[str], hints: dict[str, dict[str, set[str]]] | None = None, view: str = "") -> None:
@@ -231,7 +233,7 @@ def _score_all(olds: list[dict[str, Any]], pool: list[dict[str, Any]]) -> list[l
     return [_candidates(o, pool) for o in olds]
 
 
-async def async_scan(hass: HomeAssistant, ignored: list[str]) -> list[dict[str, Any]]:
+async def async_scan(hass: HomeAssistant, ignored: list[str], known: dict[str, str] | None = None) -> list[dict[str, Any]]:
     """Every dead reference: where it's used, what it is, and the best replacements."""
     registry = er.async_get(hass)
     hints: dict[str, dict[str, set[str]]] = {}
@@ -257,6 +259,7 @@ async def async_scan(hass: HomeAssistant, ignored: list[str]) -> list[dict[str, 
             "entity_id": entity_id, "status": status, "name": name, "platform": entry.platform if entry else None,
             "used_in": places, "card_names": sorted(hint.get("names", ()))[:3], "ignored": entity_id in ignored,
         })
+    renames, last = await facts.async_history(hass, [o["entity_id"] for o in olds])
     pool = _pool(hass, registry)
     from homeassistant.helpers import area_registry as ar
 
@@ -264,8 +267,35 @@ async def async_scan(hass: HomeAssistant, ignored: list[str]) -> list[dict[str, 
     for o in olds:
         # The views that are rooms ("Soveværelse"); "Overview" or "Info" say nothing about where it is.
         o["rooms"] = {a for a in areas for v in o["views"] if a in v.lower() or v.lower().strip() in a}
-    for r, candidates in zip(result, await hass.async_add_executor_job(_score_all, olds, pool)):
-        r["candidates"] = candidates
+    names: dict[str, list[dict[str, Any]]] = {}
+    for c in pool:
+        names.setdefault(c["name"], []).append(c)
+    for r, o, guesses in zip(result, olds, await hass.async_add_executor_job(_score_all, olds, pool)):
+        sure: list[dict[str, Any]] = []
+        entity_id = r["entity_id"]
+        if (new := (known or {}).get(entity_id)) and hass.states.get(new):
+            sure.append({"entity_id": new, "reason": "replaced"})  # Replace Device moved it itself
+        if (new := renames.get(entity_id)) and hass.states.get(new):
+            sure.append({"entity_id": new, "reason": "renamed"})
+        attrs = last.get(entity_id) or {}
+        if (old_name := str(attrs.get("friendly_name") or "").lower()) and len(same := [
+            c for c in names.get(old_name, ())
+            if c["domain"] == entity_id.split(".")[0] and c["device_class"] == attrs.get("device_class")
+        ]) == 1:
+            sure.append({"entity_id": same[0]["entity_id"], "reason": "same_name"})
+            r["last_name"] = attrs.get("friendly_name")
+        elif attrs.get("friendly_name"):
+            r["last_name"] = attrs.get("friendly_name")
+        facts_first: list[dict[str, Any]] = []
+        for c in sure:
+            if all(x["entity_id"] != c["entity_id"] for x in facts_first):
+                st = hass.states.get(c["entity_id"])
+                facts_first.append({**c, "score": 1.0 if c["reason"] != "same_name" else 0.97,
+                                    "name": str(st.attributes.get("friendly_name") or c["entity_id"]) if st else c["entity_id"]})
+        r["candidates"] = facts_first + [
+            {**g, "score": min(g["score"], GUESS_MAX), "reason": "guess"}
+            for g in guesses if all(g["entity_id"] != f["entity_id"] for f in facts_first)
+        ][: max(0, 3 - len(facts_first))]
     # One live entity can't be the sure replacement for several dead ones (five bulbs -> one group light).
     best: dict[str, list[dict]] = {}
     for r in result:
