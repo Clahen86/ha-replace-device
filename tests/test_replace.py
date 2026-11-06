@@ -2013,3 +2013,29 @@ async def test_renamed_repair_clears_itself(hass: HomeAssistant, tmp_path) -> No
     registry.async_update_entity("climate.0x54ef", new_entity_id="climate.bad")  # its own name back
     await hass.async_block_till_done()
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id("climate.bad", "climate.0x54ef")) is None
+
+
+async def test_dead_references(hass: HomeAssistant) -> None:
+    """An automation still uses an entity that is gone; the best replacement is the one that came back as "_2"."""
+    from homeassistant.setup import async_setup_component
+
+    from custom_components.replace_device import deadrefs
+
+    registry = er.async_get(hass)
+    registry.async_get_or_create("sensor", "mqtt", "gone", suggested_object_id="kitchen_temp")  # forgotten leftover
+    hass.states.async_set("sensor.kitchen_temp_2", "21", {"device_class": "temperature", "friendly_name": "Kitchen temp"})
+    hass.states.async_set("sensor.garden_temp", "9", {"device_class": "temperature"})
+    hass.states.async_set("light.kitchen", "on")
+    assert await async_setup_component(hass, "automation", {"automation": [
+        {"id": "1", "alias": "Warm", "triggers": [{"trigger": "state", "entity_id": "sensor.kitchen_temp"}],
+         "actions": [{"action": "light.turn_on", "target": {"entity_id": ["light.kitchen", "light.hall"]}}]},
+    ]})
+    await hass.async_block_till_done()
+    refs = {r["entity_id"]: r for r in await deadrefs.async_scan(hass, ["light.hall"])}
+    assert set(refs) == {"sensor.kitchen_temp", "light.hall"}  # light.kitchen is alive
+    kitchen = refs["sensor.kitchen_temp"]
+    assert kitchen["status"] == "orphan" and kitchen["used_in"][0]["kind"] == "automation"
+    assert kitchen["candidates"][0]["entity_id"] == "sensor.kitchen_temp_2" and kitchen["candidates"][0]["score"] >= deadrefs.SURE
+    assert refs["light.hall"]["status"] == "missing" and refs["light.hall"]["ignored"]
+    assert deadrefs.async_remove_orphan(hass, "sensor.kitchen_temp") and registry.async_get("sensor.kitchen_temp") is None
+    assert not deadrefs.async_remove_orphan(hass, "light.kitchen")  # alive: never removed

@@ -2,6 +2,36 @@
 
 const TEXT = {
   en: {
+    refsAll: "All",
+    refsShowMore: "Show {n} more",
+    refsSureOnly: "Sure matches",
+    refsTitle: "Dead references",
+    refsHint: "Automations, scripts, scenes and dashboards that still point at entities that are gone – with the best replacement.",
+    refsCard: "{n} dead references",
+    refsCardText: "Automations and dashboards point at entities that are gone.",
+    refsReview: "Review",
+    refsNone: "No dead references – everything points at entities that exist.",
+    refsFixSure: "Fix all sure ones ({n})",
+    refsMissing: "Doesn't exist",
+    refsOrphan: "Forgotten entity",
+    refsUsedIn: "Used in",
+    refsBest: "Best match",
+    refsSure: "{p} % sure",
+    refsMove: "Move here",
+    refsPlaces: "See every place",
+    refsRemove: "Remove the old one",
+    refsIgnore: "Ignore",
+    refsUnignore: "Show again",
+    refsNoMatch: "No good match – change it yourself, or remove the old entity.",
+    refsIgnored: "Ignored ({n})",
+    refsDone: "{n} moved – can be undone in the history.",
+    refsRemoved: "The old entity is removed.",
+    refsAlsoRemove: "Also remove forgotten old entities",
+    refsScanning: "Looking …",
+    refsOther: "Another match",
+    refsMore: "+{n} more",
+    refsSafe: "Nothing changes before you tap. Every move can be undone.",
+    refsKind: {"automation": "Automation", "script": "Script", "scene": "Scene", "dashboard": "Dashboard"},
     followFixed: "The new ID is used everywhere",
     followRestored: "The entity got its old ID back",
     historyAll: "Replaced ({n})",
@@ -221,6 +251,36 @@ const TEXT = {
     dryBack: "Back",
   },
   da: {
+    refsAll: "Alle",
+    refsShowMore: "Vis {n} mere",
+    refsSureOnly: "Sikre bud",
+    refsTitle: "Døde referencer",
+    refsHint: "Automationer, scripts, scener og dashboards, der stadig peger på entiteter, der er væk – med den bedste afløser.",
+    refsCard: "{n} døde referencer",
+    refsCardText: "Automationer og dashboards peger på entiteter, der er væk.",
+    refsReview: "Gennemgå",
+    refsNone: "Ingen døde referencer – alt peger på entiteter, der findes.",
+    refsFixSure: "Ret alle sikre ({n})",
+    refsMissing: "Findes ikke",
+    refsOrphan: "Glemt entitet",
+    refsUsedIn: "Bruges i",
+    refsBest: "Bedste bud",
+    refsSure: "{p} % sikker",
+    refsMove: "Flyt hertil",
+    refsPlaces: "Se alle steder",
+    refsRemove: "Slet den gamle",
+    refsIgnore: "Ignorér",
+    refsUnignore: "Vis igen",
+    refsNoMatch: "Intet godt bud – ret den selv, eller slet den gamle entitet.",
+    refsIgnored: "Ignorerede ({n})",
+    refsDone: "{n} flyttet – kan fortrydes under historik.",
+    refsRemoved: "Den gamle entitet er slettet.",
+    refsAlsoRemove: "Slet også glemte gamle entiteter",
+    refsScanning: "Leder …",
+    refsOther: "Andet bud",
+    refsMore: "+{n} mere",
+    refsSafe: "Intet ændres, før du trykker. Alt kan fortrydes.",
+    refsKind: {"automation": "Automation", "script": "Script", "scene": "Scene", "dashboard": "Dashboard"},
     followFixed: "Det nye id bruges alle steder",
     followRestored: "Entiteten fik sit gamle id igen",
     historyAll: "Udskiftet ({n})",
@@ -440,6 +500,36 @@ const TEXT = {
     dryBack: "Tilbage",
   },
   de: {
+    refsAll: "Alle",
+    refsShowMore: "{n} weitere zeigen",
+    refsSureOnly: "Sichere Treffer",
+    refsTitle: "Tote Verweise",
+    refsHint: "Automationen, Skripte, Szenen und Dashboards, die noch auf Entitäten zeigen, die weg sind – mit dem besten Ersatz.",
+    refsCard: "{n} tote Verweise",
+    refsCardText: "Automationen und Dashboards zeigen auf Entitäten, die weg sind.",
+    refsReview: "Ansehen",
+    refsNone: "Keine toten Verweise – alles zeigt auf vorhandene Entitäten.",
+    refsFixSure: "Alle sicheren beheben ({n})",
+    refsMissing: "Existiert nicht",
+    refsOrphan: "Vergessene Entität",
+    refsUsedIn: "Verwendet in",
+    refsBest: "Bester Treffer",
+    refsSure: "{p} % sicher",
+    refsMove: "Hierhin verschieben",
+    refsPlaces: "Alle Stellen ansehen",
+    refsRemove: "Alte entfernen",
+    refsIgnore: "Ignorieren",
+    refsUnignore: "Wieder zeigen",
+    refsNoMatch: "Kein guter Treffer – selbst ändern oder die alte Entität entfernen.",
+    refsIgnored: "Ignoriert ({n})",
+    refsDone: "{n} verschoben – im Verlauf rückgängig machbar.",
+    refsRemoved: "Die alte Entität ist entfernt.",
+    refsAlsoRemove: "Vergessene alte Entitäten auch entfernen",
+    refsScanning: "Suche …",
+    refsOther: "Anderer Treffer",
+    refsMore: "+{n} weitere",
+    refsSafe: "Nichts ändert sich, bevor du tippst. Alles ist rückgängig machbar.",
+    refsKind: {"automation": "Automation", "script": "Skript", "scene": "Szene", "dashboard": "Dashboard"},
     followFixed: "Die neue ID wird überall verwendet",
     followRestored: "Die Entität hat ihre alte ID zurück",
     historyAll: "Ersetzt ({n})",
@@ -659,6 +749,36 @@ const TEXT = {
     dryBack: "Zurück",
   },
   sv: {
+    refsAll: "Alla",
+    refsShowMore: "Visa {n} till",
+    refsSureOnly: "Säkra förslag",
+    refsTitle: "Döda referenser",
+    refsHint: "Automationer, skript, scener och instrumentpaneler som fortfarande pekar på entiteter som är borta – med den bästa ersättaren.",
+    refsCard: "{n} döda referenser",
+    refsCardText: "Automationer och instrumentpaneler pekar på entiteter som är borta.",
+    refsReview: "Gå igenom",
+    refsNone: "Inga döda referenser – allt pekar på entiteter som finns.",
+    refsFixSure: "Åtgärda alla säkra ({n})",
+    refsMissing: "Finns inte",
+    refsOrphan: "Glömd entitet",
+    refsUsedIn: "Används i",
+    refsBest: "Bästa förslag",
+    refsSure: "{p} % säker",
+    refsMove: "Flytta hit",
+    refsPlaces: "Se alla ställen",
+    refsRemove: "Ta bort den gamla",
+    refsIgnore: "Ignorera",
+    refsUnignore: "Visa igen",
+    refsNoMatch: "Inget bra förslag – ändra själv eller ta bort den gamla entiteten.",
+    refsIgnored: "Ignorerade ({n})",
+    refsDone: "{n} flyttade – kan ångras i historiken.",
+    refsRemoved: "Den gamla entiteten är borttagen.",
+    refsAlsoRemove: "Ta även bort glömda gamla entiteter",
+    refsScanning: "Letar …",
+    refsOther: "Annat förslag",
+    refsMore: "+{n} till",
+    refsSafe: "Inget ändras innan du trycker. Allt kan ångras.",
+    refsKind: {"automation": "Automation", "script": "Skript", "scene": "Scen", "dashboard": "Instrumentpanel"},
     followFixed: "Det nya ID:t används överallt",
     followRestored: "Entiteten fick sitt gamla ID igen",
     historyAll: "Utbytta ({n})",
@@ -878,6 +998,36 @@ const TEXT = {
     dryBack: "Tillbaka",
   },
   nl: {
+    refsAll: "Alle",
+    refsShowMore: "Toon {n} meer",
+    refsSureOnly: "Zekere matches",
+    refsTitle: "Dode verwijzingen",
+    refsHint: "Automatiseringen, scripts, scènes en dashboards die nog naar entiteiten wijzen die weg zijn – met de beste vervanger.",
+    refsCard: "{n} dode verwijzingen",
+    refsCardText: "Automatiseringen en dashboards wijzen naar entiteiten die weg zijn.",
+    refsReview: "Bekijken",
+    refsNone: "Geen dode verwijzingen – alles wijst naar bestaande entiteiten.",
+    refsFixSure: "Alle zekere herstellen ({n})",
+    refsMissing: "Bestaat niet",
+    refsOrphan: "Vergeten entiteit",
+    refsUsedIn: "Gebruikt in",
+    refsBest: "Beste match",
+    refsSure: "{p} % zeker",
+    refsMove: "Hierheen verplaatsen",
+    refsPlaces: "Alle plekken bekijken",
+    refsRemove: "Oude verwijderen",
+    refsIgnore: "Negeren",
+    refsUnignore: "Weer tonen",
+    refsNoMatch: "Geen goede match – pas het zelf aan of verwijder de oude entiteit.",
+    refsIgnored: "Genegeerd ({n})",
+    refsDone: "{n} verplaatst – ongedaan te maken in de geschiedenis.",
+    refsRemoved: "De oude entiteit is verwijderd.",
+    refsAlsoRemove: "Vergeten oude entiteiten ook verwijderen",
+    refsScanning: "Zoeken …",
+    refsOther: "Andere match",
+    refsMore: "+{n} meer",
+    refsSafe: "Er verandert niets voordat je tikt. Alles kan ongedaan worden gemaakt.",
+    refsKind: {"automation": "Automatisering", "script": "Script", "scene": "Scène", "dashboard": "Dashboard"},
     followFixed: "Het nieuwe ID wordt overal gebruikt",
     followRestored: "De entiteit heeft haar oude ID terug",
     historyAll: "Vervangen ({n})",
@@ -1168,6 +1318,13 @@ class ReplaceDevicePanel extends HTMLElement {
     this.migrateSelected = new Set();
     this.groupSelected = new Set();
     this.picked = { entries: new Set() };
+    this.refs = null;
+    this.refChoice = {};
+    this.refOpen = {};
+    this.refRemoveOld = true;
+    this.refNote = "";
+    this.refFilter = "all";
+    this.refLimit = 12;
   }
 
   // What the user ticked in the test run: their own files and other integrations' settings.
@@ -1238,6 +1395,7 @@ class ReplaceDevicePanel extends HTMLElement {
       this.devices = devices.devices;
       this.historyItems = history.history;
       this.error = "";
+      this.ws("dead_refs").then((r) => { this.refs = r.refs; if (["home", "refs"].includes(this.view)) this.render(); }).catch(() => {});
     } catch (e) {
       this.error = this.t("error", { e: e.message || e.code || e });
     }
@@ -1378,6 +1536,7 @@ class ReplaceDevicePanel extends HTMLElement {
         <button class="ghost" data-act="migrate"><ha-icon icon="mdi:transfer"></ha-icon>${this.t("migrateStart")}</button>
         <button class="ghost" data-act="renameStart"><ha-icon icon="mdi:rename"></ha-icon>${this.t("renameStart")}</button></div></div>
       </div>
+      ${this.refsCard()}
       ${leftovers.length ? `<h3>${this.t("leftoversTitle")} <span class="count">${leftovers.length}</span></h3>
         <p class="muted small section-hint">${this.t("leftoversHint")}</p>
         <div class="grid">${leftovers.map((d) => this.leftoverCard(d)).join("")}</div>` : ""}
@@ -1387,6 +1546,105 @@ class ReplaceDevicePanel extends HTMLElement {
       ${hiddenPart}
       ${needs.length ? `<h3>${this.t("needsAction")} <span class="count amber">${needs.length}</span></h3><div class="card list">${needs.map((h) => this.historyRow(h)).join("")}</div>` : ""}
       ${history ? `<details class="dmore hist-done"><summary><ha-icon icon="mdi:check-circle"></ha-icon> ${esc(this.t(needs.length ? "historyDone" : "historyAll", { n: this.historyItems.length - needs.length }))}</summary><div class="card list">${history}</div></details>` : ""}`;
+  }
+
+  kindName(k) {
+    const code = (this._hass?.language || "en").split("-")[0];
+    const lang = TEXT[code] ? code : code === "nb" || code === "nn" || code === "no" ? "da" : "en";
+    return (TEXT[lang].refsKind || TEXT.en.refsKind)[k] || k;
+  }
+
+  refsCard() {
+    const open = (this.refs || []).filter((r) => !r.ignored);
+    if (!open.length) return "";
+    return `<div class="card refs-teaser" data-act="refs">
+        <div class="rt-icon"><ha-icon icon="mdi:link-variant-off"></ha-icon></div>
+        <div class="grow"><b>${esc(this.t("refsCard", { n: open.length }))}</b><div class="muted small">${esc(this.t("refsCardText"))}</div></div>
+        <button class="primary small-btn" data-act="refs">${this.t("refsReview")}</button></div>`;
+  }
+
+  refChosen(r) {
+    return this.refChoice[r.entity_id] ?? r.candidates[0]?.entity_id ?? "";
+  }
+
+  refRow(r) {
+    const icon = { automation: "mdi:robot-outline", script: "mdi:script-text-outline", scene: "mdi:palette-outline", dashboard: "mdi:view-dashboard-outline" };
+    const used = r.used_in.slice(0, 4).map((u) => `<span class="chip"><ha-icon icon="${icon[u.kind] || "mdi:link"}"></ha-icon>${esc(u.name)}</span>`).join("")
+      + (r.used_in.length > 4 ? `<span class="chip muted">${esc(this.t("refsMore", { n: r.used_in.length - 4 }))}</span>` : "");
+    const chosen = this.refChosen(r);
+    const c = r.candidates.find((x) => x.entity_id === chosen);
+    const pct = c ? Math.round(c.score * 100) : 0;
+    const tone = pct >= 90 ? "green" : pct >= 70 ? "amber" : "grey";
+    const others = r.candidates.length > 1
+      ? `<select class="ref-select" data-ref="${esc(r.entity_id)}">${r.candidates.map((x) => `<option value="${esc(x.entity_id)}" ${x.entity_id === chosen ? "selected" : ""}>${esc(x.name)} · ${Math.round(x.score * 100)} %</option>`).join("")}</select>` : "";
+    const match = c
+      ? `<div class="ref-match ${tone}"><ha-icon icon="mdi:arrow-right-bold-circle"></ha-icon>
+          <div class="grow"><div class="small muted">${this.t("refsBest")}</div><b>${esc(c.name)}</b><div><code>${esc(c.entity_id)}</code></div></div>
+          <div class="ref-score"><div class="ring-s" style="--p:${pct}"><span>${pct}</span></div><div class="small muted">${esc(this.t("refsSure", { p: pct }))}</div></div></div>${others}`
+      : `<div class="ref-match grey"><ha-icon icon="mdi:help-circle-outline"></ha-icon><div class="grow small">${esc(this.t("refsNoMatch"))}</div></div>`;
+    const places = this.refOpen[r.entity_id];
+    return `<div class="card ref-card ${r.ignored ? "is-hidden" : ""}">
+        <div class="dev-head"><div class="dot ${r.ignored ? "grey" : "red"}"></div>
+          <div class="grow"><div class="dev-name">${esc(r.name)}</div><code>${esc(r.entity_id)}</code></div>
+          <span class="tag ${r.status === "orphan" ? "blue" : "red"}">${this.t(r.status === "orphan" ? "refsOrphan" : "refsMissing")}</span></div>
+        <div class="small muted ref-used">${this.t("refsUsedIn")}</div><div class="chips">${used}</div>
+        ${match}
+        ${places === "loading" ? `<p class="muted small">${this.t("refsScanning")}</p>` : places ? this.handBlock(places.hand_files) : ""}
+        <div class="btns ref-btns">
+          ${c && !r.ignored ? `<button class="primary" data-act="refMove" data-id="${esc(r.entity_id)}"><ha-icon icon="mdi:swap-horizontal"></ha-icon>${this.t("refsMove")}</button>` : ""}
+          ${r.status === "orphan" && !r.ignored ? `<button class="ghost" data-act="refRemove" data-id="${esc(r.entity_id)}"><ha-icon icon="mdi:delete-outline"></ha-icon>${this.t("refsRemove")}</button>` : ""}
+        </div>
+        <div class="card-links">
+          ${c && !places ? `<button class="link" data-act="refPlaces" data-id="${esc(r.entity_id)}">${this.t("refsPlaces")}</button>` : ""}
+          <button class="link" data-act="refIgnore" data-id="${esc(r.entity_id)}" data-on="${r.ignored ? "" : "1"}">${this.t(r.ignored ? "refsUnignore" : "refsIgnore")}</button>
+        </div></div>`;
+  }
+
+  refsView() {
+    if (!this.refs) return `<div class="card working"><div class="spinner"></div><p>${this.t("refsScanning")}</p></div>`;
+    const open = this.refs.filter((r) => !r.ignored);
+    const ignored = this.refs.filter((r) => r.ignored);
+    const sure = open.filter((r) => r.candidates[0] && r.candidates[0].score >= 0.9 && !this.refChoice[r.entity_id]);
+    const head = `<div class="hero card"><div class="hero-icon"><ha-icon icon="mdi:link-variant-off"></ha-icon></div>
+        <div class="grow"><h2>${this.t("refsTitle")}</h2><p class="muted">${this.t("refsHint")}</p>
+        <p class="small ok-text"><ha-icon icon="mdi:shield-check-outline"></ha-icon> ${this.t("refsSafe")}</p>
+        ${sure.length ? `<div class="btns"><button class="primary" data-act="refFixSure"><ha-icon icon="mdi:auto-fix"></ha-icon>${this.t("refsFixSure", { n: sure.length })}</button></div>` : ""}
+        <label class="mrow fixrow nob"><input type="checkbox" id="refRemoveOld" ${this.refRemoveOld ? "checked" : ""}><span class="box"></span><span class="grow small">${this.t("refsAlsoRemove")}</span></label></div></div>
+      ${this.refNote ? `<div class="card ok-note"><ha-icon icon="mdi:check-circle"></ha-icon>${esc(this.refNote)}</div>` : ""}`;
+    const isSure = (r) => r.candidates[0] && r.candidates[0].score >= 0.9;
+    const kinds = ["automation", "script", "scene", "dashboard"].filter((k) => open.some((r) => r.used_in.some((u) => u.kind === k)));
+    const count = (k) => (k === "all" ? open.length : k === "sure" ? open.filter(isSure).length : open.filter((r) => r.used_in.some((u) => u.kind === k)).length);
+    const filters = ["all", ...(open.some(isSure) ? ["sure"] : []), ...kinds];
+    const label = (k) => (k === "all" ? this.t("refsAll") : k === "sure" ? this.t("refsSureOnly") : this.kindName(k));
+    const chips = open.length > 6
+      ? `<div class="fchips">${filters.map((k) => `<button class="fchip ${this.refFilter === k ? "on" : ""}" data-act="refFilter" data-k="${k}">${esc(label(k))} <span>${count(k)}</span></button>`).join("")}</div>` : "";
+    const shown = open.filter((r) => this.refFilter === "all" || (this.refFilter === "sure" ? isSure(r) : r.used_in.some((u) => u.kind === this.refFilter)));
+    const page = shown.slice(0, this.refLimit);
+    const list = open.length
+      ? `${chips}<div class="grid refgrid">${page.map((r) => this.refRow(r)).join("")}</div>
+         ${shown.length > page.length ? `<p class="center-link"><button class="ghost" data-act="refMore">${esc(this.t("refsShowMore", { n: Math.min(12, shown.length - page.length) }))}</button></p>` : ""}`
+      : `<div class="card empty"><ha-icon icon="mdi:check-circle"></ha-icon>${this.t("refsNone")}</div>`;
+    const hid = ignored.length
+      ? `<details class="dmore"><summary>${esc(this.t("refsIgnored", { n: ignored.length }))}</summary><div class="grid refgrid">${ignored.map((r) => this.refRow(r)).join("")}</div></details>` : "";
+    return head + list + hid;
+  }
+
+  async refFix(pairs) {
+    this.view = "working";
+    this.render();
+    try {
+      const r = await this.ws("dead_ref_fix", { pairs, remove_old: this.refRemoveOld });
+      this.refNote = this.t("refsDone", { n: r.done.length }) + (r.removed.length ? " " + this.t("refsRemoved") : "");
+      this.refChoice = {};
+      this.refOpen = {};
+      const [refs, history] = await Promise.all([this.ws("dead_refs"), this.ws("history")]);
+      this.refs = refs.refs;
+      this.historyItems = history.history;
+    } catch (e) {
+      this.error = this.t("error", { e: e.message || e.code || e });
+    }
+    this.view = "refs";
+    this.render();
   }
 
   // What could still bite, as lines; also used to count them in "move many".
@@ -2079,6 +2337,7 @@ class ReplaceDevicePanel extends HTMLElement {
       home: () => this.homeView(), pick: () => this.pickView(), match: () => this.matchView(), working: () => this.workingView(),
       done: () => this.doneView(), migrate: () => this.migrateView(), migrated: () => this.migrateDoneView(),
       edit: () => this.editView(), dry: () => this.dryView(), rename: () => this.renameView(),
+      refs: () => this.refsView(),
     }[this.view]();
     this.shadowRoot.innerHTML = `<style>${STYLE}</style>
       <div class="toolbar">${customElements.get("ha-menu-button") ? "<ha-menu-button></ha-menu-button>" : ""}${this.view !== "home" && this.view !== "working" ? `<button class="tb-back" data-act="topBack" title="${this.t("back")}" aria-label="${this.t("back")}"><ha-icon icon="mdi:arrow-left"></ha-icon></button>` : ""}<div class="tb-title">${this.t("title")}</div></div>
@@ -2095,6 +2354,14 @@ class ReplaceDevicePanel extends HTMLElement {
         this.error = "";
         this.render();
       }));
+    this.shadowRoot.querySelectorAll("select.ref-select").forEach((el) =>
+      el.addEventListener("change", () => {
+        this.refChoice[el.dataset.ref] = el.value;
+        delete this.refOpen[el.dataset.ref];
+        this.render();
+      }));
+    const refRemove = this.shadowRoot.getElementById("refRemoveOld");
+    if (refRemove) refRemove.addEventListener("change", () => (this.refRemoveOld = refRemove.checked));
     const remove = this.shadowRoot.getElementById("removeOld");
     if (remove) remove.addEventListener("change", () => (this.removeOld = remove.checked));
     const newName = this.shadowRoot.getElementById("newName");
@@ -2171,6 +2438,54 @@ class ReplaceDevicePanel extends HTMLElement {
       else if (this.view === "match") data = { act: "back" };
       else if (this.view === "dry") data = { act: "dryBack" };
       else data = { act: "home" };
+    }
+    if (data.act === "refs") {
+      this.view = "refs";
+      this.refNote = "";
+      this.render();
+      return;
+    }
+    if (data.act === "refFilter") {
+      this.refFilter = data.k;
+      this.refLimit = 12;
+      return this.render();
+    }
+    if (data.act === "refMore") {
+      this.refLimit += 12;
+      return this.render();
+    }
+    if (data.act === "refMove") {
+      return this.refFix([{ old: data.id, new: this.refChosen(this.refs.find((r) => r.entity_id === data.id)) }]);
+    }
+    if (data.act === "refFixSure") {
+      const pairs = this.refs.filter((r) => !r.ignored && r.candidates[0] && r.candidates[0].score >= 0.9 && !this.refChoice[r.entity_id])
+        .map((r) => ({ old: r.entity_id, new: r.candidates[0].entity_id }));
+      return this.refFix(pairs);
+    }
+    if (data.act === "refPlaces") {
+      const r = this.refs.find((x) => x.entity_id === data.id);
+      this.refOpen[data.id] = "loading";
+      this.render();
+      this.ws("dead_ref_places", { old: data.id, new: this.refChosen(r) })
+        .then((p) => (this.refOpen[data.id] = p))
+        .catch(() => delete this.refOpen[data.id])
+        .finally(() => this.render());
+      return;
+    }
+    if (data.act === "refRemove") {
+      this.ws("dead_ref_remove", { entity_id: data.id }).then(async () => {
+        this.refNote = this.t("refsRemoved");
+        this.refs = (await this.ws("dead_refs")).refs;
+        this.render();
+      });
+      return;
+    }
+    if (data.act === "refIgnore") {
+      this.ws("dead_ref_ignore", { entity_id: data.id, ignored: !!data.on }).then(async () => {
+        this.refs = (await this.ws("dead_refs")).refs;
+        this.render();
+      });
+      return;
     }
     if (data.act === "home") {
       this.view = "home";
@@ -2290,7 +2605,24 @@ button.full{width:100%;margin-top:12px}button.big{padding:13px 22px;font-size:16
 .dev-head{display:flex;gap:12px;align-items:flex-start}.dev-name{font-weight:600;font-size:16px}
 .dot{width:12px;height:12px;border-radius:50%;margin-top:5px;flex:none}.dot.red{background:var(--rd-red);box-shadow:0 0 0 4px rgba(219,68,55,.15)}
 .twin{display:flex;gap:10px;align-items:center;margin-top:12px;padding:10px 12px;border-radius:10px;background:rgba(67,160,71,.10)}.twin ha-icon{color:var(--rd-green)}
-.empty{display:flex;gap:10px;align-items:center;color:var(--secondary-text-color)}.empty ha-icon{color:var(--rd-green)}
+.empty{display:flex;gap:10px;align-items:center;color:var(--secondary-text-color)}
+.refs-teaser{display:flex;gap:14px;align-items:center;cursor:pointer;border-left:4px solid var(--rd-amber)}.refs-teaser:hover{filter:brightness(1.02)}
+.rt-icon{width:44px;height:44px;border-radius:12px;background:rgba(255,166,0,.15);color:var(--rd-amber);display:flex;align-items:center;justify-content:center;flex:none}
+.ref-card{display:flex;flex-direction:column}.ref-used{margin-top:12px}
+.ref-match{display:flex;gap:12px;align-items:center;margin-top:12px;padding:12px;border-radius:12px;background:var(--secondary-background-color,#f6f8fa)}
+.ref-match>ha-icon{--mdc-icon-size:28px;flex:none}.ref-match.green{background:rgba(67,160,71,.10)}.ref-match.green>ha-icon{color:var(--rd-green)}
+.ref-match.amber{background:rgba(255,166,0,.12)}.ref-match.amber>ha-icon{color:var(--rd-amber)}.ref-match.grey>ha-icon{color:var(--secondary-text-color)}
+.ref-score{text-align:center;flex:none}
+.ring-s{--c:var(--rd-green);width:44px;height:44px;border-radius:50%;margin:0 auto 2px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;
+  background:radial-gradient(closest-side,var(--card-background-color,#fff) 76%,transparent 78%),conic-gradient(var(--c) calc(var(--p)*1%),var(--divider-color,#e3e7ec) 0)}
+.ref-match.amber .ring-s{--c:var(--rd-amber)}.ref-match.grey .ring-s{--c:var(--secondary-text-color)}
+.fchips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:0 0 14px;padding:2px}
+.fchip{flex:none;padding:8px 14px;border-radius:99px;border:1px solid var(--divider-color,#d6dce4);background:var(--card-background-color,#fff);color:var(--primary-text-color);font-size:14px;font-weight:500}
+.fchip span{color:var(--secondary-text-color);margin-left:2px}.fchip.on{background:var(--rd-blue);border-color:var(--rd-blue);color:#fff}.fchip.on span{color:#fff;opacity:.85}
+.refgrid{grid-template-columns:repeat(auto-fill,minmax(min(100%,380px),1fr))}
+.ref-select{margin-top:8px}.ref-btns{margin-top:auto;padding-top:12px;display:flex;gap:8px;flex-wrap:wrap}.ref-btns button{flex:1 1 auto;white-space:nowrap}
+.ok-note{display:flex;gap:10px;align-items:center;color:var(--rd-green)}
+.dot.grey{background:var(--secondary-text-color)}.empty ha-icon{color:var(--rd-green)}
 .list{padding:4px 16px}.hist{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--divider-color,#e6e9ee)}.hist:last-child{border:0}
 .tag{font-size:12px;padding:3px 10px;border-radius:99px;background:var(--secondary-background-color,#eef1f5);white-space:nowrap}
 .tag.red{background:rgba(219,68,55,.14);color:var(--rd-red)}.tag.blue{background:rgba(3,169,244,.14);color:var(--rd-blue)}

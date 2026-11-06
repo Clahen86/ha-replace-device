@@ -19,11 +19,17 @@ from .hardware import all_devices, hardware_keys, source, z2m_ieee
 from .remembered import remembered
 from .replace import Plan, Replacer, async_plan, async_remove_device, device_name
 from .suggest import is_dead
+from . import deadrefs
 
 
 @callback
 def async_setup(hass: HomeAssistant) -> None:
     for command in (
+        ws_dead_refs,
+        ws_dead_ref_places,
+        ws_dead_ref_fix,
+        ws_dead_ref_remove,
+        ws_dead_ref_ignore,
         ws_devices,
         ws_hide,
         ws_remove_device,
@@ -50,6 +56,10 @@ def async_setup(hass: HomeAssistant) -> None:
 def _replacer(hass: HomeAssistant) -> Replacer | None:
     entries = hass.config_entries.async_loaded_entries(DOMAIN)
     return entries[0].runtime_data if entries else None
+
+
+def _not_loaded(connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    connection.send_error(msg["id"], "not_loaded", "Replace Device is not set up")
 
 
 def _device(hass: HomeAssistant, device: dr.DeviceEntry) -> dict[str, Any]:
@@ -646,3 +656,74 @@ async def ws_migrate(hass: HomeAssistant, connection: websocket_api.ActiveConnec
             "fixed": fixed_all if fixed_all["entries"] or fixed_all["failed"] else None,
         },
     )
+
+
+# ---------- dead references (deadrefs.py) ----------
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/dead_refs"})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_dead_refs(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Entity IDs that automations, scripts, scenes and dashboards use, but that are gone - with suggestions."""
+    replacer = _replacer(hass)
+    if replacer is None:
+        return _not_loaded(connection, msg)
+    connection.send_result(msg["id"], {"refs": await deadrefs.async_scan(hass, replacer.ignored_refs)})
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): f"{DOMAIN}/dead_ref_places", vol.Required("old"): str, vol.Required("new"): str}
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_dead_ref_places(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Everywhere the dead ID is used: what is fixed, and lines in the user's own files to change by hand."""
+    replacer = _replacer(hass)
+    if replacer is None:
+        return _not_loaded(connection, msg)
+    connection.send_result(msg["id"], await replacer.async_follow_places(msg["old"], msg["new"]))
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/dead_ref_fix",
+        vol.Required("pairs"): [{vol.Required("old"): str, vol.Required("new"): str}],
+        vol.Optional("remove_old", default=False): bool,
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_dead_ref_fix(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Move dead references to their replacements (each can be undone in the history)."""
+    replacer = _replacer(hass)
+    if replacer is None:
+        return _not_loaded(connection, msg)
+    done, removed = [], []
+    for pair in msg["pairs"]:
+        if await replacer.async_follow(pair["old"], pair["new"], "fix"):
+            done.append(pair["old"])
+            if msg["remove_old"] and deadrefs.async_remove_orphan(hass, pair["old"]):
+                removed.append(pair["old"])
+    connection.send_result(msg["id"], {"done": done, "removed": removed})
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/dead_ref_remove", vol.Required("entity_id"): str})
+@websocket_api.require_admin
+@callback
+def ws_dead_ref_remove(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Remove a forgotten entity that nothing provides any more."""
+    connection.send_result(msg["id"], {"removed": deadrefs.async_remove_orphan(hass, msg["entity_id"])})
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): f"{DOMAIN}/dead_ref_ignore", vol.Required("entity_id"): str, vol.Required("ignored"): bool}
+)
+@websocket_api.require_admin
+@callback
+def ws_dead_ref_ignore(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    replacer = _replacer(hass)
+    if replacer is None:
+        return _not_loaded(connection, msg)
+    replacer.set_ignored_ref(msg["entity_id"], msg["ignored"])
+    connection.send_result(msg["id"], {})

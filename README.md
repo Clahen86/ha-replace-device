@@ -82,6 +82,10 @@ A cloud sync renames `sensor.living_temp` to `sensor.living_temperature`, or a d
 
 Both can be undone in the list. Changes Replace Device makes itself, and IDs nothing uses, never give a repair.
 
+### Dead references
+
+**Dead references** on the front page lists every entity ID that automations, scripts, scenes and dashboards still use, but that is gone – with the best replacement and how sure it is. Tap **Move here** to point every place at the replacement (with undo in the history), **Remove the old one** for a forgotten entity, or **Ignore**. **Fix all sure ones** only moves matches that are clearly the same thing – never two different lamps or people with similar names. Your own YAML files and code outside Home Assistant are listed line by line under **See every place**.
+
 ### Rename a device
 
 Home Assistant can rename a device and its entity IDs, but automations, scripts, dashboards and helpers keep pointing at the old IDs. **Rename a device** changes the name and the entity IDs, and updates the places the Home Assistant editors manage:
@@ -183,6 +187,10 @@ En sky-synkronisering omdøber `sensor.stue_temp` til `sensor.stue_temperature`,
 - **Giv entiteten sit gamle id igen:** så virker alt som før.
 
 Begge dele kan fortrydes i listen. Ændringer, Udskift enhed selv laver, og id'er, som intet bruger, giver aldrig en reparation.
+
+### Døde referencer
+
+**Døde referencer** på forsiden viser alle entity-id'er, som automationer, scripts, scener og dashboards stadig bruger, men som er væk – med den bedste afløser og hvor sikker den er. Tryk **Flyt hertil** for at rette alle steder (kan fortrydes i historikken), **Slet den gamle** for en glemt entitet, eller **Ignorér**. **Ret alle sikre** flytter kun dem, der tydeligt er det samme – aldrig to forskellige lamper eller personer med næsten samme navn. Dine egne YAML-filer og kode uden for Home Assistant vises linje for linje under **Se alle steder**.
 
 ### Omdøb en enhed
 
