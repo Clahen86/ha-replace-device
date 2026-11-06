@@ -2051,6 +2051,7 @@ async def test_dead_reference_card_name(hass: HomeAssistant) -> None:
     found: set = set()
     deadrefs._walk({"views": [{"title": "Badeværelse", "cards": [{"type": "light", "entity": "light.badevarelse1", "name": "Badeværelse loft"}]}]}, found, hints)
     assert found == {"light.badevarelse1"} and hints["light.badevarelse1"]["names"] == {"Badeværelse loft"}
-    best = deadrefs._candidates(hass, er.async_get(hass), "light.badevarelse1",
-                                ["light.loft_badevaerelse", "light.loft_gang"], hints["light.badevarelse1"])
+    old = {"entity_id": "light.badevarelse1", "name": "badevarelse1", "card_names": sorted(hints["light.badevarelse1"]["names"]),
+           "views": sorted(hints["light.badevarelse1"]["views"]), "device_class": None, "unit": None}
+    best = deadrefs._candidates(old, deadrefs._pool(hass, er.async_get(hass)))
     assert best[0]["entity_id"] == "light.loft_badevaerelse" and best[0]["score"] >= deadrefs.SURE

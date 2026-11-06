@@ -77,7 +77,7 @@ async def _uses(
                 add(entity_id, kind, state.attributes.get(ATTR_FRIENDLY_NAME) or state.entity_id, state.entity_id)
     for title, _dashboard, config in await references.async_dashboards(hass):
         found: set[str] = set()
-        _walk(config, found, hints)
+        _walk(config, found, hints, title)  # a dashboard per room ("Soveværelse") is a room too
         for entity_id in found:
             add(entity_id, "dashboard", title, title)
     return uses
@@ -157,61 +157,78 @@ def _area_of(hass: HomeAssistant, registry: er.EntityRegistry, entity_id: str) -
     return area.name.lower() if area else ""
 
 
-def _candidates(
-    hass: HomeAssistant, registry: er.EntityRegistry, entity_id: str, alive: list[str],
-    hint: dict[str, set[str]] | None = None,
-) -> list[dict[str, Any]]:
-    """The best replacements, most likely first, with how sure (0-1). hint: the dashboard's own name for it
-    and the views (rooms) it is in - often the best clue when the entity ID is something else entirely."""
-    domain, obj = entity_id.split(".", 1)
-    base = _SUFFIX.sub("", obj)
-    old_entry = registry.async_get(entity_id)
-    old_name = ((old_entry and (old_entry.name or old_entry.original_name)) or _label(entity_id)).lower()
-    old_class = old_entry and (old_entry.device_class or old_entry.original_device_class)
-    old_unit = old_entry and old_entry.unit_of_measurement
-    scored = []
-    for other in alive:
-        if not other.startswith(domain + "."):
+def _pool(hass: HomeAssistant, registry: er.EntityRegistry) -> list[dict[str, Any]]:
+    """A snapshot of the live entities, so the comparing can run outside the event loop."""
+    pool = []
+    for state in hass.states.async_all():
+        if state.attributes.get("restored"):
             continue
-        o_obj = other.split(".", 1)[1]
-        state = hass.states.get(other)
-        name = str((state and state.attributes.get(ATTR_FRIENDLY_NAME)) or _label(other)).lower()
+        obj = state.object_id
+        name = str(state.attributes.get(ATTR_FRIENDLY_NAME) or _label(state.entity_id)).lower()
+        pool.append({
+            "entity_id": state.entity_id, "domain": state.domain, "obj": obj, "base": _SUFFIX.sub("", obj),
+            "name": name, "words": _words(obj) + _words(_norm(name)), "area": _area_of(hass, registry, state.entity_id),
+            "device_class": state.attributes.get("device_class"), "unit": state.attributes.get("unit_of_measurement"),
+        })
+    return pool
+
+
+def _candidates(old: dict[str, Any], pool: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The best replacements, most likely first, with how sure (0-1). old: the dead ID with what is known about it,
+    and the dashboard's own name for it and the views (rooms) it is in - often the best clue. Pure: runs in a thread."""
+    domain, obj = old["entity_id"].split(".", 1)
+    base = _SUFFIX.sub("", obj)
+    old_name, old_words = old["name"].lower(), _words(obj)
+    old.setdefault("rooms", set())
+    names = [n.lower() for n in old["card_names"]]
+    views = {v.lower() for v in old["views"]}
+    scored = []
+    for c in pool:
+        if c["domain"] != domain:
+            continue
+        o_obj, name, new_words = c["obj"], c["name"], c["words"]
+        # Quick filter: nothing in common at all - not worth comparing.
+        if not (set(old_words) & set(new_words)) and not names and difflib.SequenceMatcher(None, obj, o_obj).quick_ratio() < 0.6:
+            continue
         score = max(
             difflib.SequenceMatcher(None, obj, o_obj).ratio(),
-            difflib.SequenceMatcher(None, base, _SUFFIX.sub("", o_obj)).ratio() * 0.97,
+            difflib.SequenceMatcher(None, base, c["base"]).ratio() * 0.97,
             difflib.SequenceMatcher(None, old_name, name).ratio() * 0.95,
         )
         # The card's own name ("Badeværelse loft") against the live entity's name.
-        named = max((difflib.SequenceMatcher(None, n.lower(), name).ratio() for n in (hint or {}).get("names", ())), default=0)
+        named = max((difflib.SequenceMatcher(None, n, name).ratio() for n in names), default=0)
         # Every word of the old ID in the new one's ID or name, with the same number: "gang_kaelder3_2" ->
         # "gang_kaelder_paere_3", "…_sensor_tilstedevaerelse" -> "…_sensor_occupancy" (named "… tilstedeværelse").
-        new_words = _words(o_obj) + _words(_norm(name))
         covered = _covers(obj, new_words) if _same_numbers(obj, o_obj) else 0.0
-        if _SUFFIX.sub("", o_obj) == base:
+        if c["base"] == base:
             score = max(score, 0.97)  # "sensor.kitchen_2" for "sensor.kitchen": the device came back as new
         elif named >= 0.9:
             score = max(score, named * 0.96)  # the dashboard calls it exactly that
-        elif covered == 1.0 and len(_words(_SUFFIX.sub("", obj))) >= 2:
-            extra = len(set(new_words) - set(_words(obj)))
+        elif covered == 1.0 and len(_words(base)) >= 2:
+            extra = len(set(new_words) - set(old_words))
             score = max(score, 0.95 - min(extra, 6) * 0.01)  # all the words, same number; fewer extra words first
         elif _distinct(obj, o_obj):
             score = min(score, 0.7)  # a different lamp, person or room: never a "sure" match
         else:
             score = max(score, named * 0.9)
-        views = {v.lower() for v in (hint or {}).get("views", ())}
-        if (_SIDE & set(new_words)) and not (_SIDE & set(_words(obj))):
+        if (_SIDE & set(new_words)) and not (_SIDE & set(old_words)):
             score -= 0.25  # "…_batteri" for a door sensor: a side entity of the device, not the device
-        if views and (area := _area_of(hass, registry, other)) and any(area in v or v in area for v in views):
+        if views and c["area"] and any(c["area"] in v or v in c["area"] for v in views):
             score += 0.04  # in the room the card is shown in
-        if state is not None:
-            if old_class and state.attributes.get("device_class") not in (None, old_class):
-                score -= 0.25
-            if old_unit and state.attributes.get("unit_of_measurement") not in (None, old_unit):
-                score -= 0.25
+        elif old["rooms"] and c["area"] and c["area"] not in old["rooms"]:
+            score -= 0.2  # the card is in the bedroom view, this one is in another room
+        if old["device_class"] and c["device_class"] not in (None, old["device_class"]):
+            score -= 0.25
+        if old["unit"] and c["unit"] not in (None, old["unit"]):
+            score -= 0.25
         if score >= MIN_SCORE:
-            scored.append((score, other, name))
+            scored.append((score, c["entity_id"], name))
     scored.sort(reverse=True)
     return [{"entity_id": e, "name": n, "score": round(min(s, 1.0), 2)} for s, e, n in scored[:3]]
+
+
+def _score_all(olds: list[dict[str, Any]], pool: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
+    return [_candidates(o, pool) for o in olds]
 
 
 async def async_scan(hass: HomeAssistant, ignored: list[str]) -> list[dict[str, Any]]:
@@ -219,28 +236,36 @@ async def async_scan(hass: HomeAssistant, ignored: list[str]) -> list[dict[str, 
     registry = er.async_get(hass)
     hints: dict[str, dict[str, set[str]]] = {}
     uses = await _uses(hass, hints)
-    alive = [s.entity_id for s in hass.states.async_all() if not s.attributes.get("restored")]
-    result = []
+    result, olds = [], []
     for entity_id, where in uses.items():
         status = _status(hass, registry, entity_id)
         if status is None:
             continue
         entry = registry.async_get(entity_id)
+        hint = hints.get(entity_id) or {}
         seen: set[tuple[str, str]] = set()
         places = [w for w in where if (w["kind"], w["id"]) not in seen and not seen.add((w["kind"], w["id"]))]
-        result.append(
-            {
-                "entity_id": entity_id,
-                "status": status,
-                "name": (entry and (entry.name or entry.original_name))
-                or next(iter(sorted((hints.get(entity_id) or {}).get("names", ()))), None) or _label(entity_id),
-                "platform": entry.platform if entry else None,
-                "used_in": places,
-                "candidates": _candidates(hass, registry, entity_id, alive, hints.get(entity_id)),
-                "card_names": sorted((hints.get(entity_id) or {}).get("names", ()))[:3],
-                "ignored": entity_id in ignored,
-            }
-        )
+        name = (entry and (entry.name or entry.original_name)) or next(iter(sorted(hint.get("names", ()))), None) \
+            or _label(entity_id)
+        olds.append({
+            "entity_id": entity_id, "name": name, "card_names": sorted(hint.get("names", ())),
+            "views": sorted(hint.get("views", ())),
+            "device_class": entry and (entry.device_class or entry.original_device_class),
+            "unit": entry and entry.unit_of_measurement,
+        })
+        result.append({
+            "entity_id": entity_id, "status": status, "name": name, "platform": entry.platform if entry else None,
+            "used_in": places, "card_names": sorted(hint.get("names", ()))[:3], "ignored": entity_id in ignored,
+        })
+    pool = _pool(hass, registry)
+    from homeassistant.helpers import area_registry as ar
+
+    areas = [a.name.lower() for a in ar.async_get(hass).async_list_areas()]
+    for o in olds:
+        # The views that are rooms ("Soveværelse"); "Overview" or "Info" say nothing about where it is.
+        o["rooms"] = {a for a in areas for v in o["views"] if a in v.lower() or v.lower().strip() in a}
+    for r, candidates in zip(result, await hass.async_add_executor_job(_score_all, olds, pool)):
+        r["candidates"] = candidates
     # One live entity can't be the sure replacement for several dead ones (five bulbs -> one group light).
     best: dict[str, list[dict]] = {}
     for r in result:

@@ -2,20 +2,22 @@
 
 const TEXT = {
   en: {
+    refsTitle: "Broken links",
+    refsHint: "Automations, scripts, scenes and dashboards that point at an entity ID that no longer exists – for example after a device was paired again or renamed. The device itself can be working fine.",
+    refsCard: "Broken links",
+    refsCardText: "Find automations and dashboards that point at entity IDs that no longer exist.",
+    refsReview: "Scan",
+    refsMissing: "Old ID",
+    refsBest: "Probably called now",
+    refsNone: "No broken links – everything points at entities that exist.",
+    refsRescan: "Scan again",
+    refsPointsAt: "points at",
     refsAll: "All",
     refsShowMore: "Show {n} more",
     refsSureOnly: "Sure matches",
-    refsTitle: "Dead references",
-    refsHint: "Automations, scripts, scenes and dashboards that still point at entities that are gone – with the best replacement.",
-    refsCard: "{n} dead references",
-    refsCardText: "Automations and dashboards point at entities that are gone.",
-    refsReview: "Review",
-    refsNone: "No dead references – everything points at entities that exist.",
     refsFixSure: "Fix all sure ones ({n})",
-    refsMissing: "Doesn't exist",
     refsOrphan: "Forgotten entity",
     refsUsedIn: "Used in",
-    refsBest: "Best match",
     refsSure: "{p} % sure",
     refsMove: "Move here",
     refsPlaces: "See every place",
@@ -251,20 +253,22 @@ const TEXT = {
     dryBack: "Back",
   },
   da: {
+    refsTitle: "Døde henvisninger",
+    refsHint: "Automationer, scripts, scener og dashboards, der peger på et entity-id, der ikke findes mere – fx efter en genparring eller omdøbning. Selve enheden kan sagtens virke.",
+    refsCard: "Døde henvisninger",
+    refsCardText: "Find automationer og dashboards, der peger på entity-id'er, der ikke findes mere.",
+    refsReview: "Scan",
+    refsMissing: "Gammelt id",
+    refsBest: "Hedder nu nok",
+    refsNone: "Ingen døde henvisninger – alt peger på entiteter, der findes.",
+    refsRescan: "Scan igen",
+    refsPointsAt: "peger på",
     refsAll: "Alle",
     refsShowMore: "Vis {n} mere",
     refsSureOnly: "Sikre bud",
-    refsTitle: "Døde referencer",
-    refsHint: "Automationer, scripts, scener og dashboards, der stadig peger på entiteter, der er væk – med den bedste afløser.",
-    refsCard: "{n} døde referencer",
-    refsCardText: "Automationer og dashboards peger på entiteter, der er væk.",
-    refsReview: "Gennemgå",
-    refsNone: "Ingen døde referencer – alt peger på entiteter, der findes.",
     refsFixSure: "Ret alle sikre ({n})",
-    refsMissing: "Findes ikke",
     refsOrphan: "Glemt entitet",
     refsUsedIn: "Bruges i",
-    refsBest: "Bedste bud",
     refsSure: "{p} % sikker",
     refsMove: "Flyt hertil",
     refsPlaces: "Se alle steder",
@@ -500,20 +504,22 @@ const TEXT = {
     dryBack: "Tilbage",
   },
   de: {
+    refsTitle: "Tote Verweise",
+    refsHint: "Automationen, Skripte, Szenen und Dashboards, die auf eine Entitäts-ID zeigen, die es nicht mehr gibt – z. B. nach neuem Koppeln oder Umbenennen. Das Gerät selbst kann gut funktionieren.",
+    refsCard: "Tote Verweise",
+    refsCardText: "Automationen und Dashboards finden, die auf nicht mehr vorhandene Entitäts-IDs zeigen.",
+    refsReview: "Scannen",
+    refsMissing: "Alte ID",
+    refsBest: "Heißt jetzt wohl",
+    refsNone: "Keine toten Verweise – alles zeigt auf vorhandene Entitäten.",
+    refsRescan: "Erneut scannen",
+    refsPointsAt: "zeigt auf",
     refsAll: "Alle",
     refsShowMore: "{n} weitere zeigen",
     refsSureOnly: "Sichere Treffer",
-    refsTitle: "Tote Verweise",
-    refsHint: "Automationen, Skripte, Szenen und Dashboards, die noch auf Entitäten zeigen, die weg sind – mit dem besten Ersatz.",
-    refsCard: "{n} tote Verweise",
-    refsCardText: "Automationen und Dashboards zeigen auf Entitäten, die weg sind.",
-    refsReview: "Ansehen",
-    refsNone: "Keine toten Verweise – alles zeigt auf vorhandene Entitäten.",
     refsFixSure: "Alle sicheren beheben ({n})",
-    refsMissing: "Existiert nicht",
     refsOrphan: "Vergessene Entität",
     refsUsedIn: "Verwendet in",
-    refsBest: "Bester Treffer",
     refsSure: "{p} % sicher",
     refsMove: "Hierhin verschieben",
     refsPlaces: "Alle Stellen ansehen",
@@ -749,20 +755,22 @@ const TEXT = {
     dryBack: "Zurück",
   },
   sv: {
+    refsTitle: "Döda hänvisningar",
+    refsHint: "Automationer, skript, scener och instrumentpaneler som pekar på ett entitets-ID som inte finns längre – t.ex. efter ny parkoppling eller namnbyte. Själva enheten kan fungera fint.",
+    refsCard: "Döda hänvisningar",
+    refsCardText: "Hitta automationer och instrumentpaneler som pekar på entitets-ID:n som inte finns längre.",
+    refsReview: "Skanna",
+    refsMissing: "Gammalt ID",
+    refsBest: "Heter nu troligen",
+    refsNone: "Inga döda hänvisningar – allt pekar på entiteter som finns.",
+    refsRescan: "Skanna igen",
+    refsPointsAt: "pekar på",
     refsAll: "Alla",
     refsShowMore: "Visa {n} till",
     refsSureOnly: "Säkra förslag",
-    refsTitle: "Döda referenser",
-    refsHint: "Automationer, skript, scener och instrumentpaneler som fortfarande pekar på entiteter som är borta – med den bästa ersättaren.",
-    refsCard: "{n} döda referenser",
-    refsCardText: "Automationer och instrumentpaneler pekar på entiteter som är borta.",
-    refsReview: "Gå igenom",
-    refsNone: "Inga döda referenser – allt pekar på entiteter som finns.",
     refsFixSure: "Åtgärda alla säkra ({n})",
-    refsMissing: "Finns inte",
     refsOrphan: "Glömd entitet",
     refsUsedIn: "Används i",
-    refsBest: "Bästa förslag",
     refsSure: "{p} % säker",
     refsMove: "Flytta hit",
     refsPlaces: "Se alla ställen",
@@ -998,20 +1006,22 @@ const TEXT = {
     dryBack: "Tillbaka",
   },
   nl: {
+    refsTitle: "Dode verwijzingen",
+    refsHint: "Automatiseringen, scripts, scènes en dashboards die naar een entiteit-ID wijzen die niet meer bestaat – bijv. na opnieuw koppelen of hernoemen. Het apparaat zelf kan prima werken.",
+    refsCard: "Dode verwijzingen",
+    refsCardText: "Vind automatiseringen en dashboards die naar entiteit-ID's wijzen die niet meer bestaan.",
+    refsReview: "Scannen",
+    refsMissing: "Oude ID",
+    refsBest: "Heet nu waarschijnlijk",
+    refsNone: "Geen dode verwijzingen – alles wijst naar bestaande entiteiten.",
+    refsRescan: "Opnieuw scannen",
+    refsPointsAt: "wijst naar",
     refsAll: "Alle",
     refsShowMore: "Toon {n} meer",
     refsSureOnly: "Zekere matches",
-    refsTitle: "Dode verwijzingen",
-    refsHint: "Automatiseringen, scripts, scènes en dashboards die nog naar entiteiten wijzen die weg zijn – met de beste vervanger.",
-    refsCard: "{n} dode verwijzingen",
-    refsCardText: "Automatiseringen en dashboards wijzen naar entiteiten die weg zijn.",
-    refsReview: "Bekijken",
-    refsNone: "Geen dode verwijzingen – alles wijst naar bestaande entiteiten.",
     refsFixSure: "Alle zekere herstellen ({n})",
-    refsMissing: "Bestaat niet",
     refsOrphan: "Vergeten entiteit",
     refsUsedIn: "Gebruikt in",
-    refsBest: "Beste match",
     refsSure: "{p} % zeker",
     refsMove: "Hierheen verplaatsen",
     refsPlaces: "Alle plekken bekijken",
@@ -1395,7 +1405,7 @@ class ReplaceDevicePanel extends HTMLElement {
       this.devices = devices.devices;
       this.historyItems = history.history;
       this.error = "";
-      this.ws("dead_refs").then((r) => { this.refs = r.refs; if (["home", "refs"].includes(this.view)) this.render(); }).catch(() => {});
+
     } catch (e) {
       this.error = this.t("error", { e: e.message || e.code || e });
     }
@@ -1555,12 +1565,11 @@ class ReplaceDevicePanel extends HTMLElement {
   }
 
   refsCard() {
-    const open = (this.refs || []).filter((r) => !r.ignored);
-    if (!open.length) return "";
+    const open = this.refs ? this.refs.filter((r) => !r.ignored).length : null;
     return `<div class="card refs-teaser" data-act="refs">
         <div class="rt-icon"><ha-icon icon="mdi:link-variant-off"></ha-icon></div>
-        <div class="grow"><b>${esc(this.t("refsCard", { n: open.length }))}</b><div class="muted small">${esc(this.t("refsCardText"))}</div></div>
-        <button class="primary small-btn" data-act="refs">${this.t("refsReview")}</button></div>`;
+        <div class="grow"><b>${esc(this.t("refsCard"))}${open ? ` <span class="count amber">${open}</span>` : ""}</b><div class="muted small">${esc(this.t("refsCardText"))}</div></div>
+        <button class="ghost small-btn" data-act="refs">${this.t("refsReview")}</button></div>`;
   }
 
   refChosen(r) {
@@ -1584,7 +1593,7 @@ class ReplaceDevicePanel extends HTMLElement {
       : `<div class="ref-match grey"><ha-icon icon="mdi:help-circle-outline"></ha-icon><div class="grow small">${esc(this.t("refsNoMatch"))}</div></div>`;
     const places = this.refOpen[r.entity_id];
     return `<div class="card ref-card ${r.ignored ? "is-hidden" : ""}">
-        <div class="dev-head"><div class="dot ${r.ignored ? "grey" : "red"}"></div>
+        <div class="dev-head"><div class="dot ${r.ignored ? "grey" : r.status === "orphan" ? "red" : "amber"}"></div>
           <div class="grow"><div class="dev-name">${esc(r.name)}</div><code>${esc(r.entity_id)}</code>
             ${(r.card_names || []).filter((x) => x !== r.name).length ? `<div class="small muted">“${esc(r.card_names.filter((x) => x !== r.name).join("”, “"))}”</div>` : ""}</div>
           <span class="tag ${r.status === "orphan" ? "blue" : "red"}">${this.t(r.status === "orphan" ? "refsOrphan" : "refsMissing")}</span></div>
@@ -1609,7 +1618,8 @@ class ReplaceDevicePanel extends HTMLElement {
     const head = `<div class="hero card"><div class="hero-icon"><ha-icon icon="mdi:link-variant-off"></ha-icon></div>
         <div class="grow"><h2>${this.t("refsTitle")}</h2><p class="muted">${this.t("refsHint")}</p>
         <p class="small ok-text"><ha-icon icon="mdi:shield-check-outline"></ha-icon> ${this.t("refsSafe")}</p>
-        ${sure.length ? `<div class="btns"><button class="primary" data-act="refFixSure"><ha-icon icon="mdi:auto-fix"></ha-icon>${this.t("refsFixSure", { n: sure.length })}</button></div>` : ""}
+        <div class="btns">${sure.length ? `<button class="primary" data-act="refFixSure"><ha-icon icon="mdi:auto-fix"></ha-icon>${this.t("refsFixSure", { n: sure.length })}</button>` : ""}
+          <button class="ghost" data-act="refScan"><ha-icon icon="mdi:refresh"></ha-icon>${this.t("refsRescan")}</button></div>
         <label class="mrow fixrow nob"><input type="checkbox" id="refRemoveOld" ${this.refRemoveOld ? "checked" : ""}><span class="box"></span><span class="grow small">${this.t("refsAlsoRemove")}</span></label></div></div>
       ${this.refNote ? `<div class="card ok-note"><ha-icon icon="mdi:check-circle"></ha-icon>${esc(this.refNote)}</div>` : ""}`;
     const isSure = (r) => r.candidates[0] && r.candidates[0].score >= 0.9;
@@ -2440,9 +2450,15 @@ class ReplaceDevicePanel extends HTMLElement {
       else if (this.view === "dry") data = { act: "dryBack" };
       else data = { act: "home" };
     }
-    if (data.act === "refs") {
+    if (data.act === "refs" || data.act === "refScan") {
       this.view = "refs";
       this.refNote = "";
+      if (data.act === "refScan" || !this.refs) {
+        this.refs = null;
+        this.render();
+        this.ws("dead_refs").then((r) => (this.refs = r.refs)).catch((e) => { this.refs = []; this.error = this.t("error", { e: e.message || e.code || e }); })
+          .finally(() => this.render());
+      }
       this.render();
       return;
     }
@@ -2620,6 +2636,7 @@ button.full{width:100%;margin-top:12px}button.big{padding:13px 22px;font-size:16
 .fchips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:0 0 14px;padding:2px}
 .fchip{flex:none;padding:8px 14px;border-radius:99px;border:1px solid var(--divider-color,#d6dce4);background:var(--card-background-color,#fff);color:var(--primary-text-color);font-size:14px;font-weight:500}
 .fchip span{color:var(--secondary-text-color);margin-left:2px}.fchip.on{background:var(--rd-blue);border-color:var(--rd-blue);color:#fff}.fchip.on span{color:#fff;opacity:.85}
+.dot.amber{background:var(--rd-amber);box-shadow:0 0 0 4px rgba(255,166,0,.18)}.count.amber{background:var(--rd-amber)}
 .refgrid{grid-template-columns:repeat(auto-fill,minmax(min(100%,380px),1fr))}
 .ref-select{margin-top:8px}.ref-btns{margin-top:auto;padding-top:12px;display:flex;gap:8px;flex-wrap:wrap}.ref-btns button{flex:1 1 auto;white-space:nowrap}
 .ok-note{display:flex;gap:10px;align-items:center;color:var(--rd-green)}
