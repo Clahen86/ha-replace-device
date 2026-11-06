@@ -185,7 +185,11 @@ async def async_leftovers(hass: HomeAssistant, settled: bool = True) -> list[dic
         if reason:
             found.append({"kind": "entity", "id": entry.entity_id, "name": entry.name or entry.original_name or entry.entity_id,
                           "reason": reason, "entities": [entry.entity_id]})
-    found.sort(key=lambda x: (x["reason"], x["name"].lower()))
+    for x in found:
+        # "Not provided" is also what a switched-off Chromecast or TV looks like (they are only made when seen):
+        # never "surely gone".
+        x["sure"] = x["reason"] != "not_provided"
+    found.sort(key=lambda x: (not x["sure"], x["reason"], x["name"].lower()))
     return found
 
 

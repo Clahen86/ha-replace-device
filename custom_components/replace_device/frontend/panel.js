@@ -2,6 +2,8 @@
 
 const TEXT = {
   en: {
+    leftMaybe: "Maybe gone",
+    leftMaybeHint: "Could also be a device that is switched off, e.g. a Chromecast or TV – only remove what you know is gone.",
     refsTabLinks: "Broken links",
     refsTabLeft: "Leftovers",
     refsWhy: {"replaced": "Replaced with Replace Device", "renamed": "Renamed – known for sure", "same_name": "Same name and kind in the history", "guess": "Maybe – from the names"},
@@ -266,6 +268,8 @@ const TEXT = {
     dryBack: "Back",
   },
   da: {
+    leftMaybe: "Måske væk",
+    leftMaybeHint: "Kan også være en enhed, der er slukket, fx en Chromecast eller et TV – slet kun det, du ved er væk.",
     refsTabLinks: "Døde henvisninger",
     refsTabLeft: "Rester",
     refsWhy: {"replaced": "Udskiftet med Replace Device", "renamed": "Omdøbt – det vides med sikkerhed", "same_name": "Samme navn og type i historikken", "guess": "Måske – ud fra navnene"},
@@ -530,6 +534,8 @@ const TEXT = {
     dryBack: "Tilbage",
   },
   de: {
+    leftMaybe: "Vielleicht weg",
+    leftMaybeHint: "Kann auch ein ausgeschaltetes Gerät sein, z. B. ein Chromecast oder TV – nur entfernen, was sicher weg ist.",
     refsTabLinks: "Tote Verweise",
     refsTabLeft: "Reste",
     refsWhy: {"replaced": "Mit Replace Device ersetzt", "renamed": "Umbenannt – sicher bekannt", "same_name": "Gleicher Name und Typ im Verlauf", "guess": "Vielleicht – nach den Namen"},
@@ -794,6 +800,8 @@ const TEXT = {
     dryBack: "Zurück",
   },
   sv: {
+    leftMaybe: "Kanske borta",
+    leftMaybeHint: "Kan också vara en enhet som är avstängd, t.ex. en Chromecast eller TV – ta bara bort det du vet är borta.",
     refsTabLinks: "Döda hänvisningar",
     refsTabLeft: "Rester",
     refsWhy: {"replaced": "Ersatt med Replace Device", "renamed": "Bytt namn – det är säkert", "same_name": "Samma namn och typ i historiken", "guess": "Kanske – utifrån namnen"},
@@ -1058,6 +1066,8 @@ const TEXT = {
     dryBack: "Tillbaka",
   },
   nl: {
+    leftMaybe: "Misschien weg",
+    leftMaybeHint: "Kan ook een uitgeschakeld apparaat zijn, bijv. een Chromecast of tv – verwijder alleen wat zeker weg is.",
     refsTabLinks: "Dode verwijzingen",
     refsTabLeft: "Restanten",
     refsWhy: {"replaced": "Vervangen met Replace Device", "renamed": "Hernoemd – zeker bekend", "same_name": "Zelfde naam en soort in de geschiedenis", "guess": "Misschien – op basis van de namen"},
@@ -1689,22 +1699,26 @@ class ReplaceDevicePanel extends HTMLElement {
     const n = (x) => (x == null ? "" : ` <span>${x}</span>`);
     return `<div class="fchips tabs-refs">
       <button class="fchip ${this.refTab === "links" ? "on" : ""}" data-act="refTab" data-k="links"><ha-icon icon="mdi:link-variant-off"></ha-icon> ${this.t("refsTabLinks")}${n(this.refs?.filter((r) => !r.ignored).length)}</button>
-      <button class="fchip ${this.refTab === "left" ? "on" : ""}" data-act="refTab" data-k="left"><ha-icon icon="mdi:broom"></ha-icon> ${this.t("refsTabLeft")}${n(this.leftovers?.leftovers.length)}</button></div>`;
+      <button class="fchip ${this.refTab === "left" ? "on" : ""}" data-act="refTab" data-k="left"><ha-icon icon="mdi:broom"></ha-icon> ${this.t("refsTabLeft")}${n(this.leftovers?.leftovers.filter((i) => i.sure !== false).length)}</button></div>`;
   }
 
   leftView() {
     if (!this.leftovers) return `${this.refsTabs()}<div class="card working"><div class="spinner"></div><p>${this.t("refsScanning")}</p></div>`;
     const items = this.leftovers.leftovers;
     const icon = { integration_removed: "mdi:puzzle-remove-outline", not_in_z2m: "mdi:zigbee", not_in_zha: "mdi:zigbee", addon_removed: "mdi:package-variant-remove", not_provided: "mdi:ghost-outline" };
-    const groups = [...new Set(items.map((i) => i.reason))];
+    const groups = [...new Set(items.filter((i) => i.sure !== false).map((i) => i.reason))];
+    const maybe = items.filter((i) => i.sure === false);
     const key = (i) => `${i.kind}|${i.id}`;
     const row = (i) => `<label class="mrow fixrow"><input type="checkbox" data-left="${esc(key(i))}" ${this.leftSelected.has(key(i)) ? "checked" : ""}><span class="box"></span>
         <div class="grow"><div class="dname"><ha-icon icon="${i.kind === "device" ? "mdi:devices" : "mdi:shape-outline"}"></ha-icon> ${esc(i.name)}</div>
         <div class="small muted">${i.kind === "device" ? esc(this.t("leftEntities", { n: i.entities.length })) : `<code>${esc(i.id)}</code>`}</div></div></label>`;
-    const body = items.length
+    const body = groups.length
       ? groups.map((g) => `<div class="card left-group"><h3 class="in"><span class="lg-icon"><ha-icon icon="${icon[g] || "mdi:help"}"></ha-icon></span>${esc(this.sub("leftWhy", g))} <span class="count grey">${items.filter((i) => i.reason === g).length}</span></h3>
           ${items.filter((i) => i.reason === g).map(row).join("")}</div>`).join("")
       : `<div class="card empty"><ha-icon icon="mdi:check-circle"></ha-icon>${this.t("leftNone")}</div>`;
+    const maybePart = maybe.length
+      ? `<details class="dmore"><summary>${esc(this.t("leftMaybe"))} <span class="count grey">${maybe.length}</span></summary>
+          <div class="card left-group"><p class="small muted">${esc(this.t("leftMaybeHint"))}</p>${maybe.map(row).join("")}</div></details>` : "";
     return `${this.refsTabs()}
       <div class="hero card"><div class="hero-icon"><ha-icon icon="mdi:broom"></ha-icon></div><div class="grow"><h2>${this.t("refsTabLeft")}</h2>
         <p class="muted">${this.t("leftHint")}</p>
@@ -1713,7 +1727,7 @@ class ReplaceDevicePanel extends HTMLElement {
           <button class="ghost" data-act="leftAll">${this.t("leftAll")}</button><button class="ghost" data-act="leftScan"><ha-icon icon="mdi:refresh"></ha-icon>${this.t("refsRescan")}</button></div>
           <p class="small muted">${this.t("leftWarn")}</p>` : ""}</div></div>
       ${this.refNote ? `<div class="card ok-note"><ha-icon icon="mdi:check-circle"></ha-icon>${esc(this.refNote)}</div>` : ""}
-      ${body}`;
+      ${groups.length || !maybe.length ? body : `<div class="card empty"><ha-icon icon="mdi:check-circle"></ha-icon>${this.t("leftNone")}</div>`}${maybePart}`;
   }
 
   refsView() {
@@ -2590,7 +2604,7 @@ class ReplaceDevicePanel extends HTMLElement {
       return;
     }
     if (data.act === "leftAll") {
-      this.leftSelected = new Set(this.leftovers.leftovers.map((i) => `${i.kind}|${i.id}`));
+      this.leftSelected = new Set(this.leftovers.leftovers.filter((i) => i.sure !== false).map((i) => `${i.kind}|${i.id}`));
       return this.render();
     }
     if (data.act === "leftRemove") {
@@ -2784,7 +2798,7 @@ button.full{width:100%;margin-top:12px}button.big{padding:13px 22px;font-size:16
 .why-tag ha-icon{--mdc-icon-size:14px}.why-tag.fact{background:rgba(67,160,71,.14);color:var(--rd-green)}.why-tag.maybe{background:var(--secondary-background-color,#eef1f5);color:var(--secondary-text-color)}
 .tabs-refs{margin-bottom:16px}.tabs-refs .fchip{display:inline-flex;align-items:center;gap:6px}.tabs-refs ha-icon{--mdc-icon-size:18px}
 .left-group h3{margin-bottom:4px}.lg-icon{width:32px;height:32px;border-radius:9px;background:rgba(219,68,55,.12);color:var(--rd-red);display:inline-flex;align-items:center;justify-content:center}
-.lg-icon ha-icon{--mdc-icon-size:18px}.count.grey{background:var(--secondary-text-color)}.warn-text{color:var(--rd-amber)}
+.lg-icon ha-icon{--mdc-icon-size:18px}.count.grey{background:var(--secondary-text-color,#6b7686);color:#fff}.warn-text{color:var(--rd-amber)}
 button:disabled{opacity:.45;cursor:default}
 .refgrid{grid-template-columns:repeat(auto-fill,minmax(min(100%,380px),1fr))}
 .ref-select{margin-top:8px}.ref-btns{margin-top:auto;padding-top:12px;display:flex;gap:8px;flex-wrap:wrap}.ref-btns button{flex:1 1 auto;white-space:nowrap}
