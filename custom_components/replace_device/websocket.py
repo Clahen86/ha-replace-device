@@ -9,7 +9,7 @@ import voluptuous as vol
 
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import area_registry as ar, device_registry as dr, entity_registry as er
+from homeassistant.helpers import area_registry as ar, config_validation as cv, device_registry as dr, entity_registry as er
 
 from .const import DOMAIN
 from . import references
@@ -30,6 +30,8 @@ def async_setup(hass: HomeAssistant) -> None:
         ws_dead_ref_fix,
         ws_dead_ref_remove,
         ws_dead_ref_ignore,
+        ws_orphan_stats,
+        ws_migrate_stats,
         ws_leftovers,
         ws_remove_leftovers,
         ws_devices,
@@ -766,3 +768,30 @@ async def ws_remove_leftovers(hass: HomeAssistant, connection: websocket_api.Act
         return _not_loaded(connection, msg)
     settled = time.monotonic() - replacer.started > 600
     connection.send_result(msg["id"], {"removed": await facts.async_remove_leftovers(hass, msg["items"], settled)})
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/orphan_stats"})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_orphan_stats(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Long-term statistics left behind by deleted entities, with the best entities to give them to."""
+    from . import stats
+
+    connection.send_result(msg["id"], {"orphans": await stats.async_orphans(hass)})
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): f"{DOMAIN}/migrate_stats", vol.Required("old"): str, vol.Required("new"): cv.entity_id}
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_migrate_stats(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Give a deleted entity's statistics to a new one."""
+    from . import stats
+
+    try:
+        result = await stats.async_migrate(hass, msg["old"], msg["new"])
+    except ValueError as err:
+        connection.send_error(msg["id"], str(err), str(err))
+        return
+    connection.send_result(msg["id"], result)

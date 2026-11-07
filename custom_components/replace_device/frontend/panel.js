@@ -6,6 +6,21 @@ const TEXT = {
     leftMaybeHint: "Could also be a device that is switched off, e.g. a Chromecast or TV – only remove what you know is gone.",
     refsTabLinks: "Broken links",
     refsTabLeft: "Leftovers",
+    statsTab: "Statistics",
+    statsTitle: "Statistics left behind",
+    statsHint: "Long-term statistics (energy, temperature …) from entities that were deleted. Give them to the entity that took over, so the history goes on.",
+    statsNone: "No statistics left behind.",
+    statsPeriod: "{a} – {b}",
+    statsLast: "Last value",
+    statsTo: "Give to",
+    statsMove: "Move statistics",
+    statsMoved: "Moved – the history goes on in {name}.",
+    statsMerged: "Merged {n} hours in front of {name}'s own statistics.",
+    statsWarnMerge: "{name} already has statistics: the old hours go in front, and counters carry on from the old total. This can't be undone – make a backup first.",
+    statsConfirmMerge: "Merge the statistics? This can't be undone - make a backup first.",
+    statsNoCand: "No entity with the same unit - search for one.",
+    statsSearch: "Find an entity…",
+    statsHasStats: "has statistics",
     refsWhy: {"chosen": "Chosen by you", "replaced": "Replaced with Replace Device", "renamed": "Renamed – known for sure", "same_name": "Same name and kind in the history", "guess": "Maybe – from the names"},
     leftHint: "Devices and entities that are surely gone – not just switched off. Each shows why.",
     leftNone: "No leftovers – nothing is left behind.",
@@ -276,6 +291,21 @@ const TEXT = {
     leftMaybeHint: "Kan også være en enhed, der er slukket, fx en Chromecast eller et TV – slet kun det, du ved er væk.",
     refsTabLinks: "Døde henvisninger",
     refsTabLeft: "Rester",
+    statsTab: "Statistik",
+    statsTitle: "Efterladt statistik",
+    statsHint: "Langtidsstatistik (energi, temperatur …) fra entiteter, der er slettet. Giv den til entiteten, der tog over, så historikken fortsætter.",
+    statsNone: "Ingen efterladt statistik.",
+    statsPeriod: "{a} – {b}",
+    statsLast: "Sidste værdi",
+    statsTo: "Giv til",
+    statsMove: "Flyt statistik",
+    statsMoved: "Flyttet – historikken fortsætter i {name}.",
+    statsMerged: "{n} timer lagt foran {name}s egen statistik.",
+    statsWarnMerge: "{name} har allerede statistik: de gamle timer lægges foran, og tællere fortsætter fra det gamle total. Det kan ikke fortrydes – tag en backup først.",
+    statsConfirmMerge: "Flet statistikken sammen? Det kan ikke fortrydes - tag en backup først.",
+    statsNoCand: "Ingen entitet med samme enhed - søg efter en.",
+    statsSearch: "Find en entitet…",
+    statsHasStats: "har statistik",
     refsWhy: {"chosen": "Valgt af dig", "replaced": "Udskiftet med Replace Device", "renamed": "Omdøbt – det vides med sikkerhed", "same_name": "Samme navn og type i historikken", "guess": "Måske – ud fra navnene"},
     leftHint: "Enheder og entiteter, der helt sikkert er væk – ikke bare slukkede. Ved hver står hvorfor.",
     leftNone: "Ingen rester – intet ligger tilbage.",
@@ -1744,7 +1774,41 @@ class ReplaceDevicePanel extends HTMLElement {
     const n = (x) => (x == null ? "" : ` <span>${x}</span>`);
     return `<div class="fchips tabs-refs">
       <button class="fchip ${this.refTab === "links" ? "on" : ""}" data-act="refTab" data-k="links"><ha-icon icon="mdi:link-variant-off"></ha-icon> ${this.t("refsTabLinks")}${n(this.refs?.filter((r) => !r.ignored).length)}</button>
-      <button class="fchip ${this.refTab === "left" ? "on" : ""}" data-act="refTab" data-k="left"><ha-icon icon="mdi:broom"></ha-icon> ${this.t("refsTabLeft")}${n(this.leftovers?.leftovers.filter((i) => i.sure !== false).length)}</button></div>`;
+      <button class="fchip ${this.refTab === "left" ? "on" : ""}" data-act="refTab" data-k="left"><ha-icon icon="mdi:broom"></ha-icon> ${this.t("refsTabLeft")}${n(this.leftovers?.leftovers.filter((i) => i.sure !== false).length)}</button>
+      <button class="fchip ${this.refTab === "stats" ? "on" : ""}" data-act="refTab" data-k="stats"><ha-icon icon="mdi:chart-line"></ha-icon> ${this.t("statsTab")}${n(this.orphans?.length)}</button></div>`;
+  }
+
+  statsView() {
+    if (!this.orphans) return `${this.refsTabs()}<div class="card working"><div class="spinner"></div><p>${this.t("refsScanning")}</p></div>`;
+    this.statsChoice ||= {};
+    const day = (ts) => new Date(ts * 1000).toLocaleDateString(this._hass?.language || undefined, { day: "numeric", month: "short", year: "numeric" });
+    const domains = [...new Set(this.orphans.map((o) => o.statistic_id.split(".")[0]))];
+    const lists = domains.map((d) => `<datalist id="stats-${d}">${Object.values(this._hass?.states || {})
+      .filter((st) => st.entity_id.startsWith(d + ".") && st.attributes?.state_class)
+      .map((st) => `<option value="${esc(st.entity_id)}">${esc(st.attributes.friendly_name || "")}</option>`).join("")}</datalist>`).join("");
+    const card = (o) => {
+      const chosen = this.statsChoice[o.statistic_id] ?? o.candidates[0]?.entity_id ?? "";
+      const cand = o.candidates.find((c) => c.entity_id === chosen);
+      const merging = chosen && (cand ? cand.has_stats : true);
+      const name = this._hass?.states?.[chosen]?.attributes?.friendly_name || chosen;
+      const value = o.value == null ? "–" : `${Number(o.value).toLocaleString(this._hass?.language || undefined, { maximumFractionDigits: 2 })} ${o.unit || ""}`;
+      return `<div class="card ref-card">
+        <div class="dev-head"><div class="dot amber"></div><div class="grow"><div class="dev-name">${esc(o.name)}</div><code>${esc(o.statistic_id)}</code></div>
+          <span class="tag blue">${esc(o.unit || "")}</span></div>
+        <div class="small muted">${esc(this.t("statsPeriod", { a: day(o.first), b: day(o.last) }))} · ${esc(this.t("statsLast"))}: ${esc(value)}</div>
+        <div class="small muted ref-used">${esc(this.t("statsTo"))}</div>
+        ${o.candidates.length ? `<select class="stats-select" data-stats="${esc(o.statistic_id)}">${o.candidates.map((c) => `<option value="${esc(c.entity_id)}" ${c.entity_id === chosen ? "selected" : ""}>${esc(c.name)}${c.has_stats ? ` · ${esc(this.t("statsHasStats"))}` : ""}</option>`).join("")}
+          ${chosen && !cand ? `<option value="${esc(chosen)}" selected>${esc(name)}</option>` : ""}</select>` : `<p class="small muted">${esc(this.t("statsNoCand"))}</p>`}
+        <div class="ref-search"><ha-icon icon="mdi:magnify"></ha-icon><input class="ref-find" list="stats-${o.statistic_id.split(".")[0]}" data-stats-find="${esc(o.statistic_id)}" placeholder="${esc(this.t("statsSearch"))}"></div>
+        ${merging ? `<p class="small warn-text"><ha-icon icon="mdi:alert-outline"></ha-icon> ${esc(this.t("statsWarnMerge", { name }))}</p>` : ""}
+        <div class="btns ref-btns">${chosen ? `<button class="primary" data-act="statsMove" data-id="${esc(o.statistic_id)}"><ha-icon icon="mdi:chart-timeline-variant-shimmer"></ha-icon>${this.t("statsMove")}</button>` : ""}</div></div>`;
+    };
+    return `${this.refsTabs()}
+      <div class="hero card"><div class="hero-icon"><ha-icon icon="mdi:chart-line"></ha-icon></div><div class="grow"><h2>${this.t("statsTitle")}</h2>
+        <p class="muted">${this.t("statsHint")}</p>
+        <div class="btns"><button class="ghost" data-act="statsScan"><ha-icon icon="mdi:refresh"></ha-icon>${this.t("refsRescan")}</button></div></div></div>
+      ${this.refNote ? `<div class="card ok-note"><ha-icon icon="mdi:check-circle"></ha-icon>${esc(this.refNote)}</div>` : ""}
+      ${this.orphans.length ? `<div class="grid refgrid">${this.orphans.map(card).join("")}</div>` : `<div class="card empty"><ha-icon icon="mdi:check-circle"></ha-icon>${this.t("statsNone")}</div>`}${lists}`;
   }
 
   leftView() {
@@ -1777,6 +1841,7 @@ class ReplaceDevicePanel extends HTMLElement {
 
   refsView() {
     if (this.refTab === "left") return this.leftView();
+    if (this.refTab === "stats") return this.statsView();
     if (!this.refs) return `${this.refsTabs()}<div class="card working"><div class="spinner"></div><p>${this.t("refsScanning")}</p></div>`;
     const open = this.refs.filter((r) => !r.ignored);
     const ignored = this.refs.filter((r) => r.ignored);
@@ -2542,6 +2607,13 @@ class ReplaceDevicePanel extends HTMLElement {
         delete this.refOpen[el.dataset.ref];
         this.render();
       }));
+    this.shadowRoot.querySelectorAll("select[data-stats]").forEach((el) =>
+      el.addEventListener("change", () => { (this.statsChoice ||= {})[el.dataset.stats] = el.value; this.render(); }));
+    this.shadowRoot.querySelectorAll("input[data-stats-find]").forEach((el) =>
+      el.addEventListener("change", () => {
+        const v = el.value.trim();
+        if (v && this._hass?.states?.[v]) { (this.statsChoice ||= {})[el.dataset.statsFind] = v; this.render(); }
+      }));
     this.shadowRoot.querySelectorAll("input[data-find]").forEach((el) =>
       el.addEventListener("change", () => {
         const v = el.value.trim();
@@ -2659,7 +2731,32 @@ class ReplaceDevicePanel extends HTMLElement {
       this.refTab = data.k;
       this.refNote = "";
       if (data.k === "left" && !this.leftovers) data = { act: "leftScan" };
+      else if (data.k === "stats" && !this.orphans) data = { act: "statsScan" };
       else return this.render();
+    }
+    if (data.act === "statsScan") {
+      this.orphans = null;
+      this.render();
+      this.ws("orphan_stats").then((r) => (this.orphans = r.orphans)).catch((e) => { this.orphans = []; this.error = this.t("error", { e: e.message || e.code || e }); })
+        .finally(() => this.render());
+      return;
+    }
+    if (data.act === "statsMove") {
+      const o = this.orphans.find((x) => x.statistic_id === data.id);
+      const target = this.statsChoice[data.id] ?? o?.candidates[0]?.entity_id;
+      if (!o || !target) return;
+      const cand = o.candidates.find((c) => c.entity_id === target);
+      if ((cand ? cand.has_stats : true) && !confirm(this.t("statsConfirmMerge"))) return;
+      this.view = "working";
+      this.render();
+      const name = this._hass?.states?.[target]?.attributes?.friendly_name || target;
+      this.ws("migrate_stats", { old: data.id, new: target }).then((r) => {
+        this.refNote = r.done === "merged" ? this.t("statsMerged", { n: r.hours, name }) : this.t("statsMoved", { name });
+        delete this.statsChoice[data.id];
+        return this.ws("orphan_stats").then((x) => (this.orphans = x.orphans));
+      }).catch((e) => (this.error = this.t("error", { e: e.message || e.code || e })))
+        .finally(() => { this.view = "refs"; this.render(); });
+      return;
     }
     if (data.act === "leftScan") {
       this.leftovers = null;
@@ -2873,7 +2970,7 @@ button.full{width:100%;margin-top:12px}button.big{padding:13px 22px;font-size:16
 .lg-icon ha-icon{--mdc-icon-size:18px}.count.grey{background:var(--secondary-text-color,#6b7686);color:#fff}.warn-text{color:var(--rd-amber)}
 button:disabled{opacity:.45;cursor:default}
 .refgrid{grid-template-columns:repeat(auto-fill,minmax(min(100%,380px),1fr))}
-.ref-select{margin-top:8px}.ref-btns{margin-top:auto;padding-top:12px;display:flex;gap:8px;flex-wrap:wrap}.ref-btns button{flex:1 1 auto;white-space:nowrap}
+.ref-select{margin-top:8px}.stats-select{margin-top:8px}.ref-btns{margin-top:auto;padding-top:12px;display:flex;gap:8px;flex-wrap:wrap}.ref-btns button{flex:1 1 auto;white-space:nowrap}
 .ok-note{display:flex;gap:10px;align-items:center;color:var(--rd-green)}
 .dot.grey{background:var(--secondary-text-color)}.empty ha-icon{color:var(--rd-green)}
 .list{padding:4px 16px}.hist{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--divider-color,#e6e9ee)}.hist:last-child{border:0}
