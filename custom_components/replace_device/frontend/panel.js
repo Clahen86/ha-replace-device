@@ -6,7 +6,7 @@ const TEXT = {
     leftMaybeHint: "Could also be a device that is switched off, e.g. a Chromecast or TV – only remove what you know is gone.",
     refsTabLinks: "Broken links",
     refsTabLeft: "Leftovers",
-    refsWhy: {"replaced": "Replaced with Replace Device", "renamed": "Renamed – known for sure", "same_name": "Same name and kind in the history", "guess": "Maybe – from the names"},
+    refsWhy: {"chosen": "Chosen by you", "replaced": "Replaced with Replace Device", "renamed": "Renamed – known for sure", "same_name": "Same name and kind in the history", "guess": "Maybe – from the names"},
     leftHint: "Devices and entities that are surely gone – not just switched off. Each shows why.",
     leftNone: "No leftovers – nothing is left behind.",
     leftWhy: {"integration_removed": "Its integration is removed", "not_in_z2m": "Zigbee2MQTT no longer knows it", "not_in_zha": "ZHA no longer knows it", "addon_removed": "The add-on is uninstalled", "not_provided": "Its integration no longer provides it"},
@@ -51,7 +51,11 @@ const TEXT = {
     refsKind: {"automation": "Automation", "script": "Script", "scene": "Scene", "dashboard": "Dashboard"},
     followFixed: "The new ID is used everywhere",
     followRestored: "The entity got its old ID back",
-    historyAll: "Replaced ({n})",
+    historyAll: "History ({n})",
+    historyBtn: "History",
+    refsOpenHistory: "Open history",
+    refsSearch: "Find another entity…",
+    newTab: "Open in a new tab",
     dryOldMarked: "The old device is called {name}, so you can see it can be deleted",
     title: "Replace device",
     heroTitle: "A device died?",
@@ -78,7 +82,7 @@ const TEXT = {
     pickReplacement: "Pick replacement",
     history: "Replaced",
     needsAction: "Needs a look",
-    historyDone: "Done ({n})",
+    historyDone: "History – done ({n})",
     todoButtons: "{n} button triggers to check",
     todoIds: "{n} entity IDs can be tidied up",
     markDone: "Mark as done",
@@ -272,7 +276,7 @@ const TEXT = {
     leftMaybeHint: "Kan også være en enhed, der er slukket, fx en Chromecast eller et TV – slet kun det, du ved er væk.",
     refsTabLinks: "Døde henvisninger",
     refsTabLeft: "Rester",
-    refsWhy: {"replaced": "Udskiftet med Replace Device", "renamed": "Omdøbt – det vides med sikkerhed", "same_name": "Samme navn og type i historikken", "guess": "Måske – ud fra navnene"},
+    refsWhy: {"chosen": "Valgt af dig", "replaced": "Udskiftet med Replace Device", "renamed": "Omdøbt – det vides med sikkerhed", "same_name": "Samme navn og type i historikken", "guess": "Måske – ud fra navnene"},
     leftHint: "Enheder og entiteter, der helt sikkert er væk – ikke bare slukkede. Ved hver står hvorfor.",
     leftNone: "Ingen rester – intet ligger tilbage.",
     leftWhy: {"integration_removed": "Integrationen er fjernet", "not_in_z2m": "Zigbee2MQTT kender den ikke mere", "not_in_zha": "ZHA kender den ikke mere", "addon_removed": "Add-on'en er afinstalleret", "not_provided": "Integrationen leverer den ikke mere"},
@@ -317,7 +321,11 @@ const TEXT = {
     refsKind: {"automation": "Automation", "script": "Script", "scene": "Scene", "dashboard": "Dashboard"},
     followFixed: "Det nye id bruges alle steder",
     followRestored: "Entiteten fik sit gamle id igen",
-    historyAll: "Udskiftet ({n})",
+    historyAll: "Historik ({n})",
+    historyBtn: "Historik",
+    refsOpenHistory: "Åbn historik",
+    refsSearch: "Find en anden entitet…",
+    newTab: "Åbn i en ny fane",
     dryOldMarked: "Den gamle enhed kommer til at hedde {name}, så du kan se, den kan slettes",
     title: "Udskift enhed",
     heroTitle: "Er en enhed død?",
@@ -344,7 +352,7 @@ const TEXT = {
     pickReplacement: "Vælg afløser",
     history: "Udskiftet",
     needsAction: "Kræver handling",
-    historyDone: "Færdige ({n})",
+    historyDone: "Historik – færdige ({n})",
     todoButtons: "{n} knaptriggere skal tjekkes",
     todoIds: "{n} entity-id'er kan ryddes op",
     markDone: "Marker som færdig",
@@ -538,7 +546,7 @@ const TEXT = {
     leftMaybeHint: "Kann auch ein ausgeschaltetes Gerät sein, z. B. ein Chromecast oder TV – nur entfernen, was sicher weg ist.",
     refsTabLinks: "Tote Verweise",
     refsTabLeft: "Reste",
-    refsWhy: {"replaced": "Mit Replace Device ersetzt", "renamed": "Umbenannt – sicher bekannt", "same_name": "Gleicher Name und Typ im Verlauf", "guess": "Vielleicht – nach den Namen"},
+    refsWhy: {"chosen": "Von dir gewählt", "replaced": "Mit Replace Device ersetzt", "renamed": "Umbenannt – sicher bekannt", "same_name": "Gleicher Name und Typ im Verlauf", "guess": "Vielleicht – nach den Namen"},
     leftHint: "Geräte und Entitäten, die sicher weg sind – nicht nur ausgeschaltet. Bei jedem steht warum.",
     leftNone: "Keine Reste – nichts ist übrig.",
     leftWhy: {"integration_removed": "Die Integration ist entfernt", "not_in_z2m": "Zigbee2MQTT kennt es nicht mehr", "not_in_zha": "ZHA kennt es nicht mehr", "addon_removed": "Das Add-on ist deinstalliert", "not_provided": "Die Integration liefert es nicht mehr"},
@@ -583,10 +591,14 @@ const TEXT = {
     refsKind: {"automation": "Automation", "script": "Skript", "scene": "Szene", "dashboard": "Dashboard"},
     followFixed: "Die neue ID wird überall verwendet",
     followRestored: "Die Entität hat ihre alte ID zurück",
-    historyAll: "Ersetzt ({n})",
+    historyAll: "Verlauf ({n})",
+    historyBtn: "Verlauf",
+    refsOpenHistory: "Verlauf öffnen",
+    refsSearch: "Andere Entität suchen…",
+    newTab: "In neuem Tab öffnen",
     dryOldMarked: "Das alte Gerät heißt dann {name}, damit du siehst, dass es gelöscht werden kann",
     needsAction: "Braucht einen Blick",
-    historyDone: "Erledigt ({n})",
+    historyDone: "Verlauf – erledigt ({n})",
     todoButtons: "{n} Tasten-Auslöser prüfen",
     todoIds: "{n} Entitäts-IDs können aufgeräumt werden",
     markDone: "Als erledigt markieren",
@@ -804,7 +816,7 @@ const TEXT = {
     leftMaybeHint: "Kan också vara en enhet som är avstängd, t.ex. en Chromecast eller TV – ta bara bort det du vet är borta.",
     refsTabLinks: "Döda hänvisningar",
     refsTabLeft: "Rester",
-    refsWhy: {"replaced": "Ersatt med Replace Device", "renamed": "Bytt namn – det är säkert", "same_name": "Samma namn och typ i historiken", "guess": "Kanske – utifrån namnen"},
+    refsWhy: {"chosen": "Vald av dig", "replaced": "Ersatt med Replace Device", "renamed": "Bytt namn – det är säkert", "same_name": "Samma namn och typ i historiken", "guess": "Kanske – utifrån namnen"},
     leftHint: "Enheter och entiteter som säkert är borta – inte bara avstängda. Vid varje står varför.",
     leftNone: "Inga rester – inget ligger kvar.",
     leftWhy: {"integration_removed": "Integrationen är borttagen", "not_in_z2m": "Zigbee2MQTT känner inte till den längre", "not_in_zha": "ZHA känner inte till den längre", "addon_removed": "Tillägget är avinstallerat", "not_provided": "Integrationen levererar den inte längre"},
@@ -849,10 +861,14 @@ const TEXT = {
     refsKind: {"automation": "Automation", "script": "Skript", "scene": "Scen", "dashboard": "Instrumentpanel"},
     followFixed: "Det nya ID:t används överallt",
     followRestored: "Entiteten fick sitt gamla ID igen",
-    historyAll: "Utbytta ({n})",
+    historyAll: "Historik ({n})",
+    historyBtn: "Historik",
+    refsOpenHistory: "Öppna historiken",
+    refsSearch: "Sök en annan entitet…",
+    newTab: "Öppna i ny flik",
     dryOldMarked: "Den gamla enheten får namnet {name}, så du ser att den kan tas bort",
     needsAction: "Behöver en titt",
-    historyDone: "Klara ({n})",
+    historyDone: "Historik – klara ({n})",
     todoButtons: "{n} knapputlösare att kontrollera",
     todoIds: "{n} entitets-ID kan städas",
     markDone: "Markera som klar",
@@ -1070,7 +1086,7 @@ const TEXT = {
     leftMaybeHint: "Kan ook een uitgeschakeld apparaat zijn, bijv. een Chromecast of tv – verwijder alleen wat zeker weg is.",
     refsTabLinks: "Dode verwijzingen",
     refsTabLeft: "Restanten",
-    refsWhy: {"replaced": "Vervangen met Replace Device", "renamed": "Hernoemd – zeker bekend", "same_name": "Zelfde naam en soort in de geschiedenis", "guess": "Misschien – op basis van de namen"},
+    refsWhy: {"chosen": "Door jou gekozen", "replaced": "Vervangen met Replace Device", "renamed": "Hernoemd – zeker bekend", "same_name": "Zelfde naam en soort in de geschiedenis", "guess": "Misschien – op basis van de namen"},
     leftHint: "Apparaten en entiteiten die zeker weg zijn – niet alleen uitgeschakeld. Bij elk staat waarom.",
     leftNone: "Geen restanten – er is niets achtergebleven.",
     leftWhy: {"integration_removed": "De integratie is verwijderd", "not_in_z2m": "Zigbee2MQTT kent het niet meer", "not_in_zha": "ZHA kent het niet meer", "addon_removed": "De add-on is verwijderd", "not_provided": "De integratie levert het niet meer"},
@@ -1115,10 +1131,14 @@ const TEXT = {
     refsKind: {"automation": "Automatisering", "script": "Script", "scene": "Scène", "dashboard": "Dashboard"},
     followFixed: "Het nieuwe ID wordt overal gebruikt",
     followRestored: "De entiteit heeft haar oude ID terug",
-    historyAll: "Vervangen ({n})",
+    historyAll: "Geschiedenis ({n})",
+    historyBtn: "Geschiedenis",
+    refsOpenHistory: "Geschiedenis openen",
+    refsSearch: "Andere entiteit zoeken…",
+    newTab: "Openen in nieuw tabblad",
     dryOldMarked: "Het oude apparaat heet dan {name}, zodat je ziet dat het verwijderd kan worden",
     needsAction: "Moet bekeken worden",
-    historyDone: "Klaar ({n})",
+    historyDone: "Geschiedenis – klaar ({n})",
     todoButtons: "{n} knoptriggers controleren",
     todoIds: "{n} entiteit-ID's kunnen opgeruimd worden",
     markDone: "Markeer als klaar",
@@ -1622,7 +1642,8 @@ class ReplaceDevicePanel extends HTMLElement {
         <div class="grow"><h2>${this.t("heroTitle")}</h2><p class="muted">${this.t("heroText")}</p>
         <div class="btns"><button class="primary" data-act="pick">${this.t("start")}</button>
         <button class="ghost" data-act="migrate"><ha-icon icon="mdi:transfer"></ha-icon>${this.t("migrateStart")}</button>
-        <button class="ghost" data-act="renameStart"><ha-icon icon="mdi:rename"></ha-icon>${this.t("renameStart")}</button></div></div>
+        <button class="ghost" data-act="renameStart"><ha-icon icon="mdi:rename"></ha-icon>${this.t("renameStart")}</button>
+        ${this.historyItems.length ? `<button class="ghost" data-act="showHistory"><ha-icon icon="mdi:history"></ha-icon>${this.t("historyBtn")}</button>` : ""}</div></div>
       </div>
       ${this.refsCard()}
       ${leftovers.length ? `<h3>${this.t("leftoversTitle")} <span class="count">${leftovers.length}</span></h3>
@@ -1633,7 +1654,7 @@ class ReplaceDevicePanel extends HTMLElement {
       <div class="grid">${deadCards}</div>
       ${hiddenPart}
       ${needs.length ? `<h3>${this.t("needsAction")} <span class="count amber">${needs.length}</span></h3><div class="card list">${needs.map((h) => this.historyRow(h)).join("")}</div>` : ""}
-      ${history ? `<details class="dmore hist-done"><summary><ha-icon icon="mdi:check-circle"></ha-icon> ${esc(this.t(needs.length ? "historyDone" : "historyAll", { n: this.historyItems.length - needs.length }))}</summary><div class="card list">${history}</div></details>` : ""}`;
+      ${history ? `<details class="dmore hist-done" id="history" ${this.histOpen ? "open" : ""}><summary><ha-icon icon="mdi:check-circle"></ha-icon> ${esc(this.t(needs.length ? "historyDone" : "historyAll", { n: this.historyItems.length - needs.length }))}</summary><div class="card list">${history}</div></details>` : ""}`;
   }
 
   sub(key, k) {
@@ -1656,17 +1677,41 @@ class ReplaceDevicePanel extends HTMLElement {
         <button class="ghost small-btn" data-act="refs">${this.t("refsReview")}</button></div>`;
   }
 
+  placeUrl(u) {
+    // Where to look at a place that uses an entity: the automation/script/scene editor, or the dashboard.
+    const st = this._hass?.states?.[u.id];
+    if (u.kind === "automation" && st?.attributes?.id) return `/config/automation/edit/${encodeURIComponent(st.attributes.id)}`;
+    if (u.kind === "script" && u.id?.startsWith("script.")) return `/config/script/edit/${encodeURIComponent(u.id.slice(7))}`;
+    if (u.kind === "scene" && st?.attributes?.id) return `/config/scene/edit/${encodeURIComponent(st.attributes.id)}`;
+    if (u.kind === "dashboard") {
+      const panel = Object.values(this._hass?.panels || {}).find((p) => p.component_name === "lovelace" && (p.title === u.name || (!p.title && u.name === "Overview")));
+      return panel ? `/${panel.url_path}` : null;
+    }
+    return null;
+  }
+
   refChosen(r) {
     return this.refChoice[r.entity_id] ?? r.candidates[0]?.entity_id ?? "";
   }
 
   refRow(r) {
     const icon = { automation: "mdi:robot-outline", script: "mdi:script-text-outline", scene: "mdi:palette-outline", dashboard: "mdi:view-dashboard-outline" };
-    const used = r.used_in.slice(0, 4).map((u) => `<span class="chip"><ha-icon icon="${icon[u.kind] || "mdi:link"}"></ha-icon>${esc(u.name)}</span>`).join("")
+    const used = r.used_in.slice(0, 4).map((u) => {
+      const href = this.placeUrl(u);
+      const inner = `<ha-icon icon="${icon[u.kind] || "mdi:link"}"></ha-icon>${esc(u.name)}${href ? `<ha-icon class="ext" icon="mdi:open-in-new"></ha-icon>` : ""}`;
+      return href ? `<a class="chip link-chip" href="${esc(href)}" target="_blank" rel="noopener" title="${esc(this.t("newTab"))}">${inner}</a>` : `<span class="chip">${inner}</span>`;
+    }).join("")
       + (r.used_in.length > 4 ? `<span class="chip muted">${esc(this.t("refsMore", { n: r.used_in.length - 4 }))}</span>` : "");
     const chosen = this.refChosen(r);
-    const c = r.candidates.find((x) => x.entity_id === chosen);
+    let c = r.candidates.find((x) => x.entity_id === chosen);
+    const domain = r.entity_id.split(".")[0];
+    if (!c && chosen && this._hass?.states?.[chosen]) {
+      c = { entity_id: chosen, name: this._hass.states[chosen].attributes.friendly_name || chosen, score: 1, reason: "chosen" };
+    }
+    const listId = `refs-${domain}`;
+    const search = `<div class="ref-search"><ha-icon icon="mdi:magnify"></ha-icon><input class="ref-find" list="${listId}" data-find="${esc(r.entity_id)}" placeholder="${esc(this.t("refsSearch"))}"></div>`;
     const pct = c ? Math.round(c.score * 100) : 0;
+    const userPicked = c?.reason === "chosen";
     const tone = pct >= 90 ? "green" : pct >= 70 ? "amber" : "grey";
     const others = r.candidates.length > 1
       ? `<select class="ref-select" data-ref="${esc(r.entity_id)}">${r.candidates.map((x) => `<option value="${esc(x.entity_id)}" ${x.entity_id === chosen ? "selected" : ""}>${esc(x.name)} · ${Math.round(x.score * 100)} %</option>`).join("")}</select>` : "";
@@ -1674,8 +1719,8 @@ class ReplaceDevicePanel extends HTMLElement {
       ? `<div class="ref-match ${tone}"><ha-icon icon="mdi:arrow-right-bold-circle"></ha-icon>
           <div class="grow"><div class="small muted">${this.t("refsBest")}</div><b>${esc(c.name)}</b><div><code>${esc(c.entity_id)}</code></div>
             <span class="why-tag ${c.reason === "guess" ? "maybe" : "fact"}"><ha-icon icon="${c.reason === "guess" ? "mdi:help-circle-outline" : "mdi:check-decagram"}"></ha-icon>${esc(this.sub("refsWhy", c.reason || "guess"))}</span></div>
-          <div class="ref-score"><div class="ring-s" style="--p:${pct}"><span>${pct}</span></div><div class="small muted">${esc(this.t("refsSure", { p: pct }))}</div></div></div>${others}`
-      : `<div class="ref-match grey"><ha-icon icon="mdi:help-circle-outline"></ha-icon><div class="grow small">${esc(this.t("refsNoMatch"))}</div></div>`;
+          ${userPicked ? "" : `<div class="ref-score"><div class="ring-s" style="--p:${pct}"><span>${pct}</span></div><div class="small muted">${esc(this.t("refsSure", { p: pct }))}</div></div>`}</div>${others}${search}`
+      : `<div class="ref-match grey"><ha-icon icon="mdi:help-circle-outline"></ha-icon><div class="grow small">${esc(this.t("refsNoMatch"))}</div></div>${search}`;
     const places = this.refOpen[r.entity_id];
     return `<div class="card ref-card ${r.ignored ? "is-hidden" : ""}">
         <div class="dev-head"><div class="dot ${r.ignored ? "grey" : r.status === "orphan" ? "red" : "amber"}"></div>
@@ -1742,7 +1787,7 @@ class ReplaceDevicePanel extends HTMLElement {
         <div class="btns">${sure.length ? `<button class="primary" data-act="refFixSure"><ha-icon icon="mdi:auto-fix"></ha-icon>${this.t("refsFixSure", { n: sure.length })}</button>` : ""}
           <button class="ghost" data-act="refScan"><ha-icon icon="mdi:refresh"></ha-icon>${this.t("refsRescan")}</button></div>
         <label class="mrow fixrow nob"><input type="checkbox" id="refRemoveOld" ${this.refRemoveOld ? "checked" : ""}><span class="box"></span><span class="grow small">${this.t("refsAlsoRemove")}</span></label></div></div>
-      ${this.refNote ? `<div class="card ok-note"><ha-icon icon="mdi:check-circle"></ha-icon>${esc(this.refNote)}</div>` : ""}`;
+      ${this.refNote ? `<div class="card ok-note"><ha-icon icon="mdi:check-circle"></ha-icon>${esc(this.refNote)}<button class="link" data-act="showHistory">${this.t("refsOpenHistory")}</button></div>` : ""}`;
     const isSure = (r) => r.candidates[0] && r.candidates[0].score >= 0.9;
     const kinds = ["automation", "script", "scene", "dashboard"].filter((k) => open.some((r) => r.used_in.some((u) => u.kind === k)));
     const count = (k) => (k === "all" ? open.length : k === "sure" ? open.filter(isSure).length : open.filter((r) => r.used_in.some((u) => u.kind === k)).length);
@@ -1758,7 +1803,12 @@ class ReplaceDevicePanel extends HTMLElement {
       : `<div class="card empty"><ha-icon icon="mdi:check-circle"></ha-icon>${this.t("refsNone")}</div>`;
     const hid = ignored.length
       ? `<details class="dmore"><summary>${esc(this.t("refsIgnored", { n: ignored.length }))}</summary><div class="grid refgrid">${ignored.map((r) => this.refRow(r)).join("")}</div></details>` : "";
-    return this.refsTabs() + head + list + hid;
+    // One list of entities per kind, for the search fields ("Find another entity…").
+    const domains = [...new Set(page.map((r) => r.entity_id.split(".")[0]))];
+    const lists = domains.map((d) => `<datalist id="refs-${d}">${Object.values(this._hass?.states || {})
+      .filter((st) => st.entity_id.startsWith(d + ".") && !st.attributes?.restored)
+      .map((st) => `<option value="${esc(st.entity_id)}">${esc(st.attributes?.friendly_name || "")}</option>`).join("")}</datalist>`).join("");
+    return this.refsTabs() + head + list + hid + lists;
   }
 
   async refFix(pairs) {
@@ -2492,6 +2542,15 @@ class ReplaceDevicePanel extends HTMLElement {
         delete this.refOpen[el.dataset.ref];
         this.render();
       }));
+    this.shadowRoot.querySelectorAll("input[data-find]").forEach((el) =>
+      el.addEventListener("change", () => {
+        const v = el.value.trim();
+        if (v && this._hass?.states?.[v]) {
+          this.refChoice[el.dataset.find] = v;
+          delete this.refOpen[el.dataset.find];
+          this.render();
+        }
+      }));
     this.shadowRoot.querySelectorAll("input[data-left]").forEach((el) =>
       el.addEventListener("change", () => {
         if (el.checked) this.leftSelected.add(el.dataset.left);
@@ -2576,6 +2635,13 @@ class ReplaceDevicePanel extends HTMLElement {
       else if (this.view === "match") data = { act: "back" };
       else if (this.view === "dry") data = { act: "dryBack" };
       else data = { act: "home" };
+    }
+    if (data.act === "showHistory") {
+      this.view = "home";
+      this.histOpen = true;
+      this.render();
+      this.shadowRoot.getElementById("history")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
     }
     if (data.act === "refs" || data.act === "refScan") {
       this.view = "refs";
@@ -2783,6 +2849,12 @@ button.full{width:100%;margin-top:12px}button.big{padding:13px 22px;font-size:16
 .refs-teaser{display:flex;gap:14px;align-items:center;cursor:pointer;border-left:4px solid var(--rd-amber)}.refs-teaser:hover{filter:brightness(1.02)}
 .rt-icon{width:44px;height:44px;border-radius:12px;background:rgba(255,166,0,.15);color:var(--rd-amber);display:flex;align-items:center;justify-content:center;flex:none}
 .ref-card{display:flex;flex-direction:column}.ref-used{margin-top:12px}
+.link-chip{text-decoration:none;color:inherit;cursor:pointer}.link-chip:hover{border-color:var(--primary-color);color:var(--primary-color)}
+.link-chip .ext{--mdc-icon-size:13px;opacity:.6;margin-left:2px}
+.ref-search{display:flex;align-items:center;gap:6px;margin-top:8px;padding:6px 10px;border-radius:10px;border:1px solid var(--divider-color)}
+.ref-search ha-icon{--mdc-icon-size:18px;color:var(--secondary-text-color)}
+.ref-find{flex:1;border:0;background:transparent;color:var(--primary-text-color);font:inherit;font-size:14px;outline:none;min-width:0}
+.ok-note .link{margin-left:auto}
 .ref-match{display:flex;gap:12px;align-items:center;margin-top:12px;padding:12px;border-radius:12px;background:var(--secondary-background-color,#f6f8fa)}
 .ref-match>ha-icon{--mdc-icon-size:28px;flex:none}.ref-match.green{background:rgba(67,160,71,.10)}.ref-match.green>ha-icon{color:var(--rd-green)}
 .ref-match.amber{background:rgba(255,166,0,.12)}.ref-match.amber>ha-icon{color:var(--rd-amber)}.ref-match.grey>ha-icon{color:var(--secondary-text-color)}
