@@ -21,6 +21,10 @@ const TEXT = {
     statsNoCand: "No entity with the same unit - search for one.",
     statsSearch: "Find an entity…",
     statsHasStats: "has statistics",
+    statsYesMerge: "Yes, merge them",
+    statsNothing: "Nothing to move: {name} already has data for every hour. The leftover statistics can be deleted.",
+    statsDelete: "Delete the leftover statistics",
+    statsDeleted: "The leftover statistics are deleted.",
     refsWhy: {"chosen": "Chosen by you", "replaced": "Replaced with Replace Device", "renamed": "Renamed – known for sure", "same_name": "Same name and kind in the history", "guess": "Maybe – from the names"},
     leftHint: "Devices and entities that are surely gone – not just switched off. Each shows why.",
     leftNone: "No leftovers – nothing is left behind.",
@@ -306,6 +310,10 @@ const TEXT = {
     statsNoCand: "Ingen entitet med samme enhed - søg efter en.",
     statsSearch: "Find en entitet…",
     statsHasStats: "har statistik",
+    statsYesMerge: "Ja, flet dem",
+    statsNothing: "Intet at flytte: {name} har allerede data for alle timerne. Den efterladte statistik kan slettes.",
+    statsDelete: "Slet den efterladte statistik",
+    statsDeleted: "Den efterladte statistik er slettet.",
     refsWhy: {"chosen": "Valgt af dig", "replaced": "Udskiftet med Replace Device", "renamed": "Omdøbt – det vides med sikkerhed", "same_name": "Samme navn og type i historikken", "guess": "Måske – ud fra navnene"},
     leftHint: "Enheder og entiteter, der helt sikkert er væk – ikke bare slukkede. Ved hver står hvorfor.",
     leftNone: "Ingen rester – intet ligger tilbage.",
@@ -1801,7 +1809,13 @@ class ReplaceDevicePanel extends HTMLElement {
           ${chosen && !cand ? `<option value="${esc(chosen)}" selected>${esc(name)}</option>` : ""}</select>` : `<p class="small muted">${esc(this.t("statsNoCand"))}</p>`}
         <div class="ref-search"><ha-icon icon="mdi:magnify"></ha-icon><input class="ref-find" list="stats-${o.statistic_id.split(".")[0]}" data-stats-find="${esc(o.statistic_id)}" placeholder="${esc(this.t("statsSearch"))}"></div>
         ${merging ? `<p class="small warn-text"><ha-icon icon="mdi:alert-outline"></ha-icon> ${esc(this.t("statsWarnMerge", { name }))}</p>` : ""}
-        <div class="btns ref-btns">${chosen ? `<button class="primary" data-act="statsMove" data-id="${esc(o.statistic_id)}"><ha-icon icon="mdi:chart-timeline-variant-shimmer"></ha-icon>${this.t("statsMove")}</button>` : ""}</div></div>`;
+        ${this.statsNothing === o.statistic_id ? `<div class="ref-match grey"><ha-icon icon="mdi:information-outline"></ha-icon><div class="grow small">${esc(this.t("statsNothing", { name }))}</div></div>
+          <div class="btns ref-btns"><button class="ghost" data-act="statsDelete" data-id="${esc(o.statistic_id)}"><ha-icon icon="mdi:delete-outline"></ha-icon>${this.t("statsDelete")}</button>
+          <button class="link" data-act="statsCancel">${this.t("cancel")}</button></div>`
+        : this.statsAsk === o.statistic_id ? `<div class="btns ref-btns"><button class="primary" data-act="statsMove" data-id="${esc(o.statistic_id)}"><ha-icon icon="mdi:check"></ha-icon>${this.t("statsYesMerge")}</button>
+          <button class="link" data-act="statsCancel">${this.t("cancel")}</button></div>`
+        : `<div class="btns ref-btns">${chosen ? `<button class="primary" data-act="statsMove" data-id="${esc(o.statistic_id)}"><ha-icon icon="mdi:chart-timeline-variant-shimmer"></ha-icon>${this.t("statsMove")}</button>` : ""}
+          <button class="link" data-act="statsDelete" data-id="${esc(o.statistic_id)}">${this.t("statsDelete")}</button></div>`}</div>`;
     };
     return `${this.refsTabs()}
       <div class="hero card"><div class="hero-icon"><ha-icon icon="mdi:chart-line"></ha-icon></div><div class="grow"><h2>${this.t("statsTitle")}</h2>
@@ -2746,13 +2760,28 @@ class ReplaceDevicePanel extends HTMLElement {
       const target = this.statsChoice[data.id] ?? o?.candidates[0]?.entity_id;
       if (!o || !target) return;
       const cand = o.candidates.find((c) => c.entity_id === target);
-      if ((cand ? cand.has_stats : true) && !confirm(this.t("statsConfirmMerge"))) return;
+      if ((cand ? cand.has_stats : true) && this.statsAsk !== data.id) { this.statsAsk = data.id; return this.render(); }
+      this.statsAsk = null;
       this.view = "working";
       this.render();
       const name = this._hass?.states?.[target]?.attributes?.friendly_name || target;
       this.ws("migrate_stats", { old: data.id, new: target }).then((r) => {
         this.refNote = r.done === "merged" ? this.t("statsMerged", { n: r.hours, name }) : this.t("statsMoved", { name });
         delete this.statsChoice[data.id];
+        return this.ws("orphan_stats").then((x) => (this.orphans = x.orphans));
+      }).catch((e) => {
+        if (e.code === "nothing_to_add") this.statsNothing = data.id;  // the new one already has every hour
+        else this.error = this.t("error", { e: e.message || e.code || e });
+      }).finally(() => { this.view = "refs"; this.render(); });
+      return;
+    }
+    if (data.act === "statsCancel") { this.statsAsk = null; this.statsNothing = null; return this.render(); }
+    if (data.act === "statsDelete") {
+      this.view = "working";
+      this.render();
+      this.ws("delete_stats", { old: data.id }).then(() => {
+        this.refNote = this.t("statsDeleted");
+        this.statsNothing = null;
         return this.ws("orphan_stats").then((x) => (this.orphans = x.orphans));
       }).catch((e) => (this.error = this.t("error", { e: e.message || e.code || e })))
         .finally(() => { this.view = "refs"; this.render(); });

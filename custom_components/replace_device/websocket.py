@@ -32,6 +32,7 @@ def async_setup(hass: HomeAssistant) -> None:
         ws_dead_ref_ignore,
         ws_orphan_stats,
         ws_migrate_stats,
+        ws_delete_stats,
         ws_leftovers,
         ws_remove_leftovers,
         ws_devices,
@@ -795,3 +796,18 @@ async def ws_migrate_stats(hass: HomeAssistant, connection: websocket_api.Active
         connection.send_error(msg["id"], str(err), str(err))
         return
     connection.send_result(msg["id"], result)
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/delete_stats", vol.Required("old"): str})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_delete_stats(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Remove statistics left behind by a deleted entity."""
+    from . import stats
+
+    try:
+        await stats.async_delete(hass, msg["old"])
+    except ValueError as err:
+        connection.send_error(msg["id"], str(err), str(err))
+        return
+    connection.send_result(msg["id"], {"deleted": True})

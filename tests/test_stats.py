@@ -72,3 +72,16 @@ async def test_a_live_entity_is_not_orphaned(ready, hass: HomeAssistant) -> None
     assert await stats.async_orphans(hass) == []
     with pytest.raises(ValueError):
         await stats.async_migrate(hass, "sensor.alive", "sensor.other")
+
+
+async def test_nothing_to_add_then_delete(ready, hass: HomeAssistant) -> None:
+    """The new one already has the same hours (what happened to the dryer's new plug): nothing to move - delete it."""
+    async_import_statistics(hass, meta("sensor.old_plug_energy"), rows(3, T0 + timedelta(hours=5)))
+    async_import_statistics(hass, meta("sensor.new_plug_energy"), rows(10, T0))
+    hass.states.async_set("sensor.new_plug_energy", "10", {"state_class": "total_increasing", "unit_of_measurement": "kWh"})
+    await get_instance(hass).async_block_till_done()
+    with pytest.raises(ValueError, match="nothing_to_add"):
+        await stats.async_migrate(hass, "sensor.old_plug_energy", "sensor.new_plug_energy")
+    await stats.async_delete(hass, "sensor.old_plug_energy")
+    assert await _sums(hass, "sensor.old_plug_energy") == []
+    assert len(await _sums(hass, "sensor.new_plug_energy")) == 10

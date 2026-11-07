@@ -116,10 +116,14 @@ async def async_migrate(hass: HomeAssistant, old: str, new: str) -> dict[str, An
     if not new_rows:
         raise ValueError("no_statistics")
     start_new = new_rows[0]["start"]
-    before = [r for r in old_rows if r["start"] < start_new]
-    if not before:
-        raise ValueError("no_older_hours")
     meta_new = dict(meta[new][1])
+    if meta_new.get("has_sum"):
+        before = [r for r in old_rows if r["start"] < start_new]  # counters: only in front, or the sums would break
+    else:
+        have = {r["start"] for r in new_rows}
+        before = [r for r in old_rows if r["start"] not in have]  # measurements: every hour the new one doesn't have
+    if not before:
+        raise ValueError("nothing_to_add")
 
     def stat(r: dict[str, Any]) -> dict[str, Any]:
         d: dict[str, Any] = {"start": datetime.fromtimestamp(r["start"], timezone.utc)}
@@ -132,7 +136,7 @@ async def async_migrate(hass: HomeAssistant, old: str, new: str) -> dict[str, An
 
     st.async_import_statistics(hass, meta_new, [stat(r) for r in before])
     carried = None
-    if meta_new.get("has_sum") and before[-1].get("sum") is not None:
+    if meta_new.get("has_sum") and before and before[-1].get("sum") is not None:
         carried = float(before[-1]["sum"])
         if carried:
             inst.async_adjust_statistics(new, datetime.fromtimestamp(start_new, timezone.utc), carried,
@@ -140,3 +144,12 @@ async def async_migrate(hass: HomeAssistant, old: str, new: str) -> dict[str, An
     inst.async_clear_statistics([old])
     await inst.async_block_till_done()
     return {"done": "merged", "hours": len(before), "carried": carried}
+
+
+async def async_delete(hass: HomeAssistant, statistic_id: str) -> None:
+    """Remove statistics that are left behind (only those of an entity that is gone)."""
+    if er.async_get(hass).async_get(statistic_id) is not None or hass.states.get(statistic_id) is not None:
+        raise ValueError("not_orphaned")
+    inst = _recorder(hass)
+    inst.async_clear_statistics([statistic_id])
+    await inst.async_block_till_done()
