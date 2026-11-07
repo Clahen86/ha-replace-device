@@ -9,6 +9,8 @@ from homeassistant.components.recorder import get_instance
 from homeassistant.components.recorder.statistics import async_import_statistics, statistics_during_period
 from homeassistant.core import HomeAssistant
 
+from pytest_homeassistant_custom_component.components.recorder.common import async_wait_recording_done
+
 from custom_components.replace_device import stats
 from custom_components.replace_device.const import DOMAIN
 
@@ -79,7 +81,7 @@ async def test_nothing_to_add_then_delete(ready, hass: HomeAssistant) -> None:
     async_import_statistics(hass, meta("sensor.old_plug_energy"), rows(3, T0 + timedelta(hours=5)))
     async_import_statistics(hass, meta("sensor.new_plug_energy"), rows(10, T0))
     hass.states.async_set("sensor.new_plug_energy", "10", {"state_class": "total_increasing", "unit_of_measurement": "kWh"})
-    await get_instance(hass).async_block_till_done()
+    await async_wait_recording_done(hass)
     with pytest.raises(ValueError, match="nothing_to_add"):
         await stats.async_migrate(hass, "sensor.old_plug_energy", "sensor.new_plug_energy")
     await stats.async_delete(hass, "sensor.old_plug_energy")
