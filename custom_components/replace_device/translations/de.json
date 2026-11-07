@@ -123,7 +123,7 @@
             "description": "**{old}** → **{new}**\n\n{count} Stellen nutzen noch die alte ID und funktionieren nicht mehr.\n\n**Wird automatisch korrigiert:**\n{fixed}\n\n**Selbst ändern** (deine eigenen Dateien, Zeile für Zeile unter Erst testen im Panel):\n{by_hand}",
             "menu_options": {
               "fix": "Überall die neue ID verwenden",
-              "restore": "Der Entität ihre alte ID zurückgeben"
+              "restore": "Alte ID zurückgeben (und dem Gerät seinen alten Namen, falls es mit umbenannt wurde)"
             }
           }
         },
@@ -142,7 +142,7 @@
             "description": "**{old}** → **{new}**\n\n{count} Stellen nutzen noch die alte ID und funktionieren nicht mehr.\n\n**Wird automatisch korrigiert:**\n{fixed}\n\n**Selbst ändern** (deine eigenen Dateien, Zeile für Zeile unter Erst testen im Panel):\n{by_hand}",
             "menu_options": {
               "fix": "Überall die neue ID verwenden",
-              "restore": "Der Entität ihre alte ID zurückgeben"
+              "restore": "Alte ID zurückgeben (und dem Gerät seinen alten Namen, falls es mit umbenannt wurde)"
             }
           }
         },

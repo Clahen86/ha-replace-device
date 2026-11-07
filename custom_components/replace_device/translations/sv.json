@@ -123,7 +123,7 @@
             "description": "**{old}** → **{new}**\n\n{count} ställen använder fortfarande det gamla ID:t och fungerar inte längre.\n\n**Rättas automatiskt:**\n{fixed}\n\n**Ändra själv** (dina egna filer, rad för rad under Testa först i panelen):\n{by_hand}",
             "menu_options": {
               "fix": "Använd det nya ID:t överallt",
-              "restore": "Ge entiteten sitt gamla ID igen"
+              "restore": "Ge tillbaka det gamla ID:t (och enheten sitt gamla namn, om den också döptes om)"
             }
           }
         },
@@ -142,7 +142,7 @@
             "description": "**{old}** → **{new}**\n\n{count} ställen använder fortfarande det gamla ID:t och fungerar inte längre.\n\n**Rättas automatiskt:**\n{fixed}\n\n**Ändra själv** (dina egna filer, rad för rad under Testa först i panelen):\n{by_hand}",
             "menu_options": {
               "fix": "Använd det nya ID:t överallt",
-              "restore": "Ge entiteten sitt gamla ID igen"
+              "restore": "Ge tillbaka det gamla ID:t (och enheten sitt gamla namn, om den också döptes om)"
             }
           }
         },

@@ -123,7 +123,7 @@
             "description": "**{old}** → **{new}**\n\n{count} places still use the old ID, so they don't work any more.\n\n**Fixed automatically:**\n{fixed}\n\n**Change by hand** (your own files, shown line by line under Test first in the panel):\n{by_hand}",
             "menu_options": {
               "fix": "Use the new ID everywhere",
-              "restore": "Give the entity its old ID back"
+              "restore": "Give the old ID back (and the device its old name, if it was renamed too)"
             }
           }
         },
@@ -142,7 +142,7 @@
             "description": "**{old}** → **{new}**\n\n{count} places still use the old ID, so they don't work any more.\n\n**Fixed automatically:**\n{fixed}\n\n**Change by hand** (your own files, shown line by line under Test first in the panel):\n{by_hand}",
             "menu_options": {
               "fix": "Use the new ID everywhere",
-              "restore": "Give the entity its old ID back"
+              "restore": "Give the old ID back (and the device its old name, if it was renamed too)"
             }
           }
         },

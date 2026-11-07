@@ -123,7 +123,7 @@
             "description": "**{old}** → **{new}**\n\n{count} steder bruger stadig det gamle id, så de virker ikke længere.\n\n**Rettes automatisk:**\n{fixed}\n\n**Ret selv** (dine egne filer, vist linje for linje under Test først i panelet):\n{by_hand}",
             "menu_options": {
               "fix": "Brug det nye id alle steder",
-              "restore": "Giv entiteten sit gamle id igen"
+              "restore": "Giv det gamle id tilbage (og enheden sit gamle navn, hvis den også blev omdøbt)"
             }
           }
         },
@@ -142,7 +142,7 @@
             "description": "**{old}** → **{new}**\n\n{count} steder bruger stadig det gamle id, så de virker ikke længere.\n\n**Rettes automatisk:**\n{fixed}\n\n**Ret selv** (dine egne filer, vist linje for linje under Test først i panelet):\n{by_hand}",
             "menu_options": {
               "fix": "Brug det nye id alle steder",
-              "restore": "Giv entiteten sit gamle id igen"
+              "restore": "Giv det gamle id tilbage (og enheden sit gamle navn, hvis den også blev omdøbt)"
             }
           }
         },

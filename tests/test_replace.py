@@ -1971,6 +1971,44 @@ async def test_entity_id_that_changes_by_itself(hass: HomeAssistant, tmp_path) -
     assert registry.async_get("sensor.stue_temperature") is not None
 
 
+async def test_restore_gives_the_device_its_name_back(hass: HomeAssistant, tmp_path) -> None:
+    """A plug renamed by an app (device name and entity IDs at once): restoring one ID gives back the device's name
+    and the other entities' IDs too - what happened to the dryer's new plug."""
+    from homeassistant.helpers import device_registry as dr
+
+    from custom_components.replace_device.watch import issue_id
+
+    hass.config.config_dir = str(tmp_path)
+    (tmp_path / "automations.yaml").write_text(
+        "- id: '1'\n  alias: Tumbler\n  triggers:\n  - trigger: state\n    entity_id: sensor.torretumbler_power\n  actions: []\n"
+    )
+    entry_cfg = MockConfigEntry(domain="matter")
+    entry_cfg.add_to_hass(hass)
+    devices, registry = dr.async_get(hass), er.async_get(hass)
+    plug = devices.async_get_or_create(config_entry_id=entry_cfg.entry_id, identifiers={("matter", "plug")}, name="GRILLPLATS Plug")
+    devices.async_update_device(plug.id, name_by_user="Tørretumbler")
+    for uid, obj in (("p", "torretumbler_power"), ("v", "torretumbler_voltage")):
+        registry.async_get_or_create("sensor", "matter", uid, suggested_object_id=obj, device_id=plug.id, config_entry=entry_cfg)
+    await _setup(hass)
+    # The app renames the plug and HA updates the entity IDs with it.
+    devices.async_update_device(plug.id, name_by_user="GRILLPLATS plug 5")
+    registry.async_update_entity("sensor.torretumbler_power", new_entity_id="sensor.vaskerum_grillplats_plug_5_effekt")
+    registry.async_update_entity("sensor.torretumbler_voltage", new_entity_id="sensor.vaskerum_grillplats_plug_5_spaending")
+    await hass.async_block_till_done()
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=61))
+    await hass.async_block_till_done()
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id("sensor.torretumbler_power", "sensor.vaskerum_grillplats_plug_5_effekt"))
+    assert issue is not None
+    flow = await repairs.async_create_fix_flow(hass, issue.issue_id, issue.data)
+    flow.hass = hass
+    await flow.async_step_init()
+    assert (await flow.async_step_restore())["type"] == "create_entry"
+    await hass.async_block_till_done()
+    assert registry.async_get("sensor.torretumbler_power") is not None
+    assert registry.async_get("sensor.torretumbler_voltage") is not None  # unused, renamed with it: back too
+    assert devices.async_get(plug.id).name_by_user == "Tørretumbler"
+
+
 async def test_unused_rename_and_suffix(hass: HomeAssistant, tmp_path) -> None:
     """A rename nothing uses gives no repair; a device back as "…_2" while the old one is gone does."""
     from custom_components.replace_device.watch import issue_id

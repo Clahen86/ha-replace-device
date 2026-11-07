@@ -70,9 +70,15 @@ class RenamedFlow(RepairsFlow):
         return self.async_create_entry(data={})
 
     async def async_step_restore(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        from .watch import async_restore_together, renamed_with
+
         replacer = self._replacer()
+        together = renamed_with(self.hass, self._new)  # read before the ID changes back
         if replacer is None or not await replacer.async_follow(self._old, self._new, "restore"):
             return self.async_abort(reason="unknown_device")
+        if together:
+            # The whole device was renamed: its old name and the other entities' old IDs come back too.
+            async_restore_together(self.hass, self._old)
         return self.async_create_entry(data={})
 
 
