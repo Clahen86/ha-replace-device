@@ -32,9 +32,11 @@ _TITLES = {
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     websocket.async_setup(hass)
-    await hass.http.async_register_static_paths(
-        [StaticPathConfig(_STATIC, str(Path(__file__).parent / "frontend"), cache_headers=False)]
-    )
+    # Files under a new address for every change (newest file time), so a browser never mixes old and new files.
+    folder = Path(__file__).parent / "frontend"
+    stamp = await hass.async_add_executor_job(lambda: int(max(p.stat().st_mtime for p in folder.glob("*.js"))))
+    hass.data[f"{DOMAIN}_static"] = base = f"{_STATIC}/{stamp}"
+    await hass.http.async_register_static_paths([StaticPathConfig(base, str(folder), cache_headers=False)])
     return True
 
 
@@ -63,7 +65,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ReplaceDeviceConfigEntry
         webcomponent_name="replace-device-panel",
         sidebar_title=_TITLES.get(hass.config.language.split("-")[0], "Replace device"),
         sidebar_icon="mdi:swap-horizontal-circle-outline",
-        module_url=f"{_STATIC}/panel.js?v={version}",
+        module_url=f"{hass.data[f'{DOMAIN}_static']}/panel.js?v={version}",
         require_admin=True,
     )
     return True
