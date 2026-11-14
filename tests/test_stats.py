@@ -38,6 +38,7 @@ def rows(n, start, base=0.0):
 
 
 async def _sums(hass, sid):
+    await async_wait_recording_done(hass)  # read only what is committed - otherwise flaky
     inst = get_instance(hass)
     await inst.async_block_till_done()
     r = await inst.async_add_executor_job(statistics_during_period, hass, T0 - timedelta(days=1), None, {sid}, "hour", None, {"sum"})
@@ -47,7 +48,7 @@ async def _sums(hass, sid):
 async def test_rename_to_a_new_entity_without_statistics(ready, hass: HomeAssistant) -> None:
     async_import_statistics(hass, meta("sensor.old_plug_energy"), rows(5, T0))
     hass.states.async_set("sensor.new_plug_energy", "0", {"state_class": "total_increasing", "unit_of_measurement": "kWh"})
-    await get_instance(hass).async_block_till_done()
+    await async_wait_recording_done(hass)
     orphans = await stats.async_orphans(hass)
     assert [o["statistic_id"] for o in orphans] == ["sensor.old_plug_energy"]
     assert orphans[0]["candidates"][0]["entity_id"] == "sensor.new_plug_energy"
@@ -60,7 +61,7 @@ async def test_merge_carries_the_sum_over(ready, hass: HomeAssistant) -> None:
     async_import_statistics(hass, meta("sensor.old_plug_energy"), rows(5, T0))
     async_import_statistics(hass, meta("sensor.new_plug_energy"), rows(3, T0 + timedelta(hours=10)))
     hass.states.async_set("sensor.new_plug_energy", "3", {"state_class": "total_increasing", "unit_of_measurement": "kWh"})
-    await get_instance(hass).async_block_till_done()
+    await async_wait_recording_done(hass)
     res = await stats.async_migrate(hass, "sensor.old_plug_energy", "sensor.new_plug_energy")
     assert res["done"] == "merged" and res["hours"] == 5 and res["carried"] == 5
     assert await _sums(hass, "sensor.new_plug_energy") == [1, 2, 3, 4, 5, 6, 7, 8]  # no jump back to 1
@@ -70,7 +71,7 @@ async def test_merge_carries_the_sum_over(ready, hass: HomeAssistant) -> None:
 async def test_a_live_entity_is_not_orphaned(ready, hass: HomeAssistant) -> None:
     async_import_statistics(hass, meta("sensor.alive"), rows(2, T0))
     hass.states.async_set("sensor.alive", "2", {"state_class": "total_increasing", "unit_of_measurement": "kWh"})
-    await get_instance(hass).async_block_till_done()
+    await async_wait_recording_done(hass)
     assert await stats.async_orphans(hass) == []
     with pytest.raises(ValueError):
         await stats.async_migrate(hass, "sensor.alive", "sensor.other")
@@ -85,5 +86,6 @@ async def test_nothing_to_add_then_delete(ready, hass: HomeAssistant) -> None:
     with pytest.raises(ValueError, match="nothing_to_add"):
         await stats.async_migrate(hass, "sensor.old_plug_energy", "sensor.new_plug_energy")
     await stats.async_delete(hass, "sensor.old_plug_energy")
+    await async_wait_recording_done(hass)  # the deletion is committed before it is read (was flaky)
     assert await _sums(hass, "sensor.old_plug_energy") == []
     assert len(await _sums(hass, "sensor.new_plug_energy")) == 10
