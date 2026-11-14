@@ -1,5 +1,5 @@
 // Replace Device – sidebar panel. Plain web component, no build step; follows the Home Assistant theme.
-import { defineSupport, supportText } from "./support.js";
+import { defineSupport, defineUpdate, supportText } from "./support.js";
 import { defineSuggest } from "./suggest.js";
 
 const TEXT = {
@@ -2677,6 +2677,11 @@ class ReplaceDevicePanel extends HTMLElement {
     if (menu) {
       menu.hass = this._hass;
       menu.narrow = this._narrow;
+    }
+    if (this.view === "home") {  // the update card on top of the start page, when it's time
+      this._upd = this._upd || document.createElement(defineUpdate("replace_device"));
+      this._upd.hass = this._hass;
+      this.shadowRoot.querySelector(".content")?.prepend(this._upd);
     }
     const slot = this.shadowRoot.getElementById("support-slot");
     if (slot) {  // one element kept between renders, so a half-written message isn't lost
