@@ -47,6 +47,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ReplaceDeviceConfigEntry
     entry.async_on_unload(watch.async_watch(hass, replacer))
     entry.async_on_unload(replacer.async_stop)
     entry.async_on_unload(entry.add_update_listener(_options_changed))
+    from .support import Support
+
+    support = Support(hass, DOMAIN, "replace-device", _TITLES.get(hass.config.language.split("-")[0], "Replace device"),
+                      summary=lambda: {"replacements": len(replacer.history), "ai": bool(replacer.ai_entity)})
+    await support.async_setup()
+    entry.async_on_unload(support.unload)
     version = (await async_get_integration(hass, DOMAIN)).version
     # Also the file's time, so the browser fetches the panel again after a fix without a new version.
     panel = Path(__file__).parent / "frontend" / "panel.js"

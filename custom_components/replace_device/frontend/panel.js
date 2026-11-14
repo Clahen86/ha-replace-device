@@ -1,4 +1,5 @@
 // Replace Device – sidebar panel. Plain web component, no build step; follows the Home Assistant theme.
+import { defineSupport, supportText } from "./support.js";
 
 const TEXT = {
   en: {
@@ -1564,6 +1565,7 @@ class ReplaceDevicePanel extends HTMLElement {
   set hass(hass) {
     const first = !this._hass;
     this._hass = hass;
+    if (this._sup) this._sup.hass = hass;
     if (first) this.load();
     const menu = this.shadowRoot.querySelector("ha-menu-button");
     if (menu) menu.hass = hass;
@@ -2655,15 +2657,21 @@ class ReplaceDevicePanel extends HTMLElement {
       home: () => this.homeView(), pick: () => this.pickView(), match: () => this.matchView(), working: () => this.workingView(),
       done: () => this.doneView(), migrate: () => this.migrateView(), migrated: () => this.migrateDoneView(),
       edit: () => this.editView(), dry: () => this.dryView(), rename: () => this.renameView(),
-      refs: () => this.refsView(),
+      refs: () => this.refsView(), support: () => `<div id="support-slot"></div>`,
     }[this.view]();
     this.shadowRoot.innerHTML = `<style>${STYLE}</style>
-      <div class="toolbar">${customElements.get("ha-menu-button") ? "<ha-menu-button></ha-menu-button>" : ""}${this.view !== "home" && this.view !== "working" ? `<button class="tb-back" data-act="topBack" title="${this.t("back")}" aria-label="${this.t("back")}"><ha-icon icon="mdi:arrow-left"></ha-icon></button>` : ""}<div class="tb-title">${this.t("title")}</div></div>
+      <div class="toolbar">${customElements.get("ha-menu-button") ? "<ha-menu-button></ha-menu-button>" : ""}${this.view !== "home" && this.view !== "working" ? `<button class="tb-back" data-act="topBack" title="${this.t("back")}" aria-label="${this.t("back")}"><ha-icon icon="mdi:arrow-left"></ha-icon></button>` : ""}<div class="tb-title">${this.t("title")}</div>${this.view !== "support" ? `<button class="tb-help" data-act="help">🛟 ${supportText(this._hass, "help")}</button>` : ""}</div>
       <div class="content">${this.error ? `<div class="card error"><ha-icon icon="mdi:alert-circle"></ha-icon>${esc(this.error)}</div>` : ""}${body}</div>`;
     const menu = this.shadowRoot.querySelector("ha-menu-button");
     if (menu) {
       menu.hass = this._hass;
       menu.narrow = this._narrow;
+    }
+    const slot = this.shadowRoot.getElementById("support-slot");
+    if (slot) {  // one element kept between renders, so a half-written message isn't lost
+      this._sup = this._sup || document.createElement(defineSupport("replace_device"));
+      this._sup.hass = this._hass;
+      slot.appendChild(this._sup);
     }
     this.shadowRoot.querySelectorAll("[data-act]").forEach((el) => el.addEventListener("click", () => this.act(el.dataset)));
     this.shadowRoot.querySelectorAll("select[data-old]").forEach((el) =>
@@ -2772,6 +2780,11 @@ class ReplaceDevicePanel extends HTMLElement {
 
   act(data) {
     this.error = "";
+    if (data.act === "help") {
+      this.view = "support";
+      this.render();
+      return;
+    }
     if (data.act === "topBack") {
       // The same as the back button at the bottom of each page, so nobody has to scroll down for it.
       if (this.view === "pick" && this.oldId && this.pickMode !== "rename") data = { act: "changeOld" };
@@ -3011,7 +3024,7 @@ const STYLE = `
   --rd-red:var(--error-color,#db4437);--rd-green:var(--success-color,#43a047);--rd-blue:var(--primary-color,#03a9f4);--rd-amber:var(--warning-color,#ffa600)}
 *{box-sizing:border-box}
 .toolbar{display:flex;align-items:center;height:56px;padding:0 12px;background:var(--app-header-background-color,var(--primary-color,#03a9f4));color:var(--app-header-text-color,#fff);position:sticky;top:0;z-index:2}
-.tb-title{font-size:20px;margin-left:8px}.tb-back{background:none;border:0;color:inherit;padding:8px;margin-left:-4px;border-radius:50%;cursor:pointer;display:flex}.tb-back:hover{background:rgba(255,255,255,.15)}.tb-back ha-icon{--mdc-icon-size:24px}.beta{margin-left:10px;font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;padding:2px 8px;border-radius:99px;background:rgba(255,255,255,.22)}
+.tb-title{font-size:20px;margin-left:8px}.tb-help{margin-left:auto;background:rgba(255,255,255,.18);border:0;color:inherit;font:inherit;font-weight:600;font-size:14px;padding:6px 14px;border-radius:99px;cursor:pointer}.tb-help:hover{background:rgba(255,255,255,.28)}.tb-back{background:none;border:0;color:inherit;padding:8px;margin-left:-4px;border-radius:50%;cursor:pointer;display:flex}.tb-back:hover{background:rgba(255,255,255,.15)}.tb-back ha-icon{--mdc-icon-size:24px}.beta{margin-left:10px;font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;padding:2px 8px;border-radius:99px;background:rgba(255,255,255,.22)}
 .content{max-width:960px;margin:0 auto;padding:16px 16px 96px}
 .card{background:var(--card-background-color,#fff);border-radius:var(--ha-card-border-radius,12px);box-shadow:var(--ha-card-box-shadow,0 1px 4px rgba(0,0,0,.1));border:1px solid var(--divider-color,transparent);padding:16px;margin-bottom:16px}
 h2{margin:0 0 6px;font-size:22px}h3{margin:24px 4px 10px;font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px}h3.in{margin:0 0 6px}

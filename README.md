@@ -120,6 +120,10 @@ The same is available without the panel: **Settings → Devices & services → R
 - Everything runs locally. Only with the AI help turned on are names and types of the entities and triggers sent to the AI you picked.
 - Available in English, Danish, German, Swedish and Dutch – it follows your Home Assistant language. Better wording or a new language is very welcome as a pull request.
 
+### Help and answers
+
+Press **🛟 Help** at the top of the panel to write what's wrong and attach up to 3 pictures. It goes privately to the developer with a short diagnosis (no names, addresses or passwords) – only when you press *Send*. When the developer answers – also on an error the app reported – the answer shows under 🛟 Help with a notification in Home Assistant, and you can write back. Errors in the app are sent anonymously so they can be fixed; turn it off under 🛟 Help.
+
 ## Dansk
 
 > **Feedback er velkommen.** Den er testet på rigtige flytninger mellem ZHA, Zigbee2MQTT, HomeKit og Matter og tjekket mod, hvordan Hue, Z-Wave JS og Shelly navngiver deres enheder. Den er endnu ikke prøvet på rigtige Hue-, Z-Wave- eller Shelly-enheder, og alle hjem er forskellige. Hvis noget ikke flyttes, som det skal, så [opret et issue](https://github.com/Clahen86/ha-replace-device/issues/new/choose), og skriv hvilken integration du flyttede fra og til. Du kan altid rette navne bagefter med **Ret**.
@@ -225,6 +229,10 @@ Det samme kan gøres uden panelet: **Indstillinger → Enheder og tjenester → 
 - Det flyttes ikke: Zigbee-bindinger (en fjernbetjening bundet direkte til en pære) og kalibrering sat i ZHA eller Zigbee2MQTT. Kode uden for Home Assistant bliver kun vist, ikke ændret.
 - Alt kører lokalt. Kun hvis AI-hjælpen er slået til, sendes navne og typer på entiteter og triggere til den AI, du har valgt.
 - Findes på engelsk, dansk, tysk, svensk og hollandsk og følger sproget i din Home Assistant.
+
+### Hjælp og svar
+
+Tryk på **🛟 Hjælp** øverst i panelet for at skrive, hvad der er galt, og vedhæfte op til 3 billeder. Det går privat til udvikleren med en kort diagnose (ingen navne, adresser eller koder) – kun når du trykker *Send*. Når udvikleren svarer – også på en fejl, appen har sendt – står svaret under 🛟 Hjælp, og du får en besked i Home Assistant. Du kan skrive tilbage derfra. Fejl i appen sendes anonymt, så de kan blive rettet; slå det fra under 🛟 Hjælp.
 
 ## License
 
