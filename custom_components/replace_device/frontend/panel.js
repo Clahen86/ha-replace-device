@@ -1,5 +1,6 @@
 // Replace Device – sidebar panel. Plain web component, no build step; follows the Home Assistant theme.
 import { defineSupport, supportText } from "./support.js";
+import { defineSuggest } from "./suggest.js";
 
 const TEXT = {
   en: {
@@ -2672,6 +2673,13 @@ class ReplaceDevicePanel extends HTMLElement {
       this._sup = this._sup || document.createElement(defineSupport("replace_device"));
       this._sup.hass = this._hass;
       slot.appendChild(this._sup);
+      // "Fits your home too" and "From the same developer" (suggest.js) under Help, kept between renders.
+      for (const mode of ["card", "list"]) {
+        const k = `_sg_${mode}`;
+        if (!this[k]) { this[k] = document.createElement(defineSuggest("replace_device")); this[k].setAttribute("mode", mode); }
+        this[k].hass = this._hass;
+        slot.appendChild(this[k]);
+      }
     }
     this.shadowRoot.querySelectorAll("[data-act]").forEach((el) => el.addEventListener("click", () => this.act(el.dataset)));
     this.shadowRoot.querySelectorAll("select[data-old]").forEach((el) =>
