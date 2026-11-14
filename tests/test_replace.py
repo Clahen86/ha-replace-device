@@ -2118,3 +2118,36 @@ async def test_facts_leftovers(hass: HomeAssistant) -> None:
     best = deadrefs._candidates(old_ref, deadrefs._pool(hass, registry))
     assert best and best[0]["entity_id"] == "light.gang_lampe"
     assert min(best[0]["score"], deadrefs.GUESS_MAX) < deadrefs.SURE
+
+
+async def test_rename_a_light_group(hass: HomeAssistant, tmp_path) -> None:
+    """A light group (Group helper, no device): its name, entity id, the helper's title and the automations follow;
+    undo turns it all back. The members are not touched."""
+    hass.config.config_dir = str(tmp_path)
+    helper = MockConfigEntry(domain="group", title="Stue gruppe", options={"group_type": "light", "entities": ["light.a", "light.b"]})
+    helper.add_to_hass(hass)
+    entities = er.async_get(hass)
+    entities.async_get_or_create("light", "group", helper.entry_id, suggested_object_id="stue_gruppe", config_entry=helper,
+                                 original_name="Stue gruppe")
+    (tmp_path / "automations.yaml").write_text(
+        "- id: '1'\n  alias: Godnat\n  triggers: []\n  actions:\n  - action: light.turn_off\n    target:\n      entity_id: light.stue_gruppe\n"
+    )
+    entry = await _setup(hass)
+    replacer = entry.runtime_data
+    from custom_components.replace_device.groups import renamable_groups
+
+    assert [e.entity_id for e in renamable_groups(hass)] == ["light.stue_gruppe"]
+    dry = await replacer.async_rename_dry_run("light.stue_gruppe", "Sofahjørne")
+    assert dry["group"] and [(c["from"], c["to"]) for c in dry["entities"]] == [("light.stue_gruppe", "light.sofahjorne")]
+    result = await replacer.async_rename("light.stue_gruppe", "Sofahjørne")
+    await hass.async_block_till_done()
+    assert entities.async_get("light.sofahjorne").name == "Sofahjørne"
+    assert hass.config_entries.async_get_entry(helper.entry_id).title == "Sofahjørne"
+    assert helper.options["entities"] == ["light.a", "light.b"]
+    assert "light.sofahjorne" in (tmp_path / "automations.yaml").read_text()
+
+    assert await replacer.async_undo(result["id"])
+    await hass.async_block_till_done()
+    assert entities.async_get("light.stue_gruppe").name is None
+    assert hass.config_entries.async_get_entry(helper.entry_id).title == "Stue gruppe"
+    assert "light.stue_gruppe" in (tmp_path / "automations.yaml").read_text()

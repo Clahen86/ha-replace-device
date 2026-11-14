@@ -214,10 +214,11 @@ const TEXT = {
     change: "Change",
     migrateTitle: "Move many devices",
     migrateStart: "Move many devices",
-    renameStart: "Rename a device",
-    renameTitle: "Rename a device",
+    groupTag: "Group",
+    renameStart: "Rename a device or group",
+    renameTitle: "Rename a device or group",
     renameText: "The device and its entity IDs get the new name. Automations, scripts, scenes, dashboards and the energy dashboard follow, and helpers can be ticked. For your own YAML files it shows every line to change. History follows.",
-    renamePick: "Pick the device to rename",
+    renamePick: "Pick the device or group to rename",
     newName: "New name",
     renameDo: "Rename",
     renameWorking: "Renaming…",
@@ -503,10 +504,11 @@ const TEXT = {
     change: "Skift",
     migrateTitle: "Flyt mange enheder",
     migrateStart: "Flyt mange enheder",
-    renameStart: "Omdøb en enhed",
-    renameTitle: "Omdøb en enhed",
+    groupTag: "Gruppe",
+    renameStart: "Omdøb en enhed eller gruppe",
+    renameTitle: "Omdøb en enhed eller gruppe",
     renameText: "Enheden og dens entity-id'er får det nye navn. Automatiseringer, scripts, scener, dashboards og energi-dashboardet følger med, og hjælpere kan du sætte flueben ved. I dine egne YAML-filer viser den hver linje, du skal rette. Historikken følger med.",
-    renamePick: "Vælg den enhed, der skal omdøbes",
+    renamePick: "Vælg den enhed eller gruppe, der skal omdøbes",
     newName: "Nyt navn",
     renameDo: "Omdøb",
     renameWorking: "Omdøber…",
@@ -792,10 +794,11 @@ const TEXT = {
     change: "Ändern",
     migrateTitle: "Viele Geräte umziehen",
     migrateStart: "Viele Geräte umziehen",
-    renameStart: "Ein Gerät umbenennen",
-    renameTitle: "Ein Gerät umbenennen",
+    groupTag: "Gruppe",
+    renameStart: "Gerät oder Gruppe umbenennen",
+    renameTitle: "Gerät oder Gruppe umbenennen",
     renameText: "Das Gerät und seine Entitäts-IDs bekommen den neuen Namen. Automationen, Skripte, Szenen, Dashboards und das Energie-Dashboard ziehen mit, Helfer kannst du anhaken. Für deine eigenen YAML-Dateien zeigt es jede Zeile, die du ändern musst. Der Verlauf bleibt erhalten.",
-    renamePick: "Wähle das Gerät zum Umbenennen",
+    renamePick: "Wähle das Gerät oder die Gruppe zum Umbenennen",
     newName: "Neuer Name",
     renameDo: "Umbenennen",
     renameWorking: "Wird umbenannt…",
@@ -1081,10 +1084,11 @@ const TEXT = {
     change: "Ändra",
     migrateTitle: "Flytta många enheter",
     migrateStart: "Flytta många enheter",
-    renameStart: "Byt namn på en enhet",
-    renameTitle: "Byt namn på en enhet",
+    groupTag: "Grupp",
+    renameStart: "Byt namn på en enhet eller grupp",
+    renameTitle: "Byt namn på en enhet eller grupp",
     renameText: "Enheten och dess entitets-ID får det nya namnet. Automationer, skript, scener, instrumentpaneler och energipanelen följer med, och hjälpare kan du kryssa i. För dina egna YAML-filer visar den varje rad du ska ändra. Historiken följer med.",
-    renamePick: "Välj enheten som ska byta namn",
+    renamePick: "Välj enheten eller gruppen att byta namn på",
     newName: "Nytt namn",
     renameDo: "Byt namn",
     renameWorking: "Byter namn…",
@@ -1370,10 +1374,11 @@ const TEXT = {
     change: "Wijzigen",
     migrateTitle: "Veel apparaten verhuizen",
     migrateStart: "Veel apparaten verhuizen",
-    renameStart: "Een apparaat hernoemen",
-    renameTitle: "Een apparaat hernoemen",
+    groupTag: "Groep",
+    renameStart: "Een apparaat of groep hernoemen",
+    renameTitle: "Een apparaat of groep hernoemen",
     renameText: "Het apparaat en zijn entiteit-ID's krijgen de nieuwe naam. Automatiseringen, scripts, scènes, dashboards en het energiedashboard gaan mee, en helpers kun je aanvinken. Voor je eigen YAML-bestanden toont het elke regel die je moet aanpassen. De geschiedenis blijft.",
-    renamePick: "Kies het apparaat om te hernoemen",
+    renamePick: "Kies het apparaat of de groep om te hernoemen",
     newName: "Nieuwe naam",
     renameDo: "Hernoemen",
     renameWorking: "Bezig met hernoemen…",
@@ -1609,7 +1614,7 @@ class ReplaceDevicePanel extends HTMLElement {
   }
 
   device(id) {
-    return this.devices.find((d) => d.id === id);
+    return this.devices.find((d) => d.id === id) || (this.groups || []).find((g) => g.id === id);
   }
 
   async openPlan(oldId, newId, mapping) {
@@ -2091,13 +2096,18 @@ class ReplaceDevicePanel extends HTMLElement {
   pickList() {
     const old = this.oldId && this.device(this.oldId);
     const q = this.query.trim().toLowerCase();
-    let list = this.devices.filter((d) => (!this.srcFilter || d.integration === this.srcFilter)
+    // Renaming: groups without a device of their own (light groups, ZHA groups) can be picked too.
+    const all = this.pickMode === "rename" && !old
+      ? [...this.devices, ...(this.groups || []).map((g) => ({ ...g, integration_title: this.t("groupTag"), created: 0, dead: false }))]
+      : this.devices;
+    let list = all.filter((d) => (!this.srcFilter || d.integration === this.srcFilter)
       && (!q || [d.name, d.area, d.model, d.manufacturer, d.integration_title].join(" ").toLowerCase().includes(q)));
     const day = Date.now() / 1000 - 86400;
     const tags = (d) => {
       const out = [];
       if (old && d.hardware?.some((k) => old.hardware?.includes(k))) out.push(`<span class="tag green">${this.t("sameHardware")}</span>`);
       else if (old && d.model && d.model === old.model) out.push(`<span class="tag blue">${this.t("sameModel")}</span>`);
+      if (d.group) out.push(`<span class="tag blue">${this.t("groupTag")}</span>`);
       if (d.remembered) out.push(`<span class="tag">${this.t("rememberedTag", { n: d.remembered })}</span>`);
       if (d.dead) out.push(`<span class="tag red">${this.t("deadTag")}</span>`);
       else if (d.created > day) out.push(`<span class="tag blue">${this.t("newTag")}</span>`);
@@ -2953,6 +2963,7 @@ class ReplaceDevicePanel extends HTMLElement {
       this.ws("mark_done", { record: data.id }).then(() => this.load());
     } else if (data.act === "renameStart") {
       this.pickMode = "rename";
+      this.ws("groups").then((r) => { this.groups = r.groups || []; if (this.view === "pick") this.render(); }).catch(() => {});
       this.oldId = "";
       this.query = "";
       this.view = "pick";

@@ -788,7 +788,18 @@ class Replacer:
         result["changed"] = sorted(changed)
         return result
 
+    def _group_plan(self, entity_id: str, name: str) -> tuple[Any, list[dict[str, str]]]:
+        """A group without a device (light group, ZHA group): itself is all that's renamed."""
+        from .groups import entity_name, renamable_groups
+
+        entry = next((e for e in renamable_groups(self.hass) if e.entity_id == entity_id), None)
+        if entry is None or not name.strip():
+            return None, []
+        return entry, rename.plan_ids(self.hass, [entry], entity_name(self.hass, entry), name.strip())
+
     def _rename_plan(self, device_id: str, name: str) -> tuple[Any, list[dict[str, str]]]:
+        if "." in device_id:  # an entity id: a group
+            return self._group_plan(device_id, name)
         device = dr.async_get(self.hass).async_get(device_id)
         if device is None or not name.strip():
             return None, []
@@ -801,10 +812,14 @@ class Replacer:
         if device is None:
             return None
         places = await self._async_places({c["from"]: c["to"] for c in changes}, apply=False)
+        group = isinstance(device, er.RegistryEntry)
+        if group:
+            from .groups import entity_name
         return {
-            "device": {"from": device_name(device), "to": name.strip()},
+            "device": {"from": entity_name(self.hass, device) if group else device_name(device), "to": name.strip()},
             "entities": changes,
-            "z2m": z2m_ieee(device) is not None,
+            "z2m": not group and z2m_ieee(device) is not None,
+            "group": group,
             **places,
         }
 
@@ -817,6 +832,8 @@ class Replacer:
         if device is None:
             return None
         name = name.strip()
+        if isinstance(device, er.RegistryEntry):
+            return await self._async_rename_group(device, name, changes, picked)
         old_name, before = device_name(device), device.name_by_user
         dr.async_get(hass).async_update_device(device.id, name_by_user=name)
         done = _rename_all(hass, changes)
@@ -844,8 +861,53 @@ class Replacer:
         self._save()
         return {"id": record["id"], "entities": done, **places}
 
+    async def _async_rename_group(
+        self, entry: er.RegistryEntry, name: str, changes: list[dict[str, str]], picked: dict[str, list[str]] | None
+    ) -> dict[str, Any]:
+        """Rename a group: its name, its entity id, the Group helper's title, and everything that uses the id."""
+        from .groups import entity_name
+
+        hass = self.hass
+        old_name, name_before = entity_name(hass, entry), entry.name
+        helper = hass.config_entries.async_get_entry(entry.config_entry_id) if entry.config_entry_id else None
+        title_before = helper.title if helper and helper.domain == "group" else None
+        er.async_get(hass).async_update_entity(entry.entity_id, name=name)
+        if title_before is not None:
+            hass.config_entries.async_update_entry(helper, title=name)
+        done = _rename_all(hass, changes)
+        record: dict[str, Any] = {
+            "id": uuid4().hex, "at": time.time(), "kind": "rename",
+            "old_device": {"id": None, "name": old_name, "model": "Group"},
+            "new_device": {"id": None, "name": name, "model": "Group", "group": done[0]["to"] if done else entry.entity_id,
+                           "name_before": name_before, "helper": helper.entry_id if title_before is not None else None,
+                           "title_before": title_before},
+            "entities": [], "ids": {}, "renamed": done, "files": [], "batch": None, "undone": False,
+        }
+        self.history.append(record)
+        self._save()
+        places = await self._async_places({c["from"]: c["to"] for c in done}, apply=True, picked=picked)
+        record["files"] = places.get("changed", [])
+        if places.get("fixed"):
+            record["fixed"] = places["fixed"]
+        self._save()
+        return {"id": record["id"], "entities": done, **places}
+
     async def _async_undo_rename(self, record: dict[str, Any]) -> bool:
         hass = self.hass
+        new = record["new_device"]
+        if new.get("model") == "Group" and new.get("id") is None and "group" in new:  # a renamed group
+            back = _rename_all(hass, [{"from": c["to"], "to": c["from"]} for c in reversed(record.get("renamed") or [])])
+            entity_id = back[0]["to"] if back else new["group"]
+            if er.async_get(hass).async_get(entity_id):
+                er.async_get(hass).async_update_entity(entity_id, name=new.get("name_before"))
+            if new.get("helper") and (helper := hass.config_entries.async_get_entry(new["helper"])):
+                hass.config_entries.async_update_entry(helper, title=new.get("title_before") or helper.title)
+            await self._async_places({c["from"]: c["to"] for c in back}, apply=True)
+            if fixed := record.get("fixed"):
+                await self._async_fix({c["from"]: c["to"] for c in back}, True, {"entries": fixed["entry_ids"]})
+            record["undone"] = True
+            self._save()
+            return True
         device = dr.async_get(hass).async_get(record["new_device"]["id"])
         back = _rename_all(hass, [{"from": c["to"], "to": c["from"]} for c in reversed(record.get("renamed") or [])])
         if device is not None:

@@ -50,6 +50,7 @@ def async_setup(hass: HomeAssistant) -> None:
         ws_tidy,
         ws_mark_done,
         ws_rename_dry_run,
+        ws_groups,
         ws_rename,
         ws_migrate_plan,
         ws_migrate,
@@ -343,6 +344,22 @@ def ws_mark_done(hass: HomeAssistant, connection: websocket_api.ActiveConnection
         connection.send_error(msg["id"], "not_found", "No such replacement")
         return
     connection.send_result(msg["id"], {})
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/groups"})
+@callback
+def ws_groups(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Groups without a device of their own (light groups and other Group helpers, ZHA groups) - to rename."""
+    from .groups import entity_name, renamable_groups
+
+    areas = ar.async_get(hass)
+    groups = []
+    for e in renamable_groups(hass):
+        area = areas.async_get_area(e.area_id) if e.area_id else None
+        groups.append({"id": e.entity_id, "name": entity_name(hass, e), "area": area.name if area else None,
+                       "domain": e.domain, "integration": e.platform, "group": True})
+    connection.send_result(msg["id"], {"groups": sorted(groups, key=lambda g: g["name"].lower())})
 
 
 @websocket_api.require_admin

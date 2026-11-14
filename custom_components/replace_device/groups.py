@@ -45,3 +45,17 @@ def match_groups(hass: HomeAssistant, source: str, target: str) -> list[tuple[st
         if (twin := new.get((_key(name), entry.domain))) is not None:
             pairs.append((name, entry, twin))
     return pairs
+
+
+def renamable_groups(hass: HomeAssistant) -> list[er.RegistryEntry]:
+    """Groups that have no device of their own, so they can't be picked as a device: the Group helper's groups (light,
+    switch, cover, sensor … - UI or YAML with a unique id) and ZHA groups. Zigbee2MQTT groups have a device already."""
+    return [
+        e for e in er.async_get(hass).entities.values()
+        if not e.device_id and (e.platform == "group" or (e.platform == "zha" and "zha_group" in (e.unique_id or "")))
+    ]
+
+
+def entity_name(hass: HomeAssistant, entry: er.RegistryEntry) -> str:
+    state = hass.states.get(entry.entity_id)
+    return entry.name or entry.original_name or (state and state.attributes.get("friendly_name")) or entry.entity_id
