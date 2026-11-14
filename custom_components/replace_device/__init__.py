@@ -49,10 +49,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ReplaceDeviceConfigEntry
     entry.async_on_unload(watch.async_watch(hass, replacer))
     entry.async_on_unload(replacer.async_stop)
     entry.async_on_unload(entry.add_update_listener(_options_changed))
+    from .setup import setup_info
     from .support import Support
 
     support = Support(hass, DOMAIN, "replace-device", _TITLES.get(hass.config.language.split("-")[0], "Replace device"),
-                      summary=lambda: {"replacements": len(replacer.history), "ai": bool(replacer.ai_entity)})
+                      summary=lambda: {"replacements": len(replacer.history), "ai": bool(replacer.ai_entity)},
+                      setup=lambda: setup_info(replacer))
     await support.async_setup()
     entry.async_on_unload(support.unload)
     version = (await async_get_integration(hass, DOMAIN)).version

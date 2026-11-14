@@ -180,6 +180,10 @@ class Replacer:
             "undone": False,
         }
         old_domain, new_domain = _domain(hass, plan.old), _domain(hass, plan.new)
+        # For the developer's overview of which integrations are replaced by which (setup.py) - no names.
+        record["platforms"] = [old_domain, new_domain]
+        record["makers"] = [f"{plan.old.manufacturer or ''} {plan.old.model or ''}".strip()[:80],
+                            f"{plan.new.manufacturer or ''} {plan.new.model or ''}".strip()[:80]]
         # What listens to the old device (ZHA events, Zigbee2MQTT topics), read before the old device is removed.
         moved = _moved(hass, plan, rename_z2m)
         old_ids = [o.entity_id for o, _ in pairs]
