@@ -1,8 +1,9 @@
 """The replacement: the new device takes over the old one's names, entity ids, area, settings and history.
 
 History and long-term statistics follow by themselves, because the recorder keeps them by entity_id: when the new
-entity gets the old entity_id, it simply continues the old series. Energy sums continue too; a new meter starting
-at 0 is seen as a reset.
+entity gets the old entity_id, it simply continues the old series. Energy sums continue too; a meter that doesn't
+start where the old one stopped (a used plug at 400 kWh after one at 300) has the jump taken out of the sums once
+the hour is written.
 """
 
 from __future__ import annotations
@@ -27,15 +28,15 @@ from homeassistant.helpers import (
     entity_registry as er,
     issue_registry as ir,
 )
-from homeassistant.helpers.event import async_call_later, async_track_state_change_event
+from homeassistant.helpers.event import async_call_later, async_track_state_change_event, async_track_time_interval
 from homeassistant.helpers.storage import Store
 from homeassistant.util.file import write_utf8_file_atomic
 from homeassistant.util.yaml import parse_yaml
 
-from . import ai, fix, references, rename, tidy, triggers
+from . import ai, fix, references, rename, stats, tidy, triggers
 from .const import AUTOMATIONS_FILE, CHECK_AFTER, DOMAIN, SCENES_FILE, SCRIPTS_FILE, TEXTS, Z2M_BASE_TOPIC
 from .hardware import z2m_base_topic, z2m_ieee, z2m_name
-from .matching import match, unsure
+from .matching import match, same_kind, unsure
 from .remembered import remembered
 
 _LOGGER = logging.getLogger(__name__)
@@ -137,6 +138,10 @@ class Replacer:
         self.history = [h for h in data.get("history", []) if h["at"] >= cutoff]
         self.hidden = data.get("hidden", [])
         self.ignored_refs = data.get("ignored_refs", [])
+        # Energy jumps waiting for their hour to be written (see _async_energy_tick).
+        from datetime import timedelta
+
+        self._timers.append(async_track_time_interval(self.hass, self._async_energy_tick, timedelta(minutes=15)))
 
     async def async_replace(
         self,
@@ -171,7 +176,8 @@ class Replacer:
                 "labels": sorted(plan.new.labels),
             },
             "entities": [
-                {"entity_id": o.entity_id, "was": n.entity_id, "uuid": n.id, **_settings(n), "old": _settings(o)}
+                {"entity_id": _target_id(o, n), "was": n.entity_id, "uuid": n.id, **_settings(n), "old": _settings(o)}
+                | ({"replaces": o.entity_id} if o.domain != n.domain else {})
                 for o, n in pairs
             ],
             "ids": {plan.old.id: plan.new.id} | {o.id: n.id for o, n in pairs},
@@ -186,8 +192,21 @@ class Replacer:
                             f"{plan.new.manufacturer or ''} {plan.new.model or ''}".strip()[:80]]
         # What listens to the old device (ZHA events, Zigbee2MQTT topics), read before the old device is removed.
         moved = _moved(hass, plan, rename_z2m)
+        # Checked before anything is removed: a pair that can't take over (the new entity is gone, or another
+        # entity holds the name) stays out, so the old one keeps its name and settings.
+        skipped = [o.entity_id for o, n in pairs if not _can_take_over(entities, o, n, {x.entity_id for x, _ in pairs})]
+        if skipped:
+            pairs = [(o, n) for o, n in pairs if o.entity_id not in skipped]
+            record["entities"] = [e for e in record["entities"] if e.get("replaces", e["entity_id"]) not in skipped]
+            record["ids"] = {plan.old.id: plan.new.id} | {o.id: n.id for o, n in pairs}
         old_ids = [o.entity_id for o, _ in pairs]
         temp_ids = [n.entity_id for _, n in pairs]
+        # Meters (kWh …): what the new one reads against what the old one last read - the difference would show as
+        # use in the Energy dashboard. Read now, while both are known; taken out of the sums once the hour is written.
+        hour = now - now % 3600
+        energy = [j for o, n in pairs if (j := await _energy_jump(hass, o, n, _target_id(o, n), hour))]
+        if energy:
+            record["energy"] = energy
 
         # 1. The old ones make room. Removing the device from its integration removes all its entities.
         removed = await _remove_device(hass, plan.old) if remove_old else False
@@ -205,21 +224,26 @@ class Replacer:
         failed = []
         for old_entry, new_entry in pairs:
             try:
+                target = _target_id(old_entry, new_entry)
                 entities.async_update_entity(
-                    new_entry.entity_id, new_entity_id=old_entry.entity_id, **_update(old_entry)
+                    new_entry.entity_id, new_entity_id=target, **_update(old_entry), **_enabled(old_entry, new_entry)
                 )
                 for domain, options in old_entry.options.items():
+                    if domain in (old_entry.domain,) and old_entry.domain != new_entry.domain:
+                        continue  # a switch's own options don't fit a light
                     merged = dict(new_entry.options.get(domain, {})) | dict(options)
-                    entities.async_update_entity_options(old_entry.entity_id, domain, merged)
+                    entities.async_update_entity_options(target, domain, merged)
             except (KeyError, ValueError):
                 _LOGGER.warning("%s could not take over %s", new_entry.entity_id, old_entry.entity_id, exc_info=True)
                 failed.append(old_entry.entity_id)
+                # What the old one had (name, area, aliases …): kept, so it isn't lost with the old entity.
+                record.setdefault("failed_settings", {})[old_entry.entity_id] = _settings(old_entry)
         if failed:
             pairs = [(o, n) for o, n in pairs if o.entity_id not in failed]
             old_ids, temp_ids = [o.entity_id for o, _ in pairs], [n.entity_id for _, n in pairs]
-            record["entities"] = [e for e in record["entities"] if e["entity_id"] not in failed]
+            record["entities"] = [e for e in record["entities"] if e.get("replaces", e["entity_id"]) not in failed]
             record["ids"] = {plan.old.id: plan.new.id} | {o.id: n.id for o, n in pairs}
-        record["failed"] = failed
+        record["failed"] = skipped + failed
         # From here on the replacement can be undone, whatever happens in the steps below.
         self.history.append(record)
         self._save()
@@ -232,9 +256,18 @@ class Replacer:
             labels=set(plan.old.labels) | set(plan.new.labels),
         )
 
+        # 3b. A switch that is now a light: where the old entity id is written, the new one goes in.
+        if cross := {o.entity_id: _target_id(o, n) for o, n in pairs if o.domain != n.domain}:
+            record["cross"] = cross
+            await _safely("updating the new kind's entity ids", self._async_places(cross, apply=True), {})
+
         # 4. Automations and scripts that point at the old device or its entities by id, and device triggers that
         #    have other names in the new integration (a ZHA button press is an "action" in Zigbee2MQTT).
-        changed = await _safely("updating automations and scripts", self._rewrite(record["ids"], reload=False), [])
+        rewritten: dict[str, list[str]] = {}
+        changed = await _safely(
+            "updating automations and scripts", self._rewrite(record["ids"], reload=False, lines=rewritten), []
+        )
+        record["rewritten"] = rewritten
         paths = {d: hass.config.path(f) for d, f in (("automation", AUTOMATIONS_FILE), ("script", SCRIPTS_FILE))}
         before = {d: await hass.async_add_executor_job(_read, p) for d, p in paths.items()}
         translation = await _safely(
@@ -256,7 +289,7 @@ class Replacer:
         )
         # Other integrations' settings and hand-written packages are only listed: the user changes them.
         record["integrations"] = [e.title for e in references.entries_using(hass, record["ids"], skip)]
-        record["packages"] = await hass.async_add_executor_job(_packages_using, hass.config.path(), record["ids"])
+        record["packages"] = await self._hand_files(record["ids"])
         # ... unless the user ticked them in the test run after seeing the change.
         if picked and picked.get("entries"):
             record["fixed"] = await self._async_fix(record["ids"], False, picked)
@@ -276,7 +309,7 @@ class Replacer:
             )
 
         await _safely("writing the logbook", _logbook(hass, plan, old_ids), None)
-        self._timers.append(_check_later(hass, plan, old_ids))
+        self._timers.append(_check_later(hass, plan, [_target_id(o, n) for o, n in pairs]))
         self._save()
         return {
             "id": record["id"],
@@ -292,7 +325,8 @@ class Replacer:
                 fix.files_preview, hass.config.path(), record["packages"], record["ids"], False
             ),
             "fixed": record.get("fixed"),
-            "failed": failed,
+            "failed": record["failed"],
+            "energy": [{"entity_id": j["statistic_id"], "amount": j["amount"], "unit": j["unit"]} for j in energy],
         }
 
     async def async_dry_run(self, plan: Plan, remove_old: bool, rename_z2m: bool = False) -> dict[str, Any]:
@@ -325,12 +359,16 @@ class Replacer:
             c["from"]: c["to"]
             for c in tidy.plan(hass, device_name(plan.old), [e for e in own_entries if e], free=freed)
         }
-        packages = await hass.async_add_executor_job(_packages_using, hass.config.path(), ids)
+        packages = await self._hand_files(ids)
+        now = time.time()
+        energy = [j for o, n in pairs if (j := await _energy_jump(hass, o, n, _target_id(o, n), now - now % 3600))]
         return {
+            "energy": [{"entity_id": j["statistic_id"], "amount": j["amount"], "unit": j["unit"]} for j in energy],
             "entities": [
                 {
                     "from": n.entity_id,
-                    "to": o.entity_id,
+                    "to": _target_id(o, n),
+                    **({"replaces": o.entity_id} if o.domain != n.domain else {}),
                     "name": nice(o),
                     "used_in": references.used_in(hass, o.entity_id, dashboards),
                 }
@@ -400,12 +438,14 @@ class Replacer:
         entities.async_remove(old.entity_id)
         await _wait_until_gone(hass, [old.entity_id])
         temp_id = new.entity_id
-        entities.async_update_entity(temp_id, new_entity_id=old.entity_id, **_update(old))
+        entities.async_update_entity(temp_id, new_entity_id=old.entity_id, **_update(old), **_enabled(old, new))
         for domain, options in old.options.items():
             entities.async_update_entity_options(
                 old.entity_id, domain, dict(new.options.get(domain, {})) | dict(options)
             )
-        record["files"] = await self._rewrite(record["ids"], reload)
+        rewritten: dict[str, list[str]] = {}
+        record["files"] = await self._rewrite(record["ids"], reload, lines=rewritten)
+        record["rewritten"] = rewritten
         self.history.append(record)
         self._save()
         return {"id": record["id"], "moved": 1, "changed": record["files"]}
@@ -460,8 +500,16 @@ class Replacer:
                 await self.hass.async_add_executor_job(write_utf8_file_atomic, path, text)
             else:
                 _LOGGER.warning("%s was edited since; translated device triggers were not changed back", files[domain])
+        for jump in record.get("energy") or []:
+            if jump.get("done"):
+                if await _safely("putting the meter's jump back", stats.async_fix_jump(self.hass, jump, undo=True), False):
+                    jump["done"] = False
+            jump["cancelled"] = True
+        if cross := record.get("cross"):
+            await _safely("giving the old kind's entity ids back", self._async_places({v: k for k, v in cross.items()}, apply=True), {})
         back = {new: old for old, new in record["ids"].items()}
-        await self._rewrite(back, reload=reload)
+        # Only the lines the replacement changed (records from before 1.12: everywhere, as then).
+        await self._rewrite(back, reload=reload, only=record.get("rewritten"))
         await references.async_rewrite_dashboards(self.hass, back)
         if fixed := record.get("fixed"):
             await self._async_fix(back, False, {"entries": fixed["entry_ids"]})
@@ -538,7 +586,7 @@ class Replacer:
             item = next((i for i in record["entities"] if i["uuid"] == uuid), None)
             entry = entities.async_get(uuid)
             own[uuid] = (
-                {k: item[k] for k in (*_SETTINGS, "was")} if item else _settings(entry) | {"was": entry.entity_id}
+                {k: item[k] for k in (*_SETTINGS, "was") if k in item} if item else _settings(entry) | {"was": entry.entity_id}
             )
 
         # 1. Entities that lose a name get their own id and settings back, so the names are free.
@@ -615,7 +663,9 @@ class Replacer:
                 area_id=old_device.get("area_id") or current.area_id,
                 labels=set(old_device.get("labels", [])) | set(current.labels),
             )
-        changed = set(await _safely("updating automations and scripts", self._rewrite(record["ids"], False), []))
+        rewritten: dict[str, list[str]] = {}
+        changed = set(await _safely("updating automations and scripts", self._rewrite(record["ids"], False, lines=rewritten), []))
+        record["rewritten"] = rewritten
         if record.get("moved"):
             translation = await _safely(
                 "translating device triggers",
@@ -654,7 +704,7 @@ class Replacer:
         doubtful = set(plan.unsure)
         taken = {v for k, v in plan.mapping.items() if v and k not in doubtful}
         old = [o for o in plan.old_entities if not plan.mapping.get(o.entity_id) or o.entity_id in doubtful]
-        new = [n for n in plan.new_entities if n.entity_id not in taken and any(n.domain == o.domain for o in old)]
+        new = [n for n in plan.new_entities if n.entity_id not in taken and any(same_kind(o.domain, n.domain) for o in old)]
         if not old or not new:
             return None
         question = ai.Question(_context(self.hass, plan), [_describe(e) for e in old], [_describe(e) for e in new])
@@ -684,7 +734,7 @@ class Replacer:
         self.ai_error = None
         for key, question, old, new in todo:
             self._ai_cache[key] = {
-                old[i].entity_id: new[j].entity_id for i, j in question.answer.items() if old[i].domain == new[j].domain
+                old[i].entity_id: new[j].entity_id for i, j in question.answer.items() if same_kind(old[i].domain, new[j].domain)
             }
 
     async def async_fill_with_ai(self, plan: Plan) -> list[str]:
@@ -723,6 +773,22 @@ class Replacer:
         self.hidden = [d for d in self.hidden if d != device_id] + ([device_id] if hidden else [])
         self._save()
 
+    async def _async_energy_tick(self, _now: Any = None) -> None:
+        """Meters' jumps whose hour is written now: taken out of the energy sums."""
+        changed = False
+        for record in self.history:
+            for jump in record.get("energy") or []:
+                if jump.get("done") or jump.get("cancelled") or record.get("undone"):
+                    continue
+                if time.time() - jump["after"] > 3 * 86400:
+                    jump["cancelled"] = True  # the meter never reported: given up
+                    changed = True
+                elif await _safely("taking a meter's jump out", stats.async_fix_jump(self.hass, jump), False):
+                    jump["done"] = True
+                    changed = True
+        if changed:
+            self._save()
+
     def _save(self) -> None:
         self.store.async_delay_save(
             lambda: {"history": self.history, "hidden": self.hidden, "ignored_refs": self.ignored_refs}, 1
@@ -743,6 +809,20 @@ class Replacer:
                 _LOGGER.warning("Could not reload %s after the replacement", domain, exc_info=True)
 
     # ---------- renaming a device ----------
+
+    async def _hand_files(self, ids: dict[str, str]) -> list[str]:
+        """The user's own YAML that mentions an id: packages, and everything configuration.yaml includes (templates
+        with device_entities(), YAML dashboards …). Only listed, line by line - never changed."""
+        hass = self.hass
+        config_dir = hass.config.path()
+        handled = {path for _, path in await hass.async_add_executor_job(_config_files, config_dir)}
+        files = await hass.async_add_executor_job(
+            rename.yaml_files, config_dir, handled, references.yaml_dashboard_files(hass)
+        )
+        found = await hass.async_add_executor_job(
+            _files_using, config_dir, [p for p, kind in files if kind == "config"], ids
+        )
+        return sorted(set(found) | set(await hass.async_add_executor_job(_packages_using, config_dir, ids)))
 
     async def _async_places(
         self, ids: dict[str, str], apply: bool, picked: dict[str, list[str]] | None = None
@@ -1025,21 +1105,44 @@ class Replacer:
             await self.async_reload(set(files))
         return done
 
-    async def _rewrite(self, ids: dict[str, str], reload: bool = True, exact: bool = False) -> list[str]:
+    async def _rewrite(
+        self,
+        ids: dict[str, str],
+        reload: bool = True,
+        exact: bool = False,
+        lines: dict[str, list[str]] | None = None,
+        only: dict[str, list[str]] | None = None,
+    ) -> list[str]:
         """Replace device and entity registry ids in the automation, script, scene and package files, then reload.
 
-        exact: whole entity ids only (for renamed entity ids)."""
+        exact: whole entity ids only (for renamed entity ids).
+        lines: filled with the lines changed in each file, so undo can change just those back.
+        only: change only these lines (undo) - automations made for the new device since are left alone."""
         changed: set[str] = set()
         for domains, path in await self.hass.async_add_executor_job(_config_files, self.hass.config.path()):
             text = await self.hass.async_add_executor_job(_read, path)
             if text is None:
                 continue
-            new = tidy.replace_ids(text, ids) if exact else text
-            if not exact:
-                for old_id, new_id in ids.items():
-                    new = new.replace(old_id, new_id)
+            name = os.path.basename(path)
+            if only is not None:
+                mine = set(only.get(name) or [])
+                parts = text.splitlines(keepends=True)
+                for i, line in enumerate(parts):
+                    if line.rstrip("\r\n") in mine:
+                        for old_id, new_id in ids.items():
+                            line = line.replace(old_id, new_id)
+                        parts[i] = line
+                new = "".join(parts)
+            else:
+                new = tidy.replace_ids(text, ids) if exact else text
+                if not exact:
+                    for old_id, new_id in ids.items():
+                        new = new.replace(old_id, new_id)
             if new == text:
                 continue
+            if lines is not None:
+                before = set(text.splitlines())
+                lines[name] = [ln for ln in new.splitlines() if ln not in before]
             await self.hass.async_add_executor_job(write_utf8_file_atomic, path, new)
             changed.update(domains)
         if reload:
@@ -1125,11 +1228,12 @@ def _settings(entry: er.RegistryEntry) -> dict[str, Any]:
         "categories": dict(entry.categories),
         "device_class": entry.device_class,
         "hidden_by": entry.hidden_by,
+        "disabled_by": entry.disabled_by,
         "options": {domain: dict(options) for domain, options in entry.options.items()},
     }
 
 
-_SETTINGS = ("name", "icon", "area_id", "labels", "aliases", "categories", "device_class", "hidden_by", "options")
+_SETTINGS = ("name", "icon", "area_id", "labels", "aliases", "categories", "device_class", "hidden_by", "disabled_by", "options")
 _EMPTY_SETTINGS: dict[str, Any] = {
     "name": None,
     "icon": None,
@@ -1141,6 +1245,46 @@ _EMPTY_SETTINGS: dict[str, Any] = {
     "hidden_by": None,
     "options": {},
 }
+
+
+async def _energy_jump(
+    hass: HomeAssistant, old: er.RegistryEntry, new: er.RegistryEntry, target: str, hour: float
+) -> dict[str, Any] | None:
+    """A meter whose reading would jump when the new one takes over (a used plug at 400 kWh after one at 300)."""
+    now = hass.states.get(new.entity_id)
+    cls = now and now.attributes.get("state_class")
+    if not now or cls not in ("total", "total_increasing") or (cls == "total" and now.attributes.get("last_reset")):
+        return None  # a meter that says when it starts again handles itself
+    unit = now.attributes.get("unit_of_measurement")
+    was = hass.states.get(old.entity_id)
+    if was and was.attributes.get("unit_of_measurement") not in (None, unit):
+        return None  # Wh against kWh: left alone
+    try:
+        reading = float(now.state)
+    except (TypeError, ValueError):
+        return None
+    last = await _safely("reading the old meter", stats.async_last_state(hass, old.entity_id), None)
+    if last is None:
+        return None
+    # The recorder counts a drop (below 90 %) of a rising meter as a new start: then the whole reading is "used".
+    amount = reading if cls == "total_increasing" and reading < 0.9 * last else reading - last
+    if abs(amount) < 0.01:
+        return None
+    return {"statistic_id": target, "amount": round(amount, 4), "unit": unit, "old": last, "after": hour, "done": False}
+
+
+def _can_take_over(entities: er.EntityRegistry, old: er.RegistryEntry, new: er.RegistryEntry, freed: set[str]) -> bool:
+    """The new entity still exists, and the old name is free once the old entities are removed."""
+    if entities.async_get(new.entity_id) is None:
+        return False
+    target = _target_id(old, new)
+    holder = entities.async_get(target)
+    return holder is None or holder.entity_id in freed or holder.id == new.id
+
+
+def _target_id(old: er.RegistryEntry, new: er.RegistryEntry) -> str:
+    """The entity id the new one takes: the old id - in its own domain when the kind changed (a switch now a light)."""
+    return old.entity_id if old.domain == new.domain else f"{new.domain}.{old.entity_id.split('.', 1)[1]}"
 
 
 def _update(entry: er.RegistryEntry) -> dict[str, Any]:
@@ -1156,6 +1300,16 @@ def _update(entry: er.RegistryEntry) -> dict[str, Any]:
     }
 
 
+def _enabled(old: er.RegistryEntry, new: er.RegistryEntry) -> dict[str, Any]:
+    """On or off as the old one was: an LQI sensor the user had turned on stays on (Zigbee integrations turn such
+    ones off at first), one the user turned off stays off. Otherwise the new integration decides."""
+    if old.disabled_by is None and new.disabled_by is not None:
+        return {"disabled_by": None}
+    if old.disabled_by == er.RegistryEntryDisabler.USER and new.disabled_by is None:
+        return {"disabled_by": er.RegistryEntryDisabler.USER}
+    return {}
+
+
 def _restore(item: dict[str, Any]) -> dict[str, Any]:
     return {
         "name": item["name"],
@@ -1166,6 +1320,9 @@ def _restore(item: dict[str, Any]) -> dict[str, Any]:
         "categories": item["categories"],
         "device_class": item["device_class"],
         "hidden_by": er.RegistryEntryHider(item["hidden_by"]) if item["hidden_by"] else None,
+        # (records from before 1.12 have no disabled_by: left as it is)
+        **({"disabled_by": er.RegistryEntryDisabler(item["disabled_by"]) if item["disabled_by"] else None}
+           if "disabled_by" in item else {}),
     }
 
 
@@ -1239,6 +1396,14 @@ def _packages_using(config_dir: str, ids: dict[str, str]) -> list[str]:
             path = os.path.join(root, name)
             if name.endswith((".yaml", ".yml")) and (text := _read(path)) and any(old in text for old in ids):
                 found.append(os.path.relpath(path, config_dir))
+    return found
+
+
+def _files_using(config_dir: str, paths: list[str], ids: dict[str, str]) -> list[str]:
+    found = []
+    for path in paths:
+        if (text := _read(path)) and any(old in text for old in ids):
+            found.append(os.path.relpath(path, config_dir))
     return found
 
 

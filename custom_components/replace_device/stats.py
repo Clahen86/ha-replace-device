@@ -153,3 +153,39 @@ async def async_delete(hass: HomeAssistant, statistic_id: str) -> None:
     inst = _recorder(hass)
     inst.async_clear_statistics([statistic_id])
     await inst.async_block_till_done()
+
+
+async def async_last_state(hass: HomeAssistant, statistic_id: str) -> float | None:
+    """The meter's last reading in the long-term statistics (a dead meter's state is just "unavailable")."""
+    from homeassistant.components.recorder import statistics as st
+
+    try:
+        last = await _recorder(hass).async_add_executor_job(st.get_last_statistics, hass, 1, statistic_id, False, {"state"})
+    except Exception:  # noqa: BLE001 - no recorder, no statistics
+        return None
+    row = (last.get(statistic_id) or [None])[0]
+    return float(row["state"]) if row and row.get("state") is not None else None
+
+
+async def async_fix_jump(hass: HomeAssistant, fix: dict[str, Any], undo: bool = False) -> bool:
+    """Take a new meter's jump out of the energy sums, once the hour it shows in is written (undo: put it back).
+
+    fix: {"statistic_id", "amount", "unit", "old", "after", "start"?}. Returns True when the sums were adjusted."""
+    from homeassistant.components.recorder import statistics as st
+
+    inst = _recorder(hass)
+    sid = fix["statistic_id"]
+    start = fix.get("start")
+    if start is None:
+        # The first hour after the replacement where the meter shows another reading than the old one had.
+        rows = await inst.async_add_executor_job(
+            st.statistics_during_period, hass, datetime.fromtimestamp(fix["after"], timezone.utc), None, {sid}, "hour", None, {"state"}
+        )
+        start = next((r["start"] for r in rows.get(sid) or [] if r.get("state") is not None and abs(float(r["state"]) - fix["old"]) > 1e-6), None)
+        if start is None:
+            return False  # not written yet: tried again later
+        fix["start"] = start
+    amount = fix["amount"] if undo else -fix["amount"]
+    inst.async_adjust_statistics(sid, datetime.fromtimestamp(start, timezone.utc), amount, fix["unit"] or "")
+    await inst.async_block_till_done()
+    return True

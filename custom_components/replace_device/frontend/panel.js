@@ -202,6 +202,8 @@ const TEXT = {
     redo: "Do again",
     redoAll: "Do all again",
     notMoved: "Could not be moved (see the log): {list}",
+    energyJump: "Meter {entity}: the new one reads {amount} {unit} more than the old one did. That jump is taken out of the Energy dashboard once the hour is written.",
+    kindChanged: "{from} is a {kind} on the new device: it becomes {to}, and automations and dashboards follow. Actions like switch.turn_on must be changed to {kind}.turn_on by hand.",
     batchRow: "{n} devices moved",
     pickOld: "Which device is replaced?",
     pickNew: "Which device takes over?",
@@ -492,6 +494,8 @@ const TEXT = {
     redo: "Gentag",
     redoAll: "Gentag alle",
     notMoved: "Kunne ikke flyttes (se loggen): {list}",
+    energyJump: "Måler {entity}: den nye viser {amount} {unit} mere end den gamle gjorde. Det hop tages ud af energi-dashboardet, når timen er skrevet.",
+    kindChanged: "{from} er en {kind} på den nye enhed: den bliver til {to}, og automationer og dashboards følger med. Handlinger som switch.turn_on skal ændres til {kind}.turn_on i hånden.",
     batchRow: "{n} enheder flyttet",
     pickOld: "Hvilken enhed skal udskiftes?",
     pickNew: "Hvilken enhed overtager?",
@@ -782,6 +786,8 @@ const TEXT = {
     redo: "Erneut ausführen",
     redoAll: "Alle erneut ausführen",
     notMoved: "Konnten nicht übernommen werden (siehe Protokoll): {list}",
+    energyJump: "Zähler {entity}: der neue zeigt {amount} {unit} mehr als der alte. Dieser Sprung wird aus dem Energie-Dashboard genommen, sobald die Stunde geschrieben ist.",
+    kindChanged: "{from} ist auf dem neuen Gerät ein {kind}: daraus wird {to}, Automationen und Dashboards folgen. Aktionen wie switch.turn_on müssen von Hand zu {kind}.turn_on geändert werden.",
     batchRow: "{n} Geräte umgezogen",
     pickOld: "Welches Gerät wird ersetzt?",
     pickNew: "Welches Gerät übernimmt?",
@@ -1072,6 +1078,8 @@ const TEXT = {
     redo: "Gör igen",
     redoAll: "Gör alla igen",
     notMoved: "Kunde inte flyttas (se loggen): {list}",
+    energyJump: "Mätare {entity}: den nya visar {amount} {unit} mer än den gamla gjorde. Det hoppet tas bort ur energipanelen när timmen är skriven.",
+    kindChanged: "{from} är en {kind} på den nya enheten: den blir {to}, och automationer och instrumentpaneler följer med. Åtgärder som switch.turn_on måste ändras till {kind}.turn_on för hand.",
     batchRow: "{n} enheter flyttade",
     pickOld: "Vilken enhet byts ut?",
     pickNew: "Vilken enhet tar över?",
@@ -1362,6 +1370,8 @@ const TEXT = {
     redo: "Opnieuw doen",
     redoAll: "Alles opnieuw doen",
     notMoved: "Konden niet worden overgezet (zie het logboek): {list}",
+    energyJump: "Meter {entity}: de nieuwe staat {amount} {unit} hoger dan de oude. Die sprong wordt uit het energiedashboard gehaald zodra het uur is geschreven.",
+    kindChanged: "{from} is een {kind} op het nieuwe apparaat: het wordt {to}, en automatiseringen en dashboards volgen. Acties zoals switch.turn_on moet je zelf veranderen in {kind}.turn_on.",
     batchRow: "{n} apparaten verhuisd",
     pickOld: "Welk apparaat wordt vervangen?",
     pickNew: "Welk apparaat neemt het over?",
@@ -2471,6 +2481,7 @@ class ReplaceDevicePanel extends HTMLElement {
         ${section(this.t("dryCheck"), "mdi:alert", checks, "warn-text")}
         ${this.handBlock(d.hand_files)}
         ${this.fixBlock(d.fixable)}
+        ${this.notesBlock(d)}
         ${section(this.t("dryEntities"), "mdi:swap-horizontal", entities)}
         ${section(this.t("dryTriggers"), "mdi:gesture-tap-button", buttons)}
         ${updated.length ? `<h3 class="dsec"><ha-icon icon="mdi:sync"></ha-icon>${this.t("dryUpdated")}</h3><div class="dchips">${updated.map(([i, x]) => `<span class="chip sm"><ha-icon icon="${i}"></ha-icon>${esc(x)}</span>`).join("")}</div>` : ""}
@@ -2497,12 +2508,23 @@ class ReplaceDevicePanel extends HTMLElement {
       </div>`;
   }
 
+  notesBlock(d) {
+    // A meter's jump that will be taken out, and entities that change kind (a switch now a light).
+    const kinds = (d.entities || []).filter((e) => e.replaces && e.replaces !== e.to);
+    const lines = [
+      ...(d.energy || []).map((j) => ["mdi:lightning-bolt", this.t("energyJump", { entity: j.entity_id, amount: Math.round(j.amount * 100) / 100, unit: j.unit || "" })]),
+      ...kinds.map((e) => ["mdi:swap-horizontal-variant", this.t("kindChanged", { from: e.replaces, kind: e.to.split(".")[0], to: e.to })]),
+    ];
+    return lines.length ? lines.map(([i, t]) => `<p class="hint left-hint"><ha-icon icon="${i}"></ha-icon><span>${esc(t)}</span></p>`).join("") : "";
+  }
+
   matchView() {
     const p = this.plan;
     const taken = new Set(Object.values(this.mapping).filter(Boolean));
     const rows = p.old_entities.map((o) => {
       const choice = this.mapping[o.entity_id];
-      const options = p.new_entities.filter((n) => n.domain === o.domain);
+      const swap = ["switch", "light", "fan"];  // things to switch on and off may change kind (see matching.py)
+      const options = p.new_entities.filter((n) => n.domain === o.domain || (swap.includes(n.domain) && swap.includes(o.domain)));
       return `
         <div class="row ${choice ? "ok" : "gone"}">
           <div class="side">
@@ -2649,6 +2671,7 @@ class ReplaceDevicePanel extends HTMLElement {
         <p class="muted">${this.t("doneText", { n: r.moved })}</p>
         ${this.removeOld && !r.removed ? `<p class="warn-text">${this.t("keptOld")}</p>` : ""}
         ${r.failed?.length ? `<p class="warn-text">${esc(this.t("notMoved", { list: r.failed.join(", ") }))}</p>` : ""}
+        ${(r.energy || []).map((j) => `<p class="hint left-hint"><ha-icon icon="mdi:lightning-bolt"></ha-icon><span>${esc(this.t("energyJump", { entity: j.entity_id, amount: Math.round(j.amount * 100) / 100, unit: j.unit || "" }))}</span></p>`).join("")}
         ${r.triggers?.translated?.length ? `<p class="ok-text">${this.t("triggersDone", { n: r.triggers.translated.length })}</p>` : ""}
         ${this.aiNote(r.ai_error || r.triggers?.ai_error)}
         ${r.triggers?.translated?.length || r.translated ? `<p class="hint left-hint"><ha-icon icon="mdi:gesture-tap-button"></ha-icon><span>${this.t("pressOnce")}</span></p>` : ""}

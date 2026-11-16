@@ -21,7 +21,7 @@ When a device breaks and you buy a new one, Home Assistant sees a stranger: new 
 | | |
 | --- | --- |
 | **Entity IDs** | The new entities get the old IDs, so automations, scripts, scenes, dashboards and templates keep working. |
-| **History and statistics** | Graphs and long-term statistics continue. Energy totals too – a new meter starting at 0 kWh is handled as a reset. |
+| **History and statistics** | Graphs and long-term statistics continue. Energy totals too – if the new meter doesn't start where the old one stopped (a used plug already at 400 kWh), the jump is taken out of the Energy dashboard once the hour is written. |
 | **Your settings** | Names, icons, areas, labels, categories, voice aliases, display precision and unit settings. |
 | **The device** | The new device gets the old one's name and area – also in Zigbee2MQTT, if you want. If the old device stays (its integration won't let go, or you keep it), it's renamed "… (old – can be deleted)" so it's easy to spot. |
 | **Automations and scripts** | Everything that points at the old device by ID in `automations.yaml`, `scripts.yaml` and `scenes.yaml`. Files in `packages/` are your own, so they are never changed: **Test first** shows every line to change (before → after) for you to do by hand. |
@@ -68,7 +68,7 @@ Can't find it in the HACS search? Add it as a custom repository first: **HACS** 
 
 1. Pair the new device as you normally would.
 2. Open **Replace device** in the sidebar. Devices without contact are listed with a hint – the last battery level ("change the battery first") or "switched off at the wall?" – and a likely replacement when one is found: tap **Replace with …**. A bulb that is only switched off can be hidden. Or tap **Replace a device**, search for the old one, then the new one. The same physical device or the same model is shown first.
-3. The old and the new device are shown side by side. Each old entity has its match picked (temperature to temperature, battery to battery) – also when the names are in different languages, by comparing the integration's own feature names. Several channels of the same kind (L1/L2, buttons 1–3) pair in order, even when the numbers differ between integrations. A close call is marked **check**. Change one if it's wrong, or pick "— removed".
+3. The old and the new device are shown side by side. Each old entity has its match picked (temperature to temperature, battery to battery) – also when the names are in different languages, by comparing the integration's own feature names. Several channels of the same kind (L1/L2, buttons 1–3) pair in order, even when the numbers differ between integrations. A close call is marked **check**. Change one if it's wrong, or pick "— removed". Things you switch on and off may change kind: a plug that was a switch and is now a light keeps its name as `light.…`, and automations and dashboards follow.
 4. Read what to check. Not sure? Tap **Test first**: it shows exactly what would happen – which entity IDs change, which automations, scripts and dashboards are updated, and how each button trigger is translated – without changing anything. It works for **Move many devices** too.
 
 <p><img src="docs/panel-dry.png" alt="Test first: what would happen, without changing anything" width="300"></p>

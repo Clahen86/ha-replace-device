@@ -12,6 +12,10 @@ import re
 
 from homeassistant.helpers import entity_registry as er
 
+# Things you switch on and off, shown as another kind by another integration (a plug as a switch here, a light
+# there): they may pair with each other. The new one keeps its own kind, with the old one's name.
+SWAPPABLE = frozenset({"switch", "light", "fan"})
+
 # Below this a pair is a guess, not a match.
 MIN_SCORE = 3.0
 # A runner-up this close to the best one means it could just as well be that one.
@@ -145,10 +149,14 @@ def _scored(old: list[er.RegistryEntry], new: list[er.RegistryEntry]) -> list[tu
             (score(o, n, old, new, old_common, new_common), o.entity_id, n.entity_id)
             for o in old
             for n in new
-            if o.domain == n.domain
+            if same_kind(o.domain, n.domain)
         ),
         reverse=True,
     )
+
+
+def same_kind(old_domain: str, new_domain: str) -> bool:
+    return old_domain == new_domain or (old_domain in SWAPPABLE and new_domain in SWAPPABLE)
 
 
 def score(
@@ -175,6 +183,9 @@ def score(
     # The only light on both devices is the same light, whatever it's called.
     if sum(e.domain == o.domain for e in old) == 1 and sum(e.domain == n.domain for e in new) == 1:
         points += 2
+    if o.domain != n.domain:
+        # Another kind: only when it's the one thing to switch on both sides, or the names say so.
+        points -= 1 if sum(e.domain in SWAPPABLE for e in old) == 1 and sum(e.domain in SWAPPABLE for e in new) == 1 else 3
     old_names = names(o, old_common or set())
     new_names = names(n, new_common or set())
     points += 4 * max((_alike(a, b) for a in old_names for b in new_names), default=0.0)
