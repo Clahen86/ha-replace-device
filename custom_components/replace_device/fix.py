@@ -1,7 +1,8 @@
 """The user's own YAML files and other integrations' settings that use an old id.
 
 - Files (packages/, files configuration.yaml includes, custom_sentences/, ESPHome) are hand-written configuration:
-  they are never written. The test run shows every line to change (before → after), for the user to do by hand.
+  they are not written here. The test run shows every line to change (before → after), for the user to do by hand -
+  or, in a replacement, for own_yaml.py to do after the user's OK ("Fix my own YAML files").
 - Other integrations: only if the user ticks one in the test run, and only through the integration's own options
   flow - the same form the user would fill in by hand - so the integration validates and saves its own settings.
   Entries without such a form stay on the list.

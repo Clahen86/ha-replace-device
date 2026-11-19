@@ -163,6 +163,22 @@ const TEXT = {
     handLine1: "1 line – tap to see",
     fixDone: "Changed after your OK: {list}",
     fixFailed: "Could not change (do it by hand): {list}",
+    drySettings: "Settings copied to the new device",
+    settingsDone: "Settings copied to the new device: {n}",
+    settingsFailed: "Settings not copied: {list}",
+    z2mTitle: "Zigbee2MQTT: bindings and calibration",
+    z2mGone: "The old device is no longer in Zigbee2MQTT, so its bindings and calibration can't be read.",
+    z2mNoData: "Zigbee2MQTT's device list couldn't be read, so bindings and calibration are not moved.",
+    z2mSkipped: "{n} bindings don't fit the new device and are left out.",
+    z2mWake: "Battery devices take it when they wake up – press a button on them.",
+    z2mDone: "Zigbee2MQTT: {b} bindings and {c} calibration values sent.",
+    yamlFix: "Fix my own YAML files",
+    yamlFixHint: "Only whole IDs change. Each file is backed up next to itself first (.bak-replace-device-…), and Undo puts it back.",
+    yamlEsphome: "ESPHome files: install them on the device again afterwards.",
+    yamlBroken: "Can't be changed safely, change by hand: {list}",
+    yamlDone: "Fixed in your own files: {list}",
+    yamlRestart: "Changes at configuration.yaml level may need a restart of Home Assistant.",
+    yamlFailed: "Not changed (do it by hand): {list}",
     dashboardsUpdated: "Dashboards updated: {list}",
     warnCount: "{n} things to check",
     groupsTitle: "Zigbee groups",
@@ -455,6 +471,22 @@ const TEXT = {
     handLine1: "1 linje – tryk for at se",
     fixDone: "Rettet efter dit ok: {list}",
     fixFailed: "Kunne ikke rettes (ret selv): {list}",
+    drySettings: "Indstillinger, der kopieres til den nye enhed",
+    settingsDone: "Indstillinger kopieret til den nye enhed: {n}",
+    settingsFailed: "Indstillinger ikke kopieret: {list}",
+    z2mTitle: "Zigbee2MQTT: bindinger og kalibrering",
+    z2mGone: "Den gamle enhed er ikke længere i Zigbee2MQTT, så dens bindinger og kalibrering kan ikke læses.",
+    z2mNoData: "Zigbee2MQTT's enhedsliste kunne ikke læses, så bindinger og kalibrering flyttes ikke.",
+    z2mSkipped: "{n} bindinger passer ikke til den nye enhed og springes over.",
+    z2mWake: "Batterienheder tager imod, når de vågner – tryk på en knap på dem.",
+    z2mDone: "Zigbee2MQTT: {b} bindinger og {c} kalibreringer sendt.",
+    yamlFix: "Ret mine egne YAML-filer",
+    yamlFixHint: "Kun hele id'er ændres. Hver fil tages backup af ved siden af sig selv først (.bak-replace-device-…), og Fortryd sætter den tilbage.",
+    yamlEsphome: "ESPHome-filer: installér dem på enheden igen bagefter.",
+    yamlBroken: "Kan ikke rettes sikkert, ret selv: {list}",
+    yamlDone: "Rettet i dine egne filer: {list}",
+    yamlRestart: "Ændringer på configuration.yaml-niveau kan kræve en genstart af Home Assistant.",
+    yamlFailed: "Ikke rettet (ret selv): {list}",
     dashboardsUpdated: "Dashboards, der opdateres: {list}",
     warnCount: "{n} ting at tjekke",
     groupsTitle: "Zigbee-grupper",
@@ -747,6 +779,22 @@ const TEXT = {
     handLine1: "1 Zeile – tippen zum Anzeigen",
     fixDone: "Nach deinem OK geändert: {list}",
     fixFailed: "Konnte nicht geändert werden (selbst ändern): {list}",
+    drySettings: "Einstellungen, die auf das neue Gerät kopiert werden",
+    settingsDone: "Einstellungen auf das neue Gerät kopiert: {n}",
+    settingsFailed: "Einstellungen nicht kopiert: {list}",
+    z2mTitle: "Zigbee2MQTT: Bindungen und Kalibrierung",
+    z2mGone: "Das alte Gerät ist nicht mehr in Zigbee2MQTT, daher können seine Bindungen und Kalibrierung nicht gelesen werden.",
+    z2mNoData: "Die Geräteliste von Zigbee2MQTT konnte nicht gelesen werden, daher werden Bindungen und Kalibrierung nicht übertragen.",
+    z2mSkipped: "{n} Bindungen passen nicht zum neuen Gerät und werden ausgelassen.",
+    z2mWake: "Batteriegeräte übernehmen es, wenn sie aufwachen – drücke eine Taste an ihnen.",
+    z2mDone: "Zigbee2MQTT: {b} Bindungen und {c} Kalibrierwerte gesendet.",
+    yamlFix: "Meine eigenen YAML-Dateien anpassen",
+    yamlFixHint: "Nur ganze IDs werden geändert. Von jeder Datei wird zuerst daneben eine Sicherung angelegt (.bak-replace-device-…), und Rückgängig stellt sie wieder her.",
+    yamlEsphome: "ESPHome-Dateien: danach erneut auf das Gerät installieren.",
+    yamlBroken: "Kann nicht sicher geändert werden, selbst ändern: {list}",
+    yamlDone: "In deinen eigenen Dateien angepasst: {list}",
+    yamlRestart: "Änderungen auf configuration.yaml-Ebene können einen Neustart von Home Assistant erfordern.",
+    yamlFailed: "Nicht geändert (selbst ändern): {list}",
     dashboardsUpdated: "Dashboards angepasst: {list}",
     warnCount: "{n} Dinge zu prüfen",
     groupsTitle: "Zigbee-Gruppen",
@@ -1039,6 +1087,22 @@ const TEXT = {
     handLine1: "1 rad – tryck för att se",
     fixDone: "Ändrat efter ditt OK: {list}",
     fixFailed: "Kunde inte ändras (ändra själv): {list}",
+    drySettings: "Inställningar som kopieras till den nya enheten",
+    settingsDone: "Inställningar kopierade till den nya enheten: {n}",
+    settingsFailed: "Inställningar inte kopierade: {list}",
+    z2mTitle: "Zigbee2MQTT: bindningar och kalibrering",
+    z2mGone: "Den gamla enheten finns inte längre i Zigbee2MQTT, så dess bindningar och kalibrering kan inte läsas.",
+    z2mNoData: "Zigbee2MQTT:s enhetslista kunde inte läsas, så bindningar och kalibrering flyttas inte.",
+    z2mSkipped: "{n} bindningar passar inte den nya enheten och hoppas över.",
+    z2mWake: "Batterienheter tar emot det när de vaknar – tryck på en knapp på dem.",
+    z2mDone: "Zigbee2MQTT: {b} bindningar och {c} kalibreringsvärden skickade.",
+    yamlFix: "Rätta mina egna YAML-filer",
+    yamlFixHint: "Bara hela ID:n ändras. Varje fil säkerhetskopieras först bredvid sig själv (.bak-replace-device-…), och Ångra lägger tillbaka den.",
+    yamlEsphome: "ESPHome-filer: installera dem på enheten igen efteråt.",
+    yamlBroken: "Kan inte ändras säkert, ändra själv: {list}",
+    yamlDone: "Rättat i dina egna filer: {list}",
+    yamlRestart: "Ändringar på configuration.yaml-nivå kan kräva en omstart av Home Assistant.",
+    yamlFailed: "Inte ändrat (ändra själv): {list}",
     dashboardsUpdated: "Instrumentpaneler uppdaterade: {list}",
     warnCount: "{n} saker att kontrollera",
     groupsTitle: "Zigbee-grupper",
@@ -1331,6 +1395,22 @@ const TEXT = {
     handLine1: "1 regel – tik om te zien",
     fixDone: "Aangepast na je OK: {list}",
     fixFailed: "Kon niet worden aangepast (zelf doen): {list}",
+    drySettings: "Instellingen die naar het nieuwe apparaat worden gekopieerd",
+    settingsDone: "Instellingen naar het nieuwe apparaat gekopieerd: {n}",
+    settingsFailed: "Instellingen niet gekopieerd: {list}",
+    z2mTitle: "Zigbee2MQTT: bindingen en kalibratie",
+    z2mGone: "Het oude apparaat staat niet meer in Zigbee2MQTT, dus de bindingen en kalibratie kunnen niet worden gelezen.",
+    z2mNoData: "De apparaatlijst van Zigbee2MQTT kon niet worden gelezen, dus bindingen en kalibratie gaan niet mee.",
+    z2mSkipped: "{n} bindingen passen niet bij het nieuwe apparaat en worden overgeslagen.",
+    z2mWake: "Apparaten op batterij nemen het over als ze wakker worden – druk op een knop.",
+    z2mDone: "Zigbee2MQTT: {b} bindingen en {c} kalibratiewaarden verstuurd.",
+    yamlFix: "Mijn eigen YAML-bestanden aanpassen",
+    yamlFixHint: "Alleen hele ID's veranderen. Van elk bestand wordt eerst een back-up ernaast gemaakt (.bak-replace-device-…), en Ongedaan maken zet het terug.",
+    yamlEsphome: "ESPHome-bestanden: installeer ze daarna opnieuw op het apparaat.",
+    yamlBroken: "Kan niet veilig worden aangepast, zelf doen: {list}",
+    yamlDone: "Aangepast in je eigen bestanden: {list}",
+    yamlRestart: "Wijzigingen op configuration.yaml-niveau kunnen een herstart van Home Assistant vereisen.",
+    yamlFailed: "Niet aangepast (zelf doen): {list}",
     dashboardsUpdated: "Dashboards bijgewerkt: {list}",
     warnCount: "{n} dingen om te controleren",
     groupsTitle: "Zigbee-groepen",
@@ -1535,6 +1615,9 @@ class ReplaceDevicePanel extends HTMLElement {
     this.migrateSelected = new Set();
     this.groupSelected = new Set();
     this.picked = { entries: new Set() };
+    // "Fix my own YAML files": on by default, but only sent once the test run has shown the change.
+    this.fixYaml = true;
+    this.yamlSeen = false;
     this.refs = null;
     this.refChoice = {};
     this.refOpen = {};
@@ -1549,7 +1632,59 @@ class ReplaceDevicePanel extends HTMLElement {
 
   // What the user ticked in the test run: their own files and other integrations' settings.
   pickedFix() {
-    return { entries: [...this.picked.entries] };
+    return { entries: [...this.picked.entries], yaml: Boolean(this.fixYaml && this.yamlSeen) };
+  }
+
+  // The user's own YAML files that can be fixed after their OK, with every line that changes.
+  ownYamlBlock(own) {
+    const files = own?.files || [];
+    const broken = own?.broken || [];
+    if (!files.length && !broken.length) return "";
+    const line = (l) => `<div class="mono small fixline"><span class="muted">${esc(this.t("handLine", { n: l.line }))}</span><br><span class="red-text">− ${esc(l.before.trim())}</span><br><span class="ok-text">+ ${esc(l.after.trim())}</span></div>`;
+    const file = (f) => `<details class="dmore handfile"><summary><span class="mono">${esc(f.file)}</span> <span class="muted small">· ${esc(f.lines.length === 1 ? this.t("handLine1") : this.t("handLines", { n: f.lines.length }))}</span></summary>
+        ${f.lines.map(line).join("")}</details>`;
+    return `${files.length ? `<label class="mrow fixrow"><input type="checkbox" data-fixyaml="1" ${this.fixYaml ? "checked" : ""}><span class="box"></span>
+        <div class="grow"><div class="dname"><ha-icon icon="mdi:file-document-edit-outline"></ha-icon> ${this.t("yamlFix")}</div><div class="muted small">${this.t("yamlFixHint")}</div></div></label>
+      ${files.map(file).join("")}
+      ${files.some((f) => f.kind === "esphome") ? `<p class="hint left-hint"><ha-icon icon="mdi:chip"></ha-icon><span>${this.t("yamlEsphome")}</span></p>` : ""}` : ""}
+      ${broken.length ? `<p class="warn-text">${esc(this.t("yamlBroken", { list: broken.map((f) => f.file).join(", ") }))}</p>` : ""}`;
+  }
+
+  // The device's own settings and Zigbee2MQTT's bindings and calibration, in the test run.
+  deviceSettingsBlock(d) {
+    const out = [];
+    if ((d.settings || []).length) {
+      out.push(`<h3 class="dsec"><ha-icon icon="mdi:tune-variant"></ha-icon>${this.t("drySettings")}</h3><div class="drows">${d.settings.map((x) => `<div class="drow">
+        <ha-icon icon="mdi:cog-outline"></ha-icon><div class="grow"><div class="dname">${esc(x.name)}: <b>${esc(String(x.value))}</b></div><div class="mono muted small">${esc(x.entity_id)}</div></div></div>`).join("")}</div>`);
+    }
+    const z = d.z2m;
+    if (z && (z.missing || (z.binds || []).length || Object.keys(z.options || {}).length || z.skipped)) {
+      const rows = [
+        ...(z.binds || []).map((b) => `<div class="drow"><ha-icon icon="mdi:link-variant"></ha-icon><div class="grow"><div class="dname">${esc(b.from)} → ${esc(b.to)}</div><div class="mono muted small">${esc(b.clusters.join(", "))}</div></div></div>`),
+        ...Object.entries(z.options || {}).map(([k, v]) => `<div class="drow"><ha-icon icon="mdi:tune"></ha-icon><div class="grow"><div class="dname mono">${esc(k)}: ${esc(String(v))}</div></div></div>`),
+      ].join("");
+      out.push(`<h3 class="dsec"><ha-icon icon="mdi:zigbee"></ha-icon>${this.t("z2mTitle")}</h3>
+        ${z.missing ? `<p class="warn-text">${this.t(z.missing === "old_gone" ? "z2mGone" : "z2mNoData")}</p>` : ""}
+        ${rows ? `<div class="drows">${rows}</div>` : ""}
+        ${z.skipped ? `<p class="muted small">${this.t("z2mSkipped", { n: z.skipped })}</p>` : ""}
+        ${(z.binds || []).length ? `<p class="hint left-hint"><ha-icon icon="mdi:battery-outline"></ha-icon><span>${this.t("z2mWake")}</span></p>` : ""}`);
+    }
+    return out.join("");
+  }
+
+  // After the replacement: settings copied, Zigbee2MQTT requests sent, own YAML files fixed.
+  doneExtras(r) {
+    const own = r.own_yaml;
+    const settings = r.settings?.copied?.length ?? r.settings_copied ?? 0;
+    const binds = r.z2m ? (r.z2m.binds || []).length : (r.binds || 0);
+    const calib = r.z2m ? Object.keys(r.z2m.options || {}).length : 0;
+    return `${settings ? `<p class="ok-text">${this.t("settingsDone", { n: settings })}</p>` : ""}
+      ${r.settings?.failed?.length ? `<p class="warn-text">${esc(this.t("settingsFailed", { list: r.settings.failed.join(", ") }))}</p>` : ""}
+      ${binds || calib ? `<p class="ok-text">${this.t("z2mDone", { b: binds, c: calib })}</p>${binds ? `<p class="hint left-hint"><ha-icon icon="mdi:battery-outline"></ha-icon><span>${this.t("z2mWake")}</span></p>` : ""}` : ""}
+      ${own?.files?.length ? `<p class="ok-text">${esc(this.t("yamlDone", { list: own.files.join(", ") }))}</p>` : ""}
+      ${own?.restart ? `<p class="hint left-hint"><ha-icon icon="mdi:restart"></ha-icon><span>${this.t("yamlRestart")}</span></p>` : ""}
+      ${own?.esphome?.length ? `<p class="hint left-hint"><ha-icon icon="mdi:chip"></ha-icon><span>${this.t("yamlEsphome")}</span></p>` : ""}
+      ${own?.failed?.length ? `<p class="warn-text">${esc(this.t("yamlFailed", { list: own.failed.join(", ") }))}</p>` : ""}`;
   }
 
   fixBlock(fixable) {
@@ -1643,7 +1778,10 @@ class ReplaceDevicePanel extends HTMLElement {
       this.render();
     }
     try {
-      if (!mapping) this.picked = { entries: new Set() };
+      if (!mapping) {
+        this.picked = { entries: new Set() };
+        this.yamlSeen = false;
+      }
       this.plan = await this.ws("plan", { old: oldId, new: newId, ...(mapping ? { mapping } : {}) });
       this.mapping = { ...this.plan.mapping };
       this.view = "match";
@@ -2239,6 +2377,7 @@ class ReplaceDevicePanel extends HTMLElement {
         ${r.integrations?.length ? `<p class="warn-text">${esc(this.t("otherIntegrations", { list: r.integrations.join(", ") }))}</p>` : ""}
         ${r.hand_files?.length ? `<div class="card left">${this.handBlock(r.hand_files)}</div>` : r.packages?.length ? `<p class="warn-text">${esc(this.t("packagesByHand", { list: r.packages.join(", ") }))}</p>` : ""}
         ${this.fixResult(r.fixed)}
+        ${this.doneExtras(r)}
         ${r.dashboards?.length ? `<p class="ok-text">${esc(this.t("dashboardsUpdated", { list: r.dashboards.join(", ") }))}</p>` : ""}
         ${(r.triggers?.unresolved || r.unresolved || []).length ? `<div class="card warn left"><b>${this.t("triggersOpen")}</b><ul>${(r.triggers?.unresolved || r.unresolved).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
         <div class="actions"><button class="primary" data-act="home">${this.t("home")}</button></div>
@@ -2254,6 +2393,7 @@ class ReplaceDevicePanel extends HTMLElement {
     }
     try {
       this.migratePlan = await this.ws("migrate_plan", { source: this.migrateSource, target: this.migrateTarget });
+      this.yamlSeen = false;
       this.migrateSelected = new Set(this.migratePlan.pairs.filter((p) => p.matched > 0).map((p) => p.old.id));
       this.groupSelected = new Set((this.migratePlan.groups || []).map((g) => g.old));
     } catch (e) {
@@ -2302,6 +2442,7 @@ class ReplaceDevicePanel extends HTMLElement {
     this.render();
     try {
       this.dry = await job();
+      this.yamlSeen = this.dry.devices.some((d) => (d.own_yaml?.files || []).length);
       this.view = "dry";
       this.error = "";
     } catch (e) {
@@ -2418,9 +2559,11 @@ class ReplaceDevicePanel extends HTMLElement {
         ...d.dashboards.map((x) => ["mdi:view-dashboard", x]),
       ];
       const canFix = new Set((d.fixable?.entries || []).map((e) => e.title));
+      const fixing = new Set(this.fixYaml ? (d.own_yaml?.files || []).map((f) => f.file) : []);
+      const handFiles = (d.hand_files || []).filter((f) => !fixing.has(f.file));
       const handInt = (d.integrations || []).filter((x) => !canFix.has(x));
-      const handPkg = (d.packages || []).filter((x) => !(d.hand_files || []).some((f) => f.file === x));
-      const handOther = [...handInt, ...handPkg, ...(d.hand_files || [])];
+      const handPkg = (d.packages || []).filter((x) => !fixing.has(x) && !(d.hand_files || []).some((f) => f.file === x));
+      const handOther = [...handInt, ...handPkg, ...handFiles];
       const toCheck = open.length + byHand.length + handOther.length;
       const entityRow = (e) => `<div class="drow">
           <ha-icon icon="${icon(e.to)}"></ha-icon>
@@ -2479,9 +2622,11 @@ class ReplaceDevicePanel extends HTMLElement {
           ${tile(toCheck || "✓", toCheck ? this.t("sumCheck") : this.t("dryAllGood"), toCheck ? "amber" : "green")}
         </div>
         ${section(this.t("dryCheck"), "mdi:alert", checks, "warn-text")}
-        ${this.handBlock(d.hand_files)}
+        ${this.handBlock(handFiles)}
+        ${this.ownYamlBlock(d.own_yaml)}
         ${this.fixBlock(d.fixable)}
         ${this.notesBlock(d)}
+        ${this.deviceSettingsBlock(d)}
         ${section(this.t("dryEntities"), "mdi:swap-horizontal", entities)}
         ${section(this.t("dryTriggers"), "mdi:gesture-tap-button", buttons)}
         ${updated.length ? `<h3 class="dsec"><ha-icon icon="mdi:sync"></ha-icon>${this.t("dryUpdated")}</h3><div class="dchips">${updated.map(([i, x]) => `<span class="chip sm"><ha-icon icon="${i}"></ha-icon>${esc(x)}</span>`).join("")}</div>` : ""}
@@ -2678,6 +2823,7 @@ class ReplaceDevicePanel extends HTMLElement {
         ${r.integrations?.length ? `<p class="warn-text">${esc(this.t("otherIntegrations", { list: r.integrations.join(", ") }))}</p>` : ""}
         ${r.hand_files?.length ? `<div class="card left">${this.handBlock(r.hand_files)}</div>` : r.packages?.length ? `<p class="warn-text">${esc(this.t("packagesByHand", { list: r.packages.join(", ") }))}</p>` : ""}
         ${this.fixResult(r.fixed)}
+        ${this.doneExtras(r)}
         ${r.dashboards?.length ? `<p class="ok-text">${esc(this.t("dashboardsUpdated", { list: r.dashboards.join(", ") }))}</p>` : ""}
         ${(r.triggers?.unresolved || r.unresolved || []).length ? `<div class="card warn left"><b>${this.t("triggersOpen")}</b><ul>${(r.triggers?.unresolved || r.unresolved).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
 
@@ -2802,6 +2948,11 @@ class ReplaceDevicePanel extends HTMLElement {
       el.addEventListener("change", () => {
         if (el.checked) this.groupSelected.add(el.dataset.group);
         else this.groupSelected.delete(el.dataset.group);
+        this.render();
+      }));
+    this.shadowRoot.querySelectorAll("input[data-fixyaml]").forEach((el) =>
+      el.addEventListener("change", () => {
+        this.fixYaml = el.checked;
         this.render();
       }));
     this.shadowRoot.querySelectorAll("input[data-fix]").forEach((el) =>

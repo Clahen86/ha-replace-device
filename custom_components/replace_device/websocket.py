@@ -121,7 +121,8 @@ def _plan(hass: HomeAssistant, plan: Plan) -> dict[str, Any]:
 
 
 # Other integrations the user ticked in the test run, changed through their own options flow.
-FIX_SCHEMA = {vol.Optional("entries", default=[]): [str]}
+# "yaml": fix the user's own YAML files too (ticked in the test run).
+FIX_SCHEMA = {vol.Optional("entries", default=[]): [str], vol.Optional("yaml", default=False): bool}
 
 @websocket_api.require_admin
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/devices"})
@@ -625,6 +626,8 @@ async def ws_migrate(hass: HomeAssistant, connection: websocket_api.ActiveConnec
     integrations: list[str] = []
     hand_files: list[dict[str, Any]] = []
     fixed_all: dict[str, list[str]] = {"entries": [], "failed": []}
+    own_all: dict[str, Any] = {"files": [], "esphome": [], "failed": [], "restart": False}
+    settings, binds = 0, 0
     plans = {pair["old"]: async_plan(hass, pair["old"], pair["new"]) for pair in msg["pairs"]}
     # One AI call for every device that needs help, not one per device.
     replacer.ai_error = None
@@ -651,6 +654,12 @@ async def ws_migrate(hass: HomeAssistant, connection: websocket_api.ActiveConnec
         if fixed := result.get("fixed"):
             for key in ("entries", "failed"):
                 fixed_all[key] += [t for t in fixed[key] if t not in fixed_all[key]]
+        if own := result.get("own_yaml"):
+            for key in ("files", "esphome", "failed"):
+                own_all[key] += [f for f in own[key] if f not in own_all[key]]
+            own_all["restart"] = own_all["restart"] or own["restart"]
+        settings += len((result.get("settings") or {}).get("copied") or [])
+        binds += len((result.get("z2m") or {}).get("binds") or [])
     entities = er.async_get(hass)
     for group in msg["groups"]:
         old, new = entities.async_get(group["old"]), entities.async_get(group["new"])
@@ -676,6 +685,9 @@ async def ws_migrate(hass: HomeAssistant, connection: websocket_api.ActiveConnec
             "packages": sorted({f["file"] for f in hand_files}),
             "hand_files": hand_files,
             "fixed": fixed_all if fixed_all["entries"] or fixed_all["failed"] else None,
+            "own_yaml": own_all if own_all["files"] or own_all["failed"] else None,
+            "settings_copied": settings,
+            "binds": binds,
         },
     )
 

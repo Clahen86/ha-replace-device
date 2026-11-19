@@ -2,8 +2,11 @@
 
 Newest first. Each version lists what changed since the one before.
 
-## Unreleased
+## 1.13.0 – 2026-11-19
 
+- The device's own settings (sensitivity, LED, power-on behaviour, timeouts …) are copied to the new device when it is the same model
+- Zigbee2MQTT: bindings and calibration move to the new device - also other devices bound to the old one
+- "Fix my own YAML files" in Test first: configuration.yaml and its includes, packages, YAML dashboards, AppDaemon apps.yaml and ESPHome - whole ids only, backup first, only written when the file still loads the same, with undo
 - Support: version from Home Assistant's loader, no blocking read in the event loop
 
 ## 1.12.0 – 2026-11-16

@@ -33,7 +33,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util.file import write_utf8_file_atomic
 from homeassistant.util.yaml import parse_yaml
 
-from . import ai, fix, references, rename, stats, tidy, triggers
+from . import ai, config_values, fix, own_yaml, references, rename, stats, tidy, triggers, z2m
 from .const import AUTOMATIONS_FILE, CHECK_AFTER, DOMAIN, SCENES_FILE, SCRIPTS_FILE, TEXTS, Z2M_BASE_TOPIC
 from .hardware import z2m_base_topic, z2m_ieee, z2m_name
 from .matching import match, same_kind, unsure
@@ -207,6 +207,9 @@ class Replacer:
         energy = [j for o, n in pairs if (j := await _energy_jump(hass, o, n, _target_id(o, n), hour))]
         if energy:
             record["energy"] = energy
+        # The device's own settings, and Zigbee2MQTT's bindings and calibration: read while the old one is still known.
+        settings = await _safely("reading the old device's settings", _settings_plan(hass, plan, pairs), [])
+        z2m_todo = await _safely("reading Zigbee2MQTT", _z2m_plan(hass, plan), None)
 
         # 1. The old ones make room. Removing the device from its integration removes all its entities.
         removed = await _remove_device(hass, plan.old) if remove_old else False
@@ -261,6 +264,31 @@ class Replacer:
             record["cross"] = cross
             await _safely("updating the new kind's entity ids", self._async_places(cross, apply=True), {})
 
+        # 3c. The device's own settings (motion sensitivity, LED brightness …) go to the new device's matching ones.
+        #     Nothing physical is changed back by undo: the new device just keeps them.
+        if settings := [s for s in settings if s["entity_id"] not in set(failed)]:
+            copied, not_copied = await _safely(
+                "copying the device's settings",
+                config_values.async_apply(hass, settings),
+                ([], [s["entity_id"] for s in settings]),
+            )
+            record["settings"] = {"copied": copied, "failed": not_copied, "undo": "not changed back"}
+        # 3d. Zigbee2MQTT: the old device's bindings and calibration, made again on the new one.
+        if z2m_todo and (z2m_todo["binds"] or z2m_todo["options"]):
+            sent = await _safely(
+                "binding in Zigbee2MQTT",
+                z2m.async_apply(hass, z2m_todo["base"], z2m_todo["new_ieee"], z2m_todo),
+                {"binds": [], "options": {}, "failed": ["Zigbee2MQTT"]},
+            )
+            record["z2m"] = {
+                "base": z2m_todo["base"],
+                "new_ieee": z2m_todo["new_ieee"],
+                "binds": sent["binds"],
+                "options": sent["options"],
+                "options_before": {k: z2m_todo["options_before"].get(k) for k in sent["options"]},
+                "failed": sent["failed"],
+            }
+
         # 4. Automations and scripts that point at the old device or its entities by id, and device triggers that
         #    have other names in the new integration (a ZHA button press is an "action" in Zigbee2MQTT).
         rewritten: dict[str, list[str]] = {}
@@ -287,6 +315,11 @@ class Replacer:
         record["dashboards"] = await _safely(
             "updating dashboards", references.async_rewrite_dashboards(hass, record["ids"]), []
         )
+        # The user's own YAML files, when they said so in the test run: whole ids only, backed up first.
+        if picked and picked.get("yaml"):
+            record["own_yaml"] = await _safely(
+                "fixing your own YAML files", self._async_fix_yaml(record["ids"] | record.get("cross", {})), None
+            )
         # Other integrations' settings and hand-written packages are only listed: the user changes them.
         record["integrations"] = [e.title for e in references.entries_using(hass, record["ids"], skip)]
         record["packages"] = await self._hand_files(record["ids"])
@@ -299,7 +332,7 @@ class Replacer:
         record["tidied"], tidied_files = await _safely(
             "naming the new entities", self._async_tidy([e for e in own if e], device_name(plan.old)), ([], [])
         )
-        changed = sorted(set(changed) | set(tidied_files))
+        changed = sorted(set(changed) | set(tidied_files) | set((record.get("own_yaml") or {}).get("domains") or []))
         if reload:
             await self.async_reload(set(changed))
         renamed = False
@@ -327,6 +360,9 @@ class Replacer:
             "fixed": record.get("fixed"),
             "failed": record["failed"],
             "energy": [{"entity_id": j["statistic_id"], "amount": j["amount"], "unit": j["unit"]} for j in energy],
+            "settings": record.get("settings"),
+            "z2m": record.get("z2m"),
+            "own_yaml": _own_yaml_result(record.get("own_yaml")),
         }
 
     async def async_dry_run(self, plan: Plan, remove_old: bool, rename_z2m: bool = False) -> dict[str, Any]:
@@ -362,7 +398,24 @@ class Replacer:
         packages = await self._hand_files(ids)
         now = time.time()
         energy = [j for o, n in pairs if (j := await _energy_jump(hass, o, n, _target_id(o, n), now - now % 3600))]
+        settings = await _safely("reading the old device's settings", _settings_plan(hass, plan, pairs), [])
+        z2m_todo = await _safely("reading Zigbee2MQTT", _z2m_plan(hass, plan), None)
+        cross = {o.entity_id: _target_id(o, n) for o, n in pairs if o.domain != n.domain}
+        config_dir = hass.config.path()
+        own = await _safely(
+            "reading your own YAML files",
+            hass.async_add_executor_job(own_yaml.preview, config_dir, await self._yaml_targets(), ids | cross),
+            {"files": [], "broken": []},
+        )
         return {
+            "settings": settings,
+            "z2m": z2m_todo and {
+                "binds": [_bind_text(b) for b in z2m_todo["binds"]],
+                "options": z2m_todo["options"],
+                "skipped": len(z2m_todo["skipped"]),
+                "missing": z2m_todo["missing"],
+            },
+            "own_yaml": own,
             "energy": [{"entity_id": j["statistic_id"], "amount": j["amount"], "unit": j["unit"]} for j in energy],
             "entities": [
                 {
@@ -513,6 +566,14 @@ class Replacer:
         await references.async_rewrite_dashboards(self.hass, back)
         if fixed := record.get("fixed"):
             await self._async_fix(back, False, {"entries": fixed["entry_ids"]})
+        if (own := record.get("own_yaml")) and own.get("files"):
+            await _safely("putting your own YAML files back", self._async_unfix_yaml(own, reload), None)
+        if (bound := record.get("z2m")) and (bound.get("binds") or bound.get("options")):
+            await _safely(
+                "unbinding in Zigbee2MQTT",
+                z2m.async_apply(self.hass, bound["base"], bound["new_ieee"], bound, undo=True),
+                {},
+            )
         record["undone"] = True
         self._save()
         return True
@@ -678,6 +739,17 @@ class Replacer:
         await _safely("updating dashboards", references.async_rewrite_dashboards(hass, record["ids"]), [])
         if fixed := record.get("fixed"):
             await self._async_fix(record["ids"], False, {"entries": fixed["entry_ids"]})
+        if (own := record.get("own_yaml")) and own.get("files"):
+            again = await _safely(
+                "fixing your own YAML files",
+                self._async_fix_yaml(own.get("ids") or record["ids"], only=[f["file"] for f in own["files"]]),
+                None,
+            )
+            if again is not None:
+                record["own_yaml"] = again
+                changed |= set(again["domains"])
+        if (bound := record.get("z2m")) and (bound.get("binds") or bound.get("options")):
+            await _safely("binding in Zigbee2MQTT", z2m.async_apply(hass, bound["base"], bound["new_ieee"], bound), {})
         if reload:
             await self.async_reload(changed)
         record["undone"] = False
@@ -688,7 +760,7 @@ class Replacer:
         records = [r for r in self.history if r.get("batch") == batch and r["undone"]]
         for record in records:
             await self.async_redo(record["id"], reload=False)
-        await self.async_reload({"automation", "script", "scene"})
+        await self.async_reload({"automation", "script", "scene"} | _yaml_domains(records))
         return len(records)
 
     async def async_undo_batch(self, batch: str) -> int:
@@ -696,7 +768,7 @@ class Replacer:
         records = [r for r in reversed(self.history) if r.get("batch") == batch and not r["undone"]]
         for record in records:
             await self.async_undo(record["id"], reload=False)
-        await self.async_reload({"automation", "script", "scene"})
+        await self.async_reload({"automation", "script", "scene"} | _yaml_domains(records))
         return len(records)
 
     def _question(self, plan: Plan) -> tuple[ai.Question, list, list] | None:
@@ -823,6 +895,50 @@ class Replacer:
             _files_using, config_dir, [p for p, kind in files if kind == "config"], ids
         )
         return sorted(set(found) | set(await hass.async_add_executor_job(_packages_using, config_dir, ids)))
+
+    async def _yaml_targets(self) -> list[tuple[str, str]]:
+        """The user's own YAML files that "Fix my own YAML files" may change, as (path, kind)."""
+        hass = self.hass
+        config_dir = hass.config.path()
+        handled = {os.path.normpath(path) for _, path in await hass.async_add_executor_job(_config_files, config_dir)}
+        dashboards = references.yaml_dashboard_files(hass)
+        found = await hass.async_add_executor_job(rename.yaml_files, config_dir, handled, dashboards)
+        return await hass.async_add_executor_job(own_yaml.files, config_dir, found, dashboards, handled)
+
+    async def _async_fix_yaml(self, ids: dict[str, str], only: list[str] | None = None) -> dict[str, Any]:
+        """Change the ids in the user's own YAML files (backed up first); what changed, for the record and undo."""
+        hass = self.hass
+        config_dir = hass.config.path()
+        todo = await self._yaml_targets()
+        if only is not None:
+            todo = [(p, k) for p, k in todo if os.path.relpath(p, config_dir) in set(only)]
+        done = await hass.async_add_executor_job(own_yaml.apply, config_dir, todo, ids)
+        domains, restart = await hass.async_add_executor_job(
+            own_yaml.domains, config_dir, [f["file"] for f in done["files"] if f["kind"] == "config"], todo
+        )
+        # A part that can't be reloaded (or an include nothing points at) may need a restart.
+        restart = restart or any(not hass.services.has_service(d, "reload") for d in domains)
+        if not domains and any(f["kind"] == "config" for f in done["files"]):
+            restart = True
+        if done["files"] or done["failed"]:
+            _LOGGER.info(
+                "Replace Device changed your own YAML files: %s (not changed: %s)",
+                ", ".join(f["file"] for f in done["files"]) or "-",
+                ", ".join(done["failed"]) or "-",
+            )
+        return done | {"ids": ids, "domains": sorted(domains), "restart": restart}
+
+    async def _async_unfix_yaml(self, own: dict[str, Any], reload: bool) -> list[str]:
+        """Put the old ids back in the user's own YAML files."""
+        back = {new: old for old, new in (own.get("ids") or {}).items()}
+        restored = await self.hass.async_add_executor_job(
+            own_yaml.undo, self.hass.config.path(), own["files"], back
+        )
+        if missed := [f["file"] for f in own["files"] if f["file"] not in restored]:
+            _LOGGER.warning("Could not put the old ids back in %s (changed since?)", ", ".join(missed))
+        if reload and restored:
+            await self.async_reload(set(own.get("domains") or []))
+        return restored
 
     async def _async_places(
         self, ids: dict[str, str], apply: bool, picked: dict[str, list[str]] | None = None
@@ -1164,6 +1280,54 @@ def _moved(hass: HomeAssistant, plan: Plan, rename_z2m: bool) -> triggers.Moved:
         new_z2m_ieee=z2m_ieee(plan.new),
         context=_context(hass, plan),
     )
+
+
+async def _settings_plan(
+    hass: HomeAssistant, plan: Plan, pairs: list[tuple[er.RegistryEntry, er.RegistryEntry]]
+) -> list[dict[str, Any]]:
+    """The old device's settings (configuration entities) to copy to the new one, when both are the same kind."""
+    found = config_values.pairs(plan.old, plan.new, _domain(hass, plan.old), _domain(hass, plan.new), pairs)
+    return await config_values.async_plan(hass, found, {o.entity_id: _target_id(o, n) for o, n in pairs})
+
+
+async def _z2m_plan(hass: HomeAssistant, plan: Plan) -> dict[str, Any] | None:
+    """Bindings and calibration of the old Zigbee2MQTT device, for the new one. None unless both are Zigbee2MQTT."""
+    old_ieee, new_ieee = z2m_ieee(plan.old), z2m_ieee(plan.new)
+    if not old_ieee or not new_ieee:
+        return None
+    old_base = z2m_base_topic(hass, plan.old, Z2M_BASE_TOPIC)
+    new_base = z2m_base_topic(hass, plan.new, Z2M_BASE_TOPIC)
+    devices, info, new_info = await asyncio.gather(
+        z2m.async_retained(hass, f"{old_base}/bridge/devices"),
+        z2m.async_retained(hass, f"{old_base}/bridge/info"),
+        z2m.async_retained(hass, f"{new_base}/bridge/info") if new_base != old_base else asyncio.sleep(0),
+    )
+    todo = z2m.plan(old_ieee, new_ieee, devices, info, new_info, same_network=old_base == new_base)
+    return todo | {"base": new_base, "new_ieee": new_ieee}
+
+
+def _bind_text(bind: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "from": bind.get("from_name") or bind["from"],
+        "to": bind.get("to_name") or str(bind["to"]),
+        "clusters": bind.get("clusters") or [],
+    }
+
+
+def _own_yaml_result(own: dict[str, Any] | None) -> dict[str, Any] | None:
+    """What the panel shows after "Fix my own YAML files"."""
+    if not own:
+        return None
+    return {
+        "files": [f["file"] for f in own.get("files") or []],
+        "esphome": [f["file"] for f in own.get("files") or [] if f["kind"] == "esphome"],
+        "failed": own.get("failed") or [],
+        "restart": bool(own.get("restart")),
+    }
+
+
+def _yaml_domains(records: list[dict[str, Any]]) -> set[str]:
+    return {d for r in records for d in ((r.get("own_yaml") or {}).get("domains") or [])}
 
 
 def _busy_while[**P, R](method: Callable[P, Awaitable[R]]) -> Callable[P, Awaitable[R]]:
