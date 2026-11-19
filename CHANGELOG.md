@@ -2,6 +2,10 @@
 
 Newest first. Each version lists what changed since the one before.
 
+## 1.13.1 – 2026-11-19
+
+- No more "blocking call" warning at start: the version comes from Home Assistant, the manifest file is never read
+
 ## 1.13.0 – 2026-11-19
 
 - The device's own settings (sensitivity, LED, power-on behaviour, timeouts …) are copied to the new device when it is the same model
