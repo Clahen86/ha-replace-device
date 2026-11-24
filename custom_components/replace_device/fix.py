@@ -28,6 +28,9 @@ def _read(path: str) -> str | None:
             return file.read()
     except OSError:
         return None
+    except UnicodeDecodeError:
+        _LOGGER.warning("Replace Device: %s is not UTF-8 and is left as it is", path)
+        return None
 
 
 def swap_text(text: str, ids: dict[str, str], exact: bool) -> str:

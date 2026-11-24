@@ -17,7 +17,7 @@ from .checks import async_checks
 from .groups import match_groups
 from .hardware import all_devices, hardware_keys, source, z2m_ieee
 from .remembered import remembered
-from .replace import Plan, Replacer, async_plan, async_remove_device, device_name
+from .replace import Plan, Replacer, _can_take_over, async_plan, async_remove_device, device_name
 from .suggest import is_dead
 from . import deadrefs, facts
 
@@ -633,44 +633,47 @@ async def ws_migrate(hass: HomeAssistant, connection: websocket_api.ActiveConnec
     replacer.ai_error = None
     await replacer.async_fill_many([p for p in plans.values() if p is not None])
     ai_error = replacer.ai_error
-    for pair in msg["pairs"]:
-        plan = plans[pair["old"]]
-        if plan is None:
-            failed.append(pair["old"])
-            continue
-        await replacer.async_fill_with_ai(plan)
-        result = await replacer.async_replace(
-            plan, msg["remove_old"], msg["rename_z2m"], reload=False, batch=batch, picked=msg["fix"]
-        )
-        done.append(result["id"])
-        moved += result["moved"]
-        reload.update(result["changed"])
-        unresolved += result["triggers"]["unresolved"]
-        ai_error = ai_error or result["triggers"].get("ai_error")
-        translated += len(result["triggers"]["translated"])
-        # What the user changes by hand, and what was changed after their tick, for all devices together.
-        integrations += [t for t in result["integrations"] if t not in integrations]
-        hand_files += result["hand_files"]
-        if fixed := result.get("fixed"):
-            for key in ("entries", "failed"):
-                fixed_all[key] += [t for t in fixed[key] if t not in fixed_all[key]]
-        if own := result.get("own_yaml"):
-            for key in ("files", "esphome", "failed"):
-                own_all[key] += [f for f in own[key] if f not in own_all[key]]
-            own_all["restart"] = own_all["restart"] or own["restart"]
-        settings += len((result.get("settings") or {}).get("copied") or [])
-        binds += len((result.get("z2m") or {}).get("binds") or [])
-    entities = er.async_get(hass)
-    for group in msg["groups"]:
-        old, new = entities.async_get(group["old"]), entities.async_get(group["new"])
-        if old is None or new is None:
-            failed.append(group["old"])
-            continue
-        result = await replacer.async_replace_entity(group["name"], old, new, batch=batch, reload=False)
-        done.append(result["id"])
-        moved += 1
-        reload.update(result["changed"])
-    await replacer.async_reload(reload)
+    try:
+        for pair in msg["pairs"]:
+            plan = plans[pair["old"]]
+            if plan is None:
+                failed.append(pair["old"])
+                continue
+            await replacer.async_fill_with_ai(plan)
+            result = await replacer.async_replace(
+                plan, msg["remove_old"], msg["rename_z2m"], reload=False, batch=batch, picked=msg["fix"]
+            )
+            done.append(result["id"])
+            moved += result["moved"]
+            reload.update(result["changed"])
+            unresolved += result["triggers"]["unresolved"]
+            ai_error = ai_error or result["triggers"].get("ai_error")
+            translated += len(result["triggers"]["translated"])
+            # What the user changes by hand, and what was changed after their tick, for all devices together.
+            integrations += [t for t in result["integrations"] if t not in integrations]
+            hand_files += result["hand_files"]
+            if fixed := result.get("fixed"):
+                for key in ("entries", "failed"):
+                    fixed_all[key] += [t for t in fixed[key] if t not in fixed_all[key]]
+            if own := result.get("own_yaml"):
+                for key in ("files", "esphome", "failed"):
+                    own_all[key] += [f for f in own[key] if f not in own_all[key]]
+                own_all["restart"] = own_all["restart"] or own["restart"]
+            settings += len((result.get("settings") or {}).get("copied") or [])
+            binds += len((result.get("z2m") or {}).get("binds") or [])
+        entities = er.async_get(hass)
+        for group in msg["groups"]:
+            old, new = entities.async_get(group["old"]), entities.async_get(group["new"])
+            if old is None or new is None or not _can_take_over(hass, entities, old, new, {old.entity_id}):
+                failed.append(group["old"])
+                continue
+            result = await replacer.async_replace_entity(group["name"], old, new, batch=batch, reload=False)
+            done.append(result["id"])
+            moved += 1
+            reload.update(result["changed"])
+    finally:
+        # Whatever was done is reloaded, also when one device stopped the rest.
+        await replacer.async_reload(reload)
     connection.send_result(
         msg["id"],
         {

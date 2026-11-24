@@ -5,6 +5,7 @@ pointing at the old ones. Here the ids change and every place Home Assistant can
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 from typing import Any
@@ -14,6 +15,8 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.util import slugify
 
 from .tidy import _part, replace_ids
+
+_LOGGER = logging.getLogger(__name__)
 
 _INCLUDE = re.compile(r"!include(_dir_(?:named|merge_named|list|merge_list))?\s+['\"]?([^\s'\"#]+)")
 _MAX_FILES = 2000
@@ -97,8 +100,12 @@ def yaml_files(config_dir: str, skip: set[str], extra: list[str]) -> list[tuple[
 def _read(path: str) -> str | None:
     if os.path.getsize(path) > _MAX_SIZE:
         return None
-    with open(path, encoding="utf-8") as file:
-        return file.read()
+    try:
+        with open(path, encoding="utf-8") as file:
+            return file.read()
+    except UnicodeDecodeError:
+        _LOGGER.warning("Replace Device: %s is not UTF-8 and is left as it is", path)
+        return None
 
 
 def files_using(config_dir: str, files: list[tuple[str, str]], ids: dict[str, str]) -> list[tuple[str, str, str]]:

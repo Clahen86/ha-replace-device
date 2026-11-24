@@ -11,6 +11,7 @@ import difflib
 import re
 from typing import Any
 
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import ATTR_FRIENDLY_NAME
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
@@ -92,6 +93,11 @@ def _status(hass: HomeAssistant, registry: er.EntityRegistry, entity_id: str) ->
     if entry is None and state is None:
         return "missing"
     if entry is not None and (state is None or state.attributes.get("restored")):
+        if entry.disabled_by is not None:
+            return None  # turned off on purpose, not forgotten
+        config = entry.config_entry_id and hass.config_entries.async_get_entry(entry.config_entry_id)
+        if config and config.state is not ConfigEntryState.LOADED:
+            return None  # its integration is down for now (cloud, start-up error): it comes back with it
         return "orphan"
     return None
 

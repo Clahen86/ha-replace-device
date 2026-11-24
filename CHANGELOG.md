@@ -2,6 +2,14 @@
 
 Newest first. Each version lists what changed since the one before.
 
+## 1.13.2 – 2026-11-24
+
+- A replacement never removes an old entity that the new one can't take over: an id held by another state is checked first, and Home Assistant 2026.10's "no area without a name" rule no longer stops the takeover (#53)
+- Undo, redo, edit and group moves skip only the one entity Home Assistant refuses, instead of stopping halfway
+- Undo leaves the old entity's statistics under its own id, also when the new device was paired only minutes before
+- A YAML file that isn't UTF-8 is skipped and logged instead of giving "Unknown error"; moving many devices always reloads what was done
+- Dead references: entities you turned off, or whose integration is down for now, are no longer offered for removal
+
 ## 1.13.1 – 2026-11-19
 
 - No more "blocking call" warning at start: the version comes from Home Assistant, the manifest file is never read

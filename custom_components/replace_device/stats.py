@@ -146,6 +146,31 @@ async def async_migrate(hass: HomeAssistant, old: str, new: str) -> dict[str, An
     return {"done": "merged", "hours": len(before), "carried": carried}
 
 
+async def async_would_follow(hass: HomeAssistant, moves: dict[str, str]) -> dict[str, str]:
+    """Of the coming renames (old id -> new id): those where the recorder takes the old id's statistics along, because
+    the new id has none of its own. Undo uses it: the entity gets its own id back, the history stays with the name."""
+    if "recorder" not in hass.config.components or not (moves := {o: n for o, n in moves.items() if o != n}):
+        return {}
+    from functools import partial
+
+    from homeassistant.components.recorder import statistics as st
+
+    ids = set(moves) | set(moves.values())
+    meta = await _recorder(hass).async_add_executor_job(partial(st.get_metadata, hass, statistic_ids=ids))
+    return {o: n for o, n in moves.items() if o in meta and n not in meta}
+
+
+async def async_keep(hass: HomeAssistant, kept: dict[str, str]) -> None:
+    """Statistics the recorder moved along with a rename go back to the id they were recorded under."""
+    if not kept:
+        return
+    inst = _recorder(hass)
+    await inst.async_block_till_done()  # the recorder's own renames first
+    for old, new in kept.items():
+        inst.async_update_statistics_metadata(new, new_statistic_id=old)
+    await inst.async_block_till_done()
+
+
 async def async_delete(hass: HomeAssistant, statistic_id: str) -> None:
     """Remove statistics that are left behind (only those of an entity that is gone)."""
     if er.async_get(hass).async_get(statistic_id) is not None or hass.states.get(statistic_id) is not None:

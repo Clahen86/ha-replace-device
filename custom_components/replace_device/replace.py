@@ -194,7 +194,7 @@ class Replacer:
         moved = _moved(hass, plan, rename_z2m)
         # Checked before anything is removed: a pair that can't take over (the new entity is gone, or another
         # entity holds the name) stays out, so the old one keeps its name and settings.
-        skipped = [o.entity_id for o, n in pairs if not _can_take_over(entities, o, n, {x.entity_id for x, _ in pairs})]
+        skipped = [o.entity_id for o, n in pairs if not _can_take_over(hass, entities, o, n, {x.entity_id for x, _ in pairs})]
         if skipped:
             pairs = [(o, n) for o, n in pairs if o.entity_id not in skipped]
             record["entities"] = [e for e in record["entities"] if e.get("replaces", e["entity_id"]) not in skipped]
@@ -228,9 +228,8 @@ class Replacer:
         for old_entry, new_entry in pairs:
             try:
                 target = _target_id(old_entry, new_entry)
-                entities.async_update_entity(
-                    new_entry.entity_id, new_entity_id=target, **_update(old_entry), **_enabled(old_entry, new_entry)
-                )
+                if not _rename(entities, new_entry.entity_id, target, _update(old_entry) | _enabled(old_entry, new_entry)):
+                    raise ValueError(target)
                 for domain, options in old_entry.options.items():
                     if domain in (old_entry.domain,) and old_entry.domain != new_entry.domain:
                         continue  # a switch's own options don't fit a light
@@ -491,7 +490,7 @@ class Replacer:
         entities.async_remove(old.entity_id)
         await _wait_until_gone(hass, [old.entity_id])
         temp_id = new.entity_id
-        entities.async_update_entity(temp_id, new_entity_id=old.entity_id, **_update(old), **_enabled(old, new))
+        _rename(entities, temp_id, old.entity_id, _update(old) | _enabled(old, new))
         for domain, options in old.options.items():
             entities.async_update_entity_options(
                 old.entity_id, domain, dict(new.options.get(domain, {})) | dict(options)
@@ -519,6 +518,14 @@ class Replacer:
         if back:
             await self._async_places({c["from"]: c["to"] for c in back}, apply=True)
             record["tidied"] = []
+        # The old entity's statistics stay under its id when the new one goes back to its own (the recorder would
+        # otherwise take them along, if the new device was paired only minutes before).
+        going = {
+            e.entity_id: item["was"] if not entities.async_get(item["was"]) else e.entity_id
+            for item in record["entities"]
+            if (e := entities.async_get(item["uuid"])) is not None
+        }
+        keep = await _safely("reading the statistics", stats.async_would_follow(self.hass, going), {})
         for item in record["entities"]:
             entry = entities.async_get(item["uuid"])
             if entry is None:
@@ -526,9 +533,12 @@ class Replacer:
             # What the entity has now (the old one's settings, and any changes since), so "do again" gives it back.
             item["old"] = _settings(entry)
             new_id = item["was"] if not entities.async_get(item["was"]) else entry.entity_id
-            entities.async_update_entity(entry.entity_id, new_entity_id=new_id, **_restore(item))
+            if not _rename(entities, entry.entity_id, new_id, _restore(item)):
+                continue
             for domain in set(entry.options) | set(item["options"]):
                 entities.async_update_entity_options(new_id, domain, item["options"].get(domain, {}))
+        keep = {o: n for o, n in keep.items() if entities.async_get(n) is not None}
+        await _safely("keeping the statistics where they were", stats.async_keep(self.hass, keep), None)
         if (marked := record.get("old_marked")) and (old := devices.async_get(record["old_device"].get("id") or "")):
             devices.async_update_device(old.id, name_by_user=marked.get("name_by_user"))
         device = record["new_device"]
@@ -658,7 +668,7 @@ class Replacer:
             target = own[uuid]["was"]
             if entities.async_get(target):
                 target = entities.async_generate_entity_id(entry.domain, target.split(".", 1)[1])
-            entities.async_update_entity(entry.entity_id, new_entity_id=target, **_restore(own[uuid]))
+            _rename(entities, entry.entity_id, target, _restore(own[uuid]))
 
         # 2. The chosen entities take the names, with everything the name carried.
         for slot, uuid in changes.items():
@@ -668,7 +678,8 @@ class Replacer:
                 continue
             entry = entities.async_get(uuid)
             settings = carried[slot] or _EMPTY_SETTINGS
-            entities.async_update_entity(entry.entity_id, new_entity_id=slot, **_restore(settings))
+            if not _rename(entities, entry.entity_id, slot, _restore(settings)):
+                continue
             for domain, options in settings["options"].items():
                 entities.async_update_entity_options(slot, domain, dict(entry.options.get(domain, {})) | dict(options))
             item.update(own[uuid], uuid=uuid, old=settings)
@@ -711,7 +722,8 @@ class Replacer:
                 continue
             hass.states.async_remove(item["entity_id"])
             old = item.get("old") or _EMPTY_SETTINGS
-            entities.async_update_entity(entry.entity_id, new_entity_id=item["entity_id"], **_restore(old))
+            if not _rename(entities, entry.entity_id, item["entity_id"], _restore(old)):
+                continue
             for domain, options in old["options"].items():
                 entities.async_update_entity_options(
                     item["entity_id"], domain, dict(entry.options.get(domain, {})) | dict(options)
@@ -1437,13 +1449,35 @@ async def _energy_jump(
     return {"statistic_id": target, "amount": round(amount, 4), "unit": unit, "old": last, "after": hour, "done": False}
 
 
-def _can_take_over(entities: er.EntityRegistry, old: er.RegistryEntry, new: er.RegistryEntry, freed: set[str]) -> bool:
-    """The new entity still exists, and the old name is free once the old entities are removed."""
+def _can_take_over(
+    hass: HomeAssistant, entities: er.EntityRegistry, old: er.RegistryEntry, new: er.RegistryEntry, freed: set[str]
+) -> bool:
+    """The new entity still exists, and the old name is free once the old entities are removed - also of a state
+    without a registry entry (a YAML entity, or one set by a script), which HA won't let the new one take either."""
     if entities.async_get(new.entity_id) is None:
         return False
     target = _target_id(old, new)
     holder = entities.async_get(target)
-    return holder is None or holder.entity_id in freed or holder.id == new.id
+    if holder is None:
+        return target in freed or hass.states.async_available(target)
+    return holder.entity_id in freed or holder.id == new.id
+
+
+def _rename(entities: er.EntityRegistry, entity_id: str, new_id: str, change: dict[str, Any]) -> bool:
+    """The entity gets its new id and settings. HA 2026.10+ won't let an entity without a name of its own have an area
+    of its own: then without the area (its device has one). False, and logged, when HA still says no - so one entity
+    that can't move doesn't stop the rest halfway."""
+    try:
+        try:
+            entities.async_update_entity(entity_id, new_entity_id=new_id, **change)
+        except ValueError:
+            if not change.get("area_id"):
+                raise
+            entities.async_update_entity(entity_id, new_entity_id=new_id, **(change | {"area_id": None}))
+    except (KeyError, ValueError):
+        _LOGGER.warning("%s could not become %s", entity_id, new_id, exc_info=True)
+        return False
+    return True
 
 
 def _target_id(old: er.RegistryEntry, new: er.RegistryEntry) -> str:
@@ -1585,6 +1619,10 @@ def _read(path: str) -> str | None:
         with open(path, encoding="utf-8") as file:
             return file.read()
     except FileNotFoundError:
+        return None
+    except UnicodeDecodeError:
+        # Not UTF-8 - Home Assistant itself won't load such a file, so it isn't part of the running setup.
+        _LOGGER.warning("Replace Device: %s is not UTF-8 and is left as it is", path)
         return None
 
 
