@@ -13,7 +13,6 @@ from dataclasses import asdict, dataclass, field
 import json
 import logging
 import os
-import re
 import time
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -35,7 +34,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util.file import write_utf8_file_atomic
 from homeassistant.util.yaml import parse_yaml
 
-from . import ai, config_values, fix, own_yaml, references, rename, stats, tidy, triggers, z2m
+from . import actions, ai, config_values, fix, own_yaml, references, rename, stats, swapcopy, tidy, triggers, z2m
 from .const import AUTOMATIONS_FILE, CHECK_AFTER, DOMAIN, SCENES_FILE, SCRIPTS_FILE, TEXTS, Z2M_BASE_TOPIC
 from .hardware import z2m_base_topic, z2m_ieee, z2m_name
 from .matching import match, same_kind, unsure
@@ -125,6 +124,8 @@ class Replacer:
         # One change at a time (two taps, two tabs): the second waits, then finds the work done.
         self._lock = asyncio.Lock()
         self._owner: asyncio.Task | None = None
+        # Files changed but not reloaded (a YAML error elsewhere): domain -> Home Assistant's message.
+        self.reload_failed: dict[str, str] = {}
         # Devices the user said are only switched off, not gone.
         self.hidden: list[str] = []
         # Dead references the user said to leave alone.
@@ -289,9 +290,11 @@ class Replacer:
         )
 
         # 3b. A switch that is now a light: where the old entity id is written, the new one goes in.
+        cross_open: list[str] = []
         if cross := {o.entity_id: _target_id(o, n) for o, n in pairs if o.domain != n.domain}:
             record["cross"] = cross
-            await _safely("updating the new kind's entity ids", self._async_places(cross, apply=True), {})
+            places = await _safely("updating the new kind's entity ids", self._async_places(cross, apply=True), {})
+            cross_open = (places.get("actions") or {}).get("open") or []
 
         # 3c. The device's own settings (motion sensitivity, LED brightness …) go to the new device's matching ones.
         #     Nothing physical is changed back by undo: the new device just keeps them.
@@ -336,6 +339,8 @@ class Replacer:
             record["triggers_before"] = {d: before[d] for d in saved}
             record["triggers_after"] = {d: await hass.async_add_executor_job(_read, paths[d]) for d in saved}
             changed = sorted(set(changed) | set(saved))
+        if cross_open:  # actions it couldn't give the new kind: for the user, with the buttons
+            translation = {**translation, "unresolved": [*translation.get("unresolved", []), *cross_open]}
         record["triggers"] = translation
         record["moved"] = asdict(moved)
         record["files"] = changed
@@ -542,6 +547,12 @@ class Replacer:
             return await self._async_undo_rename(record)
         if record.get("kind") == "follow":
             return await self._async_follow_back(record)
+        if record.get("kind") in ("swap", "copy"):
+            back = swapcopy.async_swap_back if record["kind"] == "swap" else swapcopy.async_copy_back
+            await back(self, record)
+            record["undone"] = True
+            self._save()
+            return True
         devices, entities = dr.async_get(self.hass), er.async_get(self.hass)
         # Ids given after the device's name go back first.
         back = tidy.apply(self.hass, [{"from": c["to"], "to": c["from"]} for c in reversed(record.get("tidied") or [])])
@@ -617,6 +628,12 @@ class Replacer:
         record["undone"] = True
         self._save()
         return True
+
+    async def async_swap(self, a_id: str, b_id: str) -> dict[str, Any]:
+        return await swapcopy.async_swap(self, a_id, b_id)
+
+    async def async_copy(self, src_id: str, dst_id: str, keys: list[str]) -> dict[str, Any]:
+        return await swapcopy.async_copy(self, src_id, dst_id, keys)
 
     def edit_plan(self, record_id: str) -> dict[str, Any] | None:
         """The names a replacement moved, which of the new device's entities has each one now, and the choices."""
@@ -761,6 +778,8 @@ class Replacer:
         record = next((r for r in self.history if r["id"] == record_id and r["undone"]), None)
         if record is None:
             return False
+        if record.get("kind") in ("swap", "copy"):
+            return False  # done again from the start page, with a fresh look first
         if record.get("kind") == "follow":
             record["undone"] = True  # the new record replaces it
             return await self.async_follow(
@@ -959,8 +978,12 @@ class Replacer:
                 continue
             try:
                 await self.hass.services.async_call(domain, "reload", blocking=True)
-            except Exception:  # noqa: BLE001 - e.g. a YAML error the user made elsewhere
+            except Exception as err:  # noqa: BLE001 - e.g. a YAML error the user made elsewhere
                 _LOGGER.warning("Could not reload %s after the replacement", domain, exc_info=True)
+                # Saved, but not in use yet: the panel says so, with "Try again".
+                self.reload_failed[domain] = str(err)[:300] or type(err).__name__
+            else:
+                self.reload_failed.pop(domain, None)
 
     # ---------- renaming a device ----------
 
@@ -1061,6 +1084,9 @@ class Replacer:
         # Hand-written YAML (configuration.yaml, packages, ESPHome) and other integrations' settings are only
         # listed in "yaml", "esphome" and "integrations": the user changes them.
         changed = set(await self._rewrite(ids, reload=False, exact=True))
+        # A switch that is a light now: "switch.turn_on" on it becomes "light.turn_on".
+        result["actions"] = await hass.async_add_executor_job(actions.translate, config_dir, ids)
+        changed |= set(result["actions"]["domains"])
         await _safely("updating dashboards", references.async_rewrite_dashboards(hass, ids, exact=True), [])
         await _safely("updating the energy dashboard", references.async_rewrite_energy(hass, ids), False)
         if picked and picked.get("entries"):
@@ -1348,13 +1374,7 @@ class Replacer:
         return sorted(changed)
 
 
-def _swap(text: str, ids: dict[str, str]) -> str:
-    """Every id replaced in one go - so a swap (a -> b and b -> a) doesn't turn both into the same."""
-    ids = {k: v for k, v in ids.items() if k and k != v}
-    if not ids:
-        return text
-    pattern = re.compile("|".join(re.escape(k) for k in sorted(ids, key=len, reverse=True)))
-    return pattern.sub(lambda m: ids[m.group(0)], text)
+_swap = tidy.swap_ids
 
 
 def _blocks(lines: list[str]) -> list[str]:
@@ -1458,6 +1478,7 @@ def _busy_while[**P, R](method: Callable[P, Awaitable[R]]) -> Callable[P, Awaita
 for _name in (
     "async_replace", "async_replace_entity", "async_undo", "async_redo", "async_edit",
     "async_rename", "_async_tidy", "async_tidy_record", "async_undo_batch", "async_redo_batch", "async_follow",
+    "async_swap", "async_copy",
 ):
     setattr(Replacer, _name, _busy_while(getattr(Replacer, _name)))
 

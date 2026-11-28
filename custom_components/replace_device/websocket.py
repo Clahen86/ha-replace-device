@@ -43,6 +43,11 @@ def async_setup(hass: HomeAssistant) -> None:
         ws_replace,
         ws_dry_run,
         ws_history,
+        ws_reload_again,
+        ws_swap_plan,
+        ws_swap,
+        ws_copy_plan,
+        ws_copy,
         ws_undo,
         ws_redo,
         ws_edit_plan,
@@ -308,18 +313,35 @@ def ws_history(hass: HomeAssistant, connection: websocket_api.ActiveConnection, 
             "kind": r.get("kind", "replace"),
             "action": r.get("action"),
             "renamed": len(r.get("renamed") or []),
+            "swapped": len(r.get("pairs") or []) if r.get("kind") == "swap" else 0,
+            "copied": [c["name"] for c in r.get("created") or []],
             "done": bool(r.get("done")),
             # What is still open, so the list can show it first.
             "todo": {
                 "buttons": len(r.get("triggers", {}).get("unresolved", [])),
                 "ids": len(replacer.tidy_plan(r["id"]) or []),
             }
-            if replacer and not r["undone"] and r.get("kind") not in ("rename", "follow") and not r.get("done")
+            if replacer and not r["undone"] and r.get("kind") not in ("rename", "follow", "swap", "copy") and not r.get("done")
             else {},
         }
         for r in (replacer.history if replacer else [])
     ]
-    connection.send_result(msg["id"], {"history": list(reversed(history))})
+    connection.send_result(
+        msg["id"], {"history": list(reversed(history)), "reload_failed": replacer.reload_failed if replacer else {}}
+    )
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/reload_again"})
+@websocket_api.async_response
+async def ws_reload_again(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """ "Try again" after the user fixed what stopped the reload."""
+    replacer = _replacer(hass)
+    if replacer is None:
+        connection.send_error(msg["id"], "not_loaded", "Replace Device is not set up")
+        return
+    await replacer.async_reload(set(replacer.reload_failed))
+    connection.send_result(msg["id"], {"reload_failed": replacer.reload_failed})
 
 
 @websocket_api.require_admin
@@ -492,7 +514,7 @@ def _took_over(hass: HomeAssistant) -> dict[str, dr.DeviceEntry]:
     registry = dr.async_get(hass)
     keys: dict[str, dr.DeviceEntry] = {}
     for record in replacer.history if replacer else []:
-        if record["undone"] or record.get("kind") in ("rename", "follow"):
+        if record["undone"] or record.get("kind") in ("rename", "follow", "swap", "copy"):
             continue
         if not (new := registry.async_get(record["new_device"].get("id") or "")):
             continue
@@ -852,3 +874,56 @@ async def ws_delete_stats(hass: HomeAssistant, connection: websocket_api.ActiveC
         connection.send_error(msg["id"], str(err), str(err))
         return
     connection.send_result(msg["id"], {"deleted": True})
+
+
+# ---------- swap two devices, copy one's setup (swapcopy.py) ----------
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/swap_plan", vol.Required("a"): str, vol.Required("b"): str})
+@callback
+def ws_swap_plan(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    from . import swapcopy
+
+    plan = swapcopy.swap_plan(hass, msg["a"], msg["b"])
+    if plan is None:
+        connection.send_error(msg["id"], "unknown_device", "Pick two different devices that exist")
+        return
+    connection.send_result(msg["id"], plan)
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/swap", vol.Required("a"): str, vol.Required("b"): str})
+@websocket_api.async_response
+async def ws_swap(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    replacer = _replacer(hass)
+    if replacer is None:
+        connection.send_error(msg["id"], "not_loaded", "Replace Device is not set up")
+        return
+    connection.send_result(msg["id"], await replacer.async_swap(msg["a"], msg["b"]))
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/copy_plan", vol.Required("src"): str, vol.Required("dst"): str})
+@websocket_api.async_response
+async def ws_copy_plan(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    from . import swapcopy
+
+    plan = await swapcopy.copy_plan(hass, msg["src"], msg["dst"])
+    if plan is None:
+        connection.send_error(msg["id"], "unknown_device", "Pick two different devices that exist")
+        return
+    connection.send_result(msg["id"], plan)
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {vol.Required("type"): f"{DOMAIN}/copy", vol.Required("src"): str, vol.Required("dst"): str, vol.Required("keys"): [str]}
+)
+@websocket_api.async_response
+async def ws_copy(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    replacer = _replacer(hass)
+    if replacer is None:
+        connection.send_error(msg["id"], "not_loaded", "Replace Device is not set up")
+        return
+    connection.send_result(msg["id"], await replacer.async_copy(msg["src"], msg["dst"], msg["keys"]))

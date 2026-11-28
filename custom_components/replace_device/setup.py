@@ -8,7 +8,7 @@ from typing import Any
 
 def setup_info(replacer: Any) -> dict[str, Any]:
     groups: dict[str, dict[str, Any]] = {}
-    counts = {"replacements": 0, "renames": 0, "group_renames": 0, "follows": 0, "bulk": 0, "undone": 0}
+    counts = {"replacements": 0, "renames": 0, "group_renames": 0, "follows": 0, "bulk": 0, "undone": 0, "swaps": 0, "copies": 0}
     batches = set()
     for r in replacer.history:
         kind = r.get("kind") or "replace"
@@ -19,6 +19,9 @@ def setup_info(replacer: Any) -> dict[str, Any]:
             continue
         if kind == "follow":
             counts["follows"] += 1
+            continue
+        if kind in ("swap", "copy"):
+            counts["swaps" if kind == "swap" else "copies"] += 1
             continue
         counts["replacements"] += 1
         if r.get("batch"):

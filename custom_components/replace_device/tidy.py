@@ -89,3 +89,12 @@ def replace_ids(text: str, ids: dict[str, str]) -> str:
         r"(?<![\w.])(" + "|".join(re.escape(i) for i in sorted(ids, key=len, reverse=True)) + r")(?![\w])"
     )
     return pattern.sub(lambda m: ids[m.group(1)], text)
+
+
+def swap_ids(text: str, ids: dict[str, str]) -> str:
+    """Every id replaced in one go - so a swap (a -> b and b -> a) doesn't turn both into the same."""
+    ids = {k: v for k, v in ids.items() if k and k != v}
+    if not ids:
+        return text
+    pattern = re.compile("|".join(re.escape(k) for k in sorted(ids, key=len, reverse=True)))
+    return pattern.sub(lambda m: ids[m.group(0)], text)

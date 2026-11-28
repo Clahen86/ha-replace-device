@@ -142,6 +142,11 @@ const TEXT = {
     duplicate: "Two old entities point at the same new one.",
     sameDevice: "Pick two different devices.",
     error: "Something went wrong: {e}",
+    reloadFailed: "Saved, but {list} could not be reloaded, so the changes aren't in use yet. Home Assistant says: {e}",
+    reloadAgain: "Try again",
+    reload_automation: "automations",
+    reload_script: "scripts",
+    reload_scene: "scenes",
     minutes: "{n} min",
     hours: "{n} h",
     days: "{n} days",
@@ -236,6 +241,29 @@ const TEXT = {
     migrateStart: "Move many devices",
     groupTag: "Group",
     renameStart: "Rename a device or group",
+    swapStart: "Swap two devices",
+    copyStart: "Copy a device's setup",
+    swapPickA: "Pick the first device",
+    swapPickB: "Swap with …",
+    copyPickSrc: "Copy the setup of …",
+    copyPickDst: "… to the new device",
+    swapFirst: "First device",
+    copyFrom: "Copy from",
+    swapTitle: "Swap {a} and {b}",
+    swapText: "They swap names, entity IDs, areas and automations. The history stays with the room.",
+    swapNotSame: "Only two devices of the same integration can swap.",
+    swapNone: "These two have nothing to swap.",
+    swapDo: "Swap now",
+    swapDone: "{a} and {b} swapped places",
+    swapDoneText: "{n} entities swapped names.",
+    swapRow: "swapped {n} entities",
+    copyTitle: "Copy the setup of {src} to {dst}",
+    copyText: "Automations and scripts that use {src} are made again for {dst}. You pick which.",
+    copyNone: "{src} isn't used in any automation or script.",
+    copyKeeps: "Still uses: {list}",
+    copyDo: "Copy {n}",
+    copyDone: "{n} copied to {dst}",
+    copyRow: "copied {n}",
     renameTitle: "Rename a device or group",
     renameText: "The device and its entity IDs get the new name. Automations, scripts, scenes, dashboards and the energy dashboard follow, and helpers can be ticked. For your own YAML files it shows every line to change. History follows.",
     renamePick: "Pick the device or group to rename",
@@ -452,6 +480,11 @@ const TEXT = {
     duplicate: "To gamle entiteter peger på den samme nye.",
     sameDevice: "Vælg to forskellige enheder.",
     error: "Noget gik galt: {e}",
+    reloadFailed: "Gemt, men {list} kunne ikke genindlæses, så ændringerne virker ikke endnu. Home Assistant siger: {e}",
+    reloadAgain: "Prøv igen",
+    reload_automation: "automationer",
+    reload_script: "scripts",
+    reload_scene: "scener",
     minutes: "{n} min",
     hours: "{n} t",
     days: "{n} dage",
@@ -546,6 +579,29 @@ const TEXT = {
     migrateStart: "Flyt mange enheder",
     groupTag: "Gruppe",
     renameStart: "Omdøb en enhed eller gruppe",
+    swapStart: "Byt to enheder",
+    copyStart: "Kopiér en enheds opsætning",
+    swapPickA: "Vælg den første enhed",
+    swapPickB: "Byt med …",
+    copyPickSrc: "Kopiér opsætningen fra …",
+    copyPickDst: "… til den nye enhed",
+    swapFirst: "Første enhed",
+    copyFrom: "Kopiér fra",
+    swapTitle: "Byt {a} og {b}",
+    swapText: "De bytter navne, entitets-id'er, rum og automationer. Historikken bliver i rummet.",
+    swapNotSame: "Kun to enheder fra samme integration kan bytte.",
+    swapNone: "De to har intet at bytte.",
+    swapDo: "Byt nu",
+    swapDone: "{a} og {b} har byttet plads",
+    swapDoneText: "{n} entiteter byttede navn.",
+    swapRow: "byttede {n} entiteter",
+    copyTitle: "Kopiér opsætningen fra {src} til {dst}",
+    copyText: "Automationer og scripts, der bruger {src}, laves igen til {dst}. Du vælger selv hvilke.",
+    copyNone: "{src} bruges ikke i nogen automation eller noget script.",
+    copyKeeps: "Bruger stadig: {list}",
+    copyDo: "Kopiér {n}",
+    copyDone: "{n} kopieret til {dst}",
+    copyRow: "kopierede {n}",
     renameTitle: "Omdøb en enhed eller gruppe",
     renameText: "Enheden og dens entity-id'er får det nye navn. Automatiseringer, scripts, scener, dashboards og energi-dashboardet følger med, og hjælpere kan du sætte flueben ved. I dine egne YAML-filer viser den hver linje, du skal rette. Historikken følger med.",
     renamePick: "Vælg den enhed eller gruppe, der skal omdøbes",
@@ -762,6 +818,11 @@ const TEXT = {
     duplicate: "Zwei alte Entitäten zeigen auf dieselbe neue.",
     sameDevice: "Wähle zwei verschiedene Geräte.",
     error: "Etwas ist schiefgelaufen: {e}",
+    reloadFailed: "Gespeichert, aber {list} konnten nicht neu geladen werden, daher wirken die Änderungen noch nicht. Home Assistant meldet: {e}",
+    reloadAgain: "Erneut versuchen",
+    reload_automation: "Automationen",
+    reload_script: "Skripte",
+    reload_scene: "Szenen",
     minutes: "{n} Min.",
     hours: "{n} Std.",
     days: "{n} Tagen",
@@ -856,6 +917,29 @@ const TEXT = {
     migrateStart: "Viele Geräte umziehen",
     groupTag: "Gruppe",
     renameStart: "Gerät oder Gruppe umbenennen",
+    swapStart: "Zwei Geräte tauschen",
+    copyStart: "Einrichtung eines Geräts kopieren",
+    swapPickA: "Erstes Gerät wählen",
+    swapPickB: "Tauschen mit …",
+    copyPickSrc: "Einrichtung kopieren von …",
+    copyPickDst: "… zum neuen Gerät",
+    swapFirst: "Erstes Gerät",
+    copyFrom: "Kopieren von",
+    swapTitle: "{a} und {b} tauschen",
+    swapText: "Sie tauschen Namen, Entitäts-IDs, Bereiche und Automationen. Der Verlauf bleibt beim Raum.",
+    swapNotSame: "Nur zwei Geräte derselben Integration können tauschen.",
+    swapNone: "Diese beiden haben nichts zu tauschen.",
+    swapDo: "Jetzt tauschen",
+    swapDone: "{a} und {b} haben die Plätze getauscht",
+    swapDoneText: "{n} Entitäten haben die Namen getauscht.",
+    swapRow: "{n} Entitäten getauscht",
+    copyTitle: "Einrichtung von {src} nach {dst} kopieren",
+    copyText: "Automationen und Skripte, die {src} nutzen, werden für {dst} neu angelegt. Du wählst, welche.",
+    copyNone: "{src} wird in keiner Automation und keinem Skript verwendet.",
+    copyKeeps: "Nutzt noch: {list}",
+    copyDo: "{n} kopieren",
+    copyDone: "{n} nach {dst} kopiert",
+    copyRow: "{n} kopiert",
     renameTitle: "Gerät oder Gruppe umbenennen",
     renameText: "Das Gerät und seine Entitäts-IDs bekommen den neuen Namen. Automationen, Skripte, Szenen, Dashboards und das Energie-Dashboard ziehen mit, Helfer kannst du anhaken. Für deine eigenen YAML-Dateien zeigt es jede Zeile, die du ändern musst. Der Verlauf bleibt erhalten.",
     renamePick: "Wähle das Gerät oder die Gruppe zum Umbenennen",
@@ -1072,6 +1156,11 @@ const TEXT = {
     duplicate: "Två gamla entiteter pekar på samma nya.",
     sameDevice: "Välj två olika enheter.",
     error: "Något gick fel: {e}",
+    reloadFailed: "Sparat, men {list} kunde inte laddas om, så ändringarna gäller inte än. Home Assistant säger: {e}",
+    reloadAgain: "Försök igen",
+    reload_automation: "automationer",
+    reload_script: "skript",
+    reload_scene: "scener",
     minutes: "{n} min",
     hours: "{n} tim",
     days: "{n} dagar",
@@ -1166,6 +1255,29 @@ const TEXT = {
     migrateStart: "Flytta många enheter",
     groupTag: "Grupp",
     renameStart: "Byt namn på en enhet eller grupp",
+    swapStart: "Byt plats på två enheter",
+    copyStart: "Kopiera en enhets inställningar",
+    swapPickA: "Välj den första enheten",
+    swapPickB: "Byt med …",
+    copyPickSrc: "Kopiera inställningarna från …",
+    copyPickDst: "… till den nya enheten",
+    swapFirst: "Första enheten",
+    copyFrom: "Kopiera från",
+    swapTitle: "Byt {a} och {b}",
+    swapText: "De byter namn, entitets-id, områden och automationer. Historiken stannar i rummet.",
+    swapNotSame: "Bara två enheter från samma integration kan byta.",
+    swapNone: "De två har inget att byta.",
+    swapDo: "Byt nu",
+    swapDone: "{a} och {b} har bytt plats",
+    swapDoneText: "{n} entiteter bytte namn.",
+    swapRow: "bytte {n} entiteter",
+    copyTitle: "Kopiera inställningarna från {src} till {dst}",
+    copyText: "Automationer och skript som använder {src} skapas igen för {dst}. Du väljer vilka.",
+    copyNone: "{src} används inte i någon automation eller något skript.",
+    copyKeeps: "Använder fortfarande: {list}",
+    copyDo: "Kopiera {n}",
+    copyDone: "{n} kopierade till {dst}",
+    copyRow: "kopierade {n}",
     renameTitle: "Byt namn på en enhet eller grupp",
     renameText: "Enheten och dess entitets-ID får det nya namnet. Automationer, skript, scener, instrumentpaneler och energipanelen följer med, och hjälpare kan du kryssa i. För dina egna YAML-filer visar den varje rad du ska ändra. Historiken följer med.",
     renamePick: "Välj enheten eller gruppen att byta namn på",
@@ -1382,6 +1494,11 @@ const TEXT = {
     duplicate: "Twee oude entiteiten wijzen naar dezelfde nieuwe.",
     sameDevice: "Kies twee verschillende apparaten.",
     error: "Er ging iets mis: {e}",
+    reloadFailed: "Opgeslagen, maar {list} konden niet opnieuw worden geladen, dus de wijzigingen werken nog niet. Home Assistant zegt: {e}",
+    reloadAgain: "Opnieuw proberen",
+    reload_automation: "automatiseringen",
+    reload_script: "scripts",
+    reload_scene: "scènes",
     minutes: "{n} min",
     hours: "{n} uur",
     days: "{n} dagen",
@@ -1476,6 +1593,29 @@ const TEXT = {
     migrateStart: "Veel apparaten verhuizen",
     groupTag: "Groep",
     renameStart: "Een apparaat of groep hernoemen",
+    swapStart: "Twee apparaten verwisselen",
+    copyStart: "Instellingen van een apparaat kopiëren",
+    swapPickA: "Kies het eerste apparaat",
+    swapPickB: "Verwisselen met …",
+    copyPickSrc: "Instellingen kopiëren van …",
+    copyPickDst: "… naar het nieuwe apparaat",
+    swapFirst: "Eerste apparaat",
+    copyFrom: "Kopiëren van",
+    swapTitle: "{a} en {b} verwisselen",
+    swapText: "Ze wisselen namen, entiteit-ID's, ruimtes en automatiseringen. De geschiedenis blijft bij de ruimte.",
+    swapNotSame: "Alleen twee apparaten van dezelfde integratie kunnen wisselen.",
+    swapNone: "Deze twee hebben niets om te wisselen.",
+    swapDo: "Nu verwisselen",
+    swapDone: "{a} en {b} zijn verwisseld",
+    swapDoneText: "{n} entiteiten wisselden van naam.",
+    swapRow: "{n} entiteiten verwisseld",
+    copyTitle: "Instellingen van {src} naar {dst} kopiëren",
+    copyText: "Automatiseringen en scripts die {src} gebruiken, worden opnieuw gemaakt voor {dst}. Jij kiest welke.",
+    copyNone: "{src} wordt in geen enkele automatisering of script gebruikt.",
+    copyKeeps: "Gebruikt nog: {list}",
+    copyDo: "{n} kopiëren",
+    copyDone: "{n} gekopieerd naar {dst}",
+    copyRow: "{n} gekopieerd",
     renameTitle: "Een apparaat of groep hernoemen",
     renameText: "Het apparaat en zijn entiteit-ID's krijgen de nieuwe naam. Automatiseringen, scripts, scènes, dashboards en het energiedashboard gaan mee, en helpers kun je aanvinken. Voor je eigen YAML-bestanden toont het elke regel die je moet aanpassen. De geschiedenis blijft.",
     renamePick: "Kies het apparaat of de groep om te hernoemen",
@@ -1760,6 +1900,7 @@ class ReplaceDevicePanel extends HTMLElement {
       const [devices, history] = await Promise.all([this.ws("devices"), this.ws("history")]);
       this.devices = devices.devices;
       this.historyItems = history.history;
+      this.reloadFailed = history.reload_failed || {};
       this.error = "";
 
     } catch (e) {
@@ -1904,6 +2045,8 @@ class ReplaceDevicePanel extends HTMLElement {
         <div class="btns"><button class="primary" data-act="pick">${this.t("start")}</button>
         <button class="ghost" data-act="migrate"><ha-icon icon="mdi:transfer"></ha-icon>${this.t("migrateStart")}</button>
         <button class="ghost" data-act="renameStart"><ha-icon icon="mdi:rename"></ha-icon>${this.t("renameStart")}</button>
+        <button class="ghost" data-act="swapStart"><ha-icon icon="mdi:swap-horizontal-bold"></ha-icon>${this.t("swapStart")}</button>
+        <button class="ghost" data-act="copyStart"><ha-icon icon="mdi:content-copy"></ha-icon>${this.t("copyStart")}</button>
         ${this.historyItems.length ? `<button class="ghost" data-act="showHistory"><ha-icon icon="mdi:history"></ha-icon>${this.t("historyBtn")}</button>` : ""}</div></div>
       </div>
       ${this.refsCard()}
@@ -2186,6 +2329,24 @@ class ReplaceDevicePanel extends HTMLElement {
     this.load();
   }
 
+  // Files changed, but Home Assistant couldn't reload them (an error elsewhere): said on every page until it works.
+  reloadNote() {
+    const failed = Object.entries(this.reloadFailed || {});
+    if (!failed.length || this.view === "working") return "";
+    const list = failed.map(([d]) => (["automation", "script", "scene"].includes(d) ? this.t(`reload_${d}`) : d)).join(", ");
+    return `<div class="card warn left reload-note"><ha-icon icon="mdi:alert"></ha-icon><div class="grow">${esc(this.t("reloadFailed", { list, e: failed.map(([, e]) => e).join(" · ") }))}</div>
+      <button class="primary" data-act="reloadAgain">${this.t("reloadAgain")}</button></div>`;
+  }
+
+  async reloadAgain() {
+    try {
+      this.reloadFailed = (await this.ws("reload_again")).reload_failed || {};
+    } catch (e) {
+      this.error = this.t("error", { e: e.message || e.code || e });
+    }
+    this.render();
+  }
+
   aiNote(error) {
     if (!error) return "";
     const text = error === "quota" ? this.t("aiQuota") : this.t("aiFailed", { e: error });
@@ -2193,6 +2354,16 @@ class ReplaceDevicePanel extends HTMLElement {
   }
 
   historyRow(h) {
+    if (h.kind === "swap" || h.kind === "copy") {
+      const line = h.kind === "swap" ? this.t("swapRow", { n: h.swapped }) : this.t("copyRow", { n: (h.copied || []).length });
+      return `
+      <div class="hist">
+        <ha-icon icon="${h.kind === "swap" ? "mdi:swap-horizontal-bold" : "mdi:content-copy"}"></ha-icon>
+        <div class="grow"><b>${esc(h.old_device.name)}</b> ${h.kind === "swap" ? "⇄" : "→"} ${esc(h.new_device.name)}
+          <div class="muted small">${new Date(h.at * 1000).toLocaleString(this._hass.language)} · ${esc(line)}</div></div>
+        ${h.undone ? `<span class="tag">${this.t("undone")}</span>` : `<button class="ghost small-btn" data-act="undo" data-id="${h.id}">${this.t("undo")}</button>`}
+      </div>`;
+    }
     if (h.kind === "follow") {
       return `
       <div class="hist">
@@ -2239,10 +2410,13 @@ class ReplaceDevicePanel extends HTMLElement {
     for (const d of this.devices.filter((x) => x.integration)) counts.set(d.integration, [d.integration_title, (counts.get(d.integration)?.[1] || 0) + 1]);
     const sources = [...counts.entries()].sort((a, b) => b[1][1] - a[1][1]);
     return `
-      ${old ? `<div class="card chosen"><div class="dev-head"><ha-icon icon="mdi:devices"></ha-icon><div class="grow"><div class="muted small">${this.t("old")}</div><div class="dev-name">${esc(old.name)}</div>
+      ${old ? `<div class="card chosen"><div class="dev-head"><ha-icon icon="mdi:devices"></ha-icon><div class="grow"><div class="muted small">${this.t(this.pickMode === "swap" ? "swapFirst" : this.pickMode === "copy" ? "copyFrom" : "old")}</div><div class="dev-name">${esc(old.name)}</div>
         <div class="muted small">${esc([old.area, old.model, old.integration_title].filter(Boolean).join(" · "))}</div></div>
         <button class="ghost small-btn" data-act="changeOld">${this.t("change")}</button></div></div>` : ""}
-      <h3>${this.pickMode === "rename" ? this.t("renamePick") : old ? this.t("pickNew") : this.t("pickOld")}</h3>
+      <h3>${this.pickMode === "rename" ? this.t("renamePick")
+        : this.pickMode === "swap" ? this.t(old ? "swapPickB" : "swapPickA")
+        : this.pickMode === "copy" ? this.t(old ? "copyPickDst" : "copyPickSrc")
+        : old ? this.t("pickNew") : this.t("pickOld")}</h3>
       <div class="filters">
         <div class="search"><ha-icon icon="mdi:magnify"></ha-icon><input id="q" type="search" placeholder="${this.t("search")}" value="${esc(this.query)}"></div>
         <select id="src"><option value="">${this.t("allIntegrations")}</option>${sources.map(([k, [v, n]]) => `<option value="${esc(k)}" ${k === this.srcFilter ? "selected" : ""}>${esc(v || k)} (${n})</option>`).join("")}</select>
@@ -2811,6 +2985,90 @@ class ReplaceDevicePanel extends HTMLElement {
     this.load();
   }
 
+  // ---------- swap two devices, copy one's setup ----------
+
+  async openPair(a, b) {
+    this.pair = null;
+    this.pairResult = null;
+    this.view = "working";
+    this.render();
+    try {
+      this.pair = this.pickMode === "swap"
+        ? await this.ws("swap_plan", { a, b })
+        : await this.ws("copy_plan", { src: a, dst: b });
+      this.copyKeys = new Set((this.pair.items || []).map((c) => `${c.kind}:${c.key}`));
+      this.error = "";
+    } catch (e) {
+      this.error = this.t("error", { e: e.message || e.code || e });
+      this.view = "pick";
+      return this.render();
+    }
+    this.view = "pair";
+    this.render();
+  }
+
+  async doPair() {
+    const p = this.pair;
+    this.view = "working";
+    this.render();
+    try {
+      this.pairResult = this.pickMode === "swap"
+        ? await this.ws("swap", { a: p.a.id, b: p.b.id })
+        : await this.ws("copy", { src: p.src.id, dst: p.dst.id, keys: [...this.copyKeys] });
+      this.error = "";
+    } catch (e) {
+      this.error = this.t("error", { e: e.message || e.code || e });
+    }
+    this.view = "pair";
+    this.render();
+    this.load();
+  }
+
+  pairView() {
+    const p = this.pair;
+    const r = this.pairResult;
+    const swap = this.pickMode === "swap";
+    if (r) {
+      const title = swap ? this.t("swapDone", { a: p.a.name, b: p.b.name }) : this.t("copyDone", { n: r.created.length, dst: p.dst.name });
+      return `
+        <div class="card center done"><div class="check"><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="24"/><path d="M15 27l7 7 15-16"/></svg></div>
+          <h2>${esc(title)}</h2>
+          ${swap ? `<p class="muted">${esc(this.t("swapDoneText", { n: r.swapped }))}</p>` : `<ul class="left">${r.created.map((c) => `<li>${esc(c.name)}</li>`).join("")}</ul>`}
+          ${r.failed?.length ? `<p class="warn-text">${esc(this.t("notMoved", { list: r.failed.join(", ") }))}</p>` : ""}
+          <div class="actions"><button class="ghost" data-act="undo" data-id="${r.id}">${this.t("undo")}</button><button class="primary" data-act="home">${this.t("home")}</button></div></div>`;
+    }
+    if (swap) {
+      const rows = p.pairs.map((x) => `<div class="drow"><ha-icon icon="${DOMAIN_ICON[x.a.split(".")[0]] || "mdi:shape"}"></ha-icon>
+        <div class="grow"><div class="dname">${esc(x.name)}</div><div class="mono muted small">${esc(x.a)} ⇄ ${esc(x.b)}</div></div></div>`).join("");
+      const can = p.same_kind && p.pairs.length;
+      return `
+        <div class="card hero"><ha-icon icon="mdi:swap-horizontal-bold"></ha-icon><div class="grow"><h2>${esc(this.t("swapTitle", { a: p.a.name, b: p.b.name }))}</h2>
+          <p class="muted">${this.t("swapText")}</p></div></div>
+        <div class="card">
+          <div class="tiles" style="grid-template-columns:repeat(2,1fr)">
+            <div class="tile"><div class="small muted">${esc(p.a.area || "–")} → ${esc(p.b.area || "–")}</div><b>${esc(p.a.name)}</b></div>
+            <div class="tile"><div class="small muted">${esc(p.b.area || "–")} → ${esc(p.a.area || "–")}</div><b>${esc(p.b.name)}</b></div>
+          </div>
+          ${!p.same_kind ? `<p class="warn-text">${this.t("swapNotSame")}</p>` : !p.pairs.length ? `<p class="warn-text">${this.t("swapNone")}</p>` : `<div class="drows">${rows}</div>`}
+        </div>
+        <div class="actions sticky"><button class="ghost" data-act="home">${this.t("back")}</button>
+          <button class="primary big" data-act="pairDo" ${can ? "" : "disabled"}><ha-icon icon="mdi:swap-horizontal-bold"></ha-icon>${this.t("swapDo")}</button></div>`;
+    }
+    const items = p.items.map((c) => {
+      const key = `${c.kind}:${c.key}`;
+      return `<label class="drow pick-row"><input type="checkbox" data-act="copyPick" data-key="${esc(key)}" ${this.copyKeys.has(key) ? "checked" : ""}>
+        <ha-icon icon="${c.kind === "script" ? "mdi:script-text-outline" : "mdi:robot-outline"}"></ha-icon>
+        <div class="grow"><div class="dname">${esc(c.new_name)}</div><div class="muted small">${esc(c.name)}</div>
+          ${c.keeps.length ? `<div class="small warn-text">${esc(this.t("copyKeeps", { list: c.keeps.join(", ") }))}</div>` : ""}</div></label>`;
+    }).join("");
+    return `
+      <div class="card hero"><ha-icon icon="mdi:content-copy"></ha-icon><div class="grow"><h2>${esc(this.t("copyTitle", { src: p.src.name, dst: p.dst.name }))}</h2>
+        <p class="muted">${esc(this.t("copyText", { src: p.src.name, dst: p.dst.name }))}</p></div></div>
+      <div class="card">${items ? `<div class="drows">${items}</div>` : `<p class="muted">${esc(this.t("copyNone", { src: p.src.name }))}</p>`}</div>
+      <div class="actions sticky"><button class="ghost" data-act="home">${this.t("back")}</button>
+        <button class="primary big" data-act="pairDo" ${this.copyKeys.size ? "" : "disabled"}><ha-icon icon="mdi:content-copy"></ha-icon>${this.t("copyDo", { n: this.copyKeys.size })}</button></div>`;
+  }
+
   workingView() {
     if (this.renaming) return `<div class="card center"><div class="spinner"></div><h2>${this.t(this.renaming === "dry" ? "dryWorking" : "renameWorking")}</h2></div>`;
     if (this.planning) return `<div class="card center"><div class="spinner"></div><h2>${this.t("planning")}</h2><p class="muted small">${this.t("planningHint")}</p></div>`;
@@ -2845,13 +3103,13 @@ class ReplaceDevicePanel extends HTMLElement {
     if (!this._hass) return;
     const body = {
       home: () => this.homeView(), pick: () => this.pickView(), match: () => this.matchView(), working: () => this.workingView(),
-      done: () => this.doneView(), migrate: () => this.migrateView(), migrated: () => this.migrateDoneView(),
+      done: () => this.doneView(), migrate: () => this.migrateView(), migrated: () => this.migrateDoneView(), pair: () => this.pairView(),
       edit: () => this.editView(), dry: () => this.dryView(), rename: () => this.renameView(),
       refs: () => this.refsView(), support: () => `<div id="support-slot"></div>`,
     }[this.view]();
     this.shadowRoot.innerHTML = `<style>${STYLE}</style>
       <div class="toolbar">${customElements.get("ha-menu-button") ? "<ha-menu-button></ha-menu-button>" : ""}${this.view !== "home" && this.view !== "working" ? `<button class="tb-back" data-act="topBack" title="${this.t("back")}" aria-label="${this.t("back")}"><ha-icon icon="mdi:arrow-left"></ha-icon></button>` : ""}<div class="tb-title">${this.t("title")}</div>${this.view !== "support" ? `<button class="tb-help" data-act="help">🛟 ${supportText(this._hass, "help")}</button>` : ""}</div>
-      <div class="content">${this.error ? `<div class="card error"><ha-icon icon="mdi:alert-circle"></ha-icon>${esc(this.error)}</div>` : ""}${body}</div>`;
+      <div class="content">${this.error ? `<div class="card error"><ha-icon icon="mdi:alert-circle"></ha-icon>${esc(this.error)}</div>` : ""}${this.reloadNote()}${body}</div>`;
     const menu = this.shadowRoot.querySelector("ha-menu-button");
     if (menu) {
       menu.hass = this._hass;
@@ -3166,9 +3424,22 @@ class ReplaceDevicePanel extends HTMLElement {
         this.oldId = data.id;
         this.query = "";
         this.render();
+      } else if (this.pickMode === "swap" || this.pickMode === "copy") {
+        this.openPair(this.oldId, data.id);
       } else {
         this.openPlan(this.oldId, data.id);
       }
+    } else if (data.act === "swapStart" || data.act === "copyStart") {
+      this.pickMode = data.act === "swapStart" ? "swap" : "copy";
+      this.oldId = "";
+      this.query = "";
+      this.view = "pick";
+      this.render();
+    } else if (data.act === "pairDo") {
+      this.doPair();
+    } else if (data.act === "copyPick") {
+      if (this.copyKeys.has(data.key)) this.copyKeys.delete(data.key); else this.copyKeys.add(data.key);
+      this.render();
     } else if (data.act === "changeOld") {
       this.oldId = "";
       this.render();
@@ -3223,6 +3494,8 @@ class ReplaceDevicePanel extends HTMLElement {
       this.render();
     } else if (data.act === "giveBack") {
       this.undo(this.editPlan.id);
+    } else if (data.act === "reloadAgain") {
+      this.reloadAgain();
     } else if (data.act === "redo" || data.act === "redoBatch") {
       this.redo(data.id, data.batch);
     }
@@ -3335,7 +3608,7 @@ input:checked+.switch{background:var(--rd-blue)}input:checked+.switch:after{left
 .batch-items{padding-left:22px;border-left:2px solid var(--divider-color,#e3e7ec);margin:0 0 6px 10px}.batch-head{border-bottom:0}
 button.link{background:none;border:0;color:var(--secondary-text-color);text-decoration:underline;font-size:13px;padding:6px}.center-link{text-align:center;margin-top:18px}
 button.danger{background:var(--rd-red);color:#fff}.give-back{margin-top:16px}
-.checks{display:flex;flex-direction:column;gap:8px;margin-top:8px}.check-line{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.4}.check-line ha-icon{flex:none;--mdc-icon-size:18px}.check-line.c-warn ha-icon{color:var(--rd-amber)}.check-line.c-bad ha-icon{color:var(--rd-red)}.check-line.c-info ha-icon{color:var(--rd-blue)}.card .card.warn{box-shadow:none;margin:8px 0 0;padding:10px}
+.checks{display:flex;flex-direction:column;gap:8px;margin-top:8px}.check-line{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.4}.check-line ha-icon{flex:none;--mdc-icon-size:18px}.check-line.c-warn ha-icon{color:var(--rd-amber)}.check-line.c-bad ha-icon{color:var(--rd-red)}.check-line.c-info ha-icon{color:var(--rd-blue)}.card .card.warn{box-shadow:none;margin:8px 0 0;padding:10px}.pick-row{cursor:pointer;align-items:flex-start}.pick-row input{margin-top:4px;flex:none;width:18px;height:18px;accent-color:var(--primary-color)}.reload-note{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.reload-note>ha-icon{color:var(--rd-amber);flex:none}
 .ok-text{color:var(--rd-green)}.tag.ai{background:rgba(156,39,176,.14);color:#8e24aa;font-size:11px;padding:1px 7px}.card.left{text-align:left;margin-top:12px}
 .btns{display:flex;gap:10px;flex-wrap:wrap}
 .hint{display:flex;gap:10px;align-items:flex-start;margin:14px 0 0;padding:12px;border-radius:10px;background:rgba(3,169,244,.08)}.hint ha-icon{color:var(--rd-blue);flex:none}

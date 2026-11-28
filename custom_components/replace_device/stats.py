@@ -227,3 +227,17 @@ async def async_fix_jump(hass: HomeAssistant, fix: dict[str, Any], undo: bool = 
     inst.async_adjust_statistics(sid, datetime.fromtimestamp(start, timezone.utc), amount, fix["unit"] or "")
     await inst.async_block_till_done()
     return True
+
+
+async def async_swap_history(hass: HomeAssistant, swaps: list[tuple[str, str, str]]) -> None:
+    """Two entity ids swapped (a <-> b, by way of tmp): the recorder took each one's history and statistics along with
+    the renames. Swapped back here, so the history stays with the id - the room's graph goes on."""
+    if "recorder" not in hass.config.components or not swaps:
+        return
+    inst = _recorder(hass)
+    await inst.async_block_till_done()  # the recorder's own renames first
+    for a, b, tmp in swaps:
+        for old, new in ((b, tmp), (a, b), (tmp, a)):
+            inst.async_update_states_metadata(old, new_entity_id=new)
+            inst.async_update_statistics_metadata(old, new_statistic_id=new)
+    await inst.async_block_till_done()

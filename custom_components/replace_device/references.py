@@ -25,8 +25,9 @@ def swap(value: Any, ids: dict[str, str], exact: bool = False) -> Any:
     if exact:
         new = replace_ids(text, ids)
     else:
-        for old, replacement in ids.items():
-            new = new.replace(old, replacement)
+        from .tidy import swap_ids
+
+        new = swap_ids(text, ids)
     return value if new == text else json.loads(new)
 
 

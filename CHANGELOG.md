@@ -11,6 +11,10 @@ Newest first. Each version lists what changed since the one before.
 - "Change" (mixed-up temperature and humidity) also moves the device triggers along to the right sensor
 - Joining statistics never deletes hours it couldn't copy, and refuses two that don't measure the same
 - The replacement is written down before anything changes, so a restart in the middle still leaves it to undo
+- New: **Swap two devices** – two sensors that moved rooms swap names, entity IDs, areas and automations; the history stays with the room
+- New: **Copy a device's setup** – a new device like one you have gets copies of its automations and scripts, with the new room's lights where it has one of each; you pick which, and undo removes them
+- A switch that became a light: "switch.turn_on" on it becomes "light.turn_on" too, not only the entity ID
+- When Home Assistant can't reload the automations after a change (an error elsewhere), the panel says so on every page, with "Try again"
 
 ## 1.13.2 – 2026-11-24
 

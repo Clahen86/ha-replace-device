@@ -20,7 +20,7 @@ def test_setup_info():
         {"kind": "follow", "old_device": {"name": "sensor.a"}},
     ]
     su = setup_info(SimpleNamespace(history=hist, ai_entity="ai_task.x", hidden=[], ignored_refs=[]))
-    assert su["counts"] == {"replacements": 2, "renames": 0, "group_renames": 1, "follows": 1, "bulk": 1, "undone": 1}
+    assert su["counts"] == {"replacements": 2, "renames": 0, "group_renames": 1, "follows": 1, "bulk": 1, "undone": 1, "swaps": 0, "copies": 0}
     d = su["devices"][0]
     assert d["platform"] == "zha→mqtt" and d["ok"] is False and d["extra"]["entities"] == 4 and d["model"] == "Tuya TS011F → Tuya TS011F"
     assert "Kitchen" not in str(su) and "light." not in str(su)

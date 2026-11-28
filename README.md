@@ -89,6 +89,14 @@ Both can be undone in the list. Changes Replace Device makes itself, and IDs not
 
 **Dead references** on the front page lists every entity ID that automations, scripts, scenes and dashboards still use, but that is gone – with the best replacement and how sure it is. Tap **Move here** to point every place at the replacement (with undo in the history), **Remove the old one** for a forgotten entity, or **Ignore**. **Fix all sure ones** only moves matches that are clearly the same thing – never two different lamps or people with similar names. Your own YAML files and code outside Home Assistant are listed line by line under **See every place**.
 
+### Swap two devices
+
+Moved two sensors between rooms? **Swap two devices** gives each one the other's names, entity IDs, area and settings, and moves device triggers along with them. "Living room temperature" is the sensor in the living room again, and the history stays with the room. Both must be from the same integration. **Undo** swaps them back.
+
+### Copy a device's setup
+
+Bought a second motion sensor for the bedroom? **Copy a device's setup** makes the automations and scripts of the one you have again for the new one: its own entities, and the room's lights and the like, where the new room has exactly one of the same kind. You see each copy first and pick which. A copy that still uses something in the other room says so. **Undo** removes the copies.
+
 ### Rename a device
 
 Home Assistant can rename a device and its entity IDs, but automations, scripts, dashboards and helpers keep pointing at the old IDs. **Rename a device** changes the name and the entity IDs, and updates the places the Home Assistant editors manage:
@@ -201,6 +209,14 @@ Begge dele kan fortrydes i listen. Ændringer, Udskift enhed selv laver, og id'e
 ### Døde referencer
 
 **Døde referencer** på forsiden viser alle entity-id'er, som automationer, scripts, scener og dashboards stadig bruger, men som er væk – med den bedste afløser og hvor sikker den er. Tryk **Flyt hertil** for at rette alle steder (kan fortrydes i historikken), **Slet den gamle** for en glemt entitet, eller **Ignorér**. **Ret alle sikre** flytter kun dem, der tydeligt er det samme – aldrig to forskellige lamper eller personer med næsten samme navn. Dine egne YAML-filer og kode uden for Home Assistant vises linje for linje under **Se alle steder**.
+
+### Byt to enheder
+
+Har du flyttet to sensorer mellem to rum? **Byt to enheder** giver hver af dem den andens navne, entity-id'er, område og indstillinger, og enhedstriggere følger med. "Stue temperatur" er igen sensoren i stuen, og historikken bliver i rummet. De to skal være fra samme integration. **Fortryd** bytter dem tilbage.
+
+### Kopiér en enheds opsætning
+
+Har du købt en ekstra bevægelsessensor til soveværelset? **Kopiér en enheds opsætning** laver automatiseringerne og scripts fra den, du har, igen til den nye: med dens egne entiteter og med rummets lamper og lignende, hvis det nye rum har præcis én af samme slags. Du ser hver kopi først og vælger selv hvilke. En kopi, der stadig bruger noget i det andet rum, siger det. **Fortryd** fjerner kopierne.
 
 ### Omdøb en enhed
 
