@@ -104,7 +104,17 @@ async def async_migrate(hass: HomeAssistant, old: str, new: str) -> dict[str, An
         raise ValueError("no_statistics")
     if er.async_get(hass).async_get(old) is not None or hass.states.get(old) is not None:
         raise ValueError("not_orphaned")
+    unit = lambda m: m.get("unit_of_measurement") or m.get("statistics_unit_of_measurement")  # noqa: E731
+    if new in meta and (unit(meta[old][1]) != unit(meta[new][1]) or bool(meta[old][1].get("has_sum")) != bool(meta[new][1].get("has_sum"))):
+        raise ValueError("not_alike")  # kWh into W, or a meter into a measurement: never
     if new not in meta:
+        state = hass.states.get(new)
+        meter = state is not None and state.attributes.get("state_class") in ("total", "total_increasing")
+        if state is not None and (
+            (state.attributes.get("unit_of_measurement") or None) != (unit(meta[old][1]) or None)
+            or meter != bool(meta[old][1].get("has_sum"))
+        ):
+            raise ValueError("not_alike")
         inst.async_update_statistics_metadata(old, new_statistic_id=new)
         await inst.async_block_till_done()
         return {"done": "renamed"}
@@ -124,6 +134,9 @@ async def async_migrate(hass: HomeAssistant, old: str, new: str) -> dict[str, An
         before = [r for r in old_rows if r["start"] not in have]  # measurements: every hour the new one doesn't have
     if not before:
         raise ValueError("nothing_to_add")
+    if meta_new.get("has_sum") and len(before) < len(old_rows):
+        # Both counted some of the same hours: those old hours can't go in, and clearing the old would lose them.
+        raise ValueError("overlap")
 
     def stat(r: dict[str, Any]) -> dict[str, Any]:
         d: dict[str, Any] = {"start": datetime.fromtimestamp(r["start"], timezone.utc)}

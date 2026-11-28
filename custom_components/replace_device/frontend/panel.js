@@ -25,6 +25,8 @@ const TEXT = {
     statsHasStats: "has statistics",
     statsYesMerge: "Yes, merge them",
     statsNothing: "Nothing to move: {name} already has data for every hour. The leftover statistics can be deleted.",
+    statsOverlap: "Both counted the same hours, so they can't be joined without losing some. Nothing was changed.",
+    statsNotAlike: "The two don't measure the same (unit or kind). Nothing was changed.",
     statsDelete: "Delete the leftover statistics",
     statsDeleted: "The leftover statistics are deleted.",
     refsWhy: {"chosen": "Chosen by you", "replaced": "Replaced with Replace Device", "renamed": "Renamed – known for sure", "same_name": "Same name and kind in the history", "guess": "Maybe – from the names"},
@@ -333,6 +335,8 @@ const TEXT = {
     statsHasStats: "har statistik",
     statsYesMerge: "Ja, flet dem",
     statsNothing: "Intet at flytte: {name} har allerede data for alle timerne. Den efterladte statistik kan slettes.",
+    statsOverlap: "De to har talt de samme timer, så de kan ikke samles uden at miste noget. Intet er ændret.",
+    statsNotAlike: "De to måler ikke det samme (enhed eller type). Intet er ændret.",
     statsDelete: "Slet den efterladte statistik",
     statsDeleted: "Den efterladte statistik er slettet.",
     refsWhy: {"chosen": "Valgt af dig", "replaced": "Udskiftet med Replace Device", "renamed": "Omdøbt – det vides med sikkerhed", "same_name": "Samme navn og type i historikken", "guess": "Måske – ud fra navnene"},
@@ -641,6 +645,8 @@ const TEXT = {
     statsHasStats: "hat Statistik",
     statsYesMerge: "Ja, zusammenführen",
     statsNothing: "Nichts zu verschieben: {name} hat bereits Daten für alle Stunden. Die zurückgelassene Statistik kann gelöscht werden.",
+    statsOverlap: "Beide haben dieselben Stunden gezählt und lassen sich nicht ohne Verlust zusammenführen. Nichts wurde geändert.",
+    statsNotAlike: "Die beiden messen nicht dasselbe (Einheit oder Art). Nichts wurde geändert.",
     statsDelete: "Zurückgelassene Statistik löschen",
     statsDeleted: "Die zurückgelassene Statistik ist gelöscht.",
     refsWhy: {"chosen": "Von dir gewählt", "replaced": "Mit Replace Device ersetzt", "renamed": "Umbenannt – sicher bekannt", "same_name": "Gleicher Name und Typ im Verlauf", "guess": "Vielleicht – nach den Namen"},
@@ -949,6 +955,8 @@ const TEXT = {
     statsHasStats: "har statistik",
     statsYesMerge: "Ja, slå ihop",
     statsNothing: "Inget att flytta: {name} har redan data för alla timmar. Den kvarlämnade statistiken kan tas bort.",
+    statsOverlap: "Båda har räknat samma timmar, så de kan inte slås ihop utan att något går förlorat. Inget har ändrats.",
+    statsNotAlike: "De två mäter inte samma sak (enhet eller typ). Inget har ändrats.",
     statsDelete: "Ta bort den kvarlämnade statistiken",
     statsDeleted: "Den kvarlämnade statistiken är borttagen.",
     refsWhy: {"chosen": "Vald av dig", "replaced": "Ersatt med Replace Device", "renamed": "Bytt namn – det är säkert", "same_name": "Samma namn och typ i historiken", "guess": "Kanske – utifrån namnen"},
@@ -1257,6 +1265,8 @@ const TEXT = {
     statsHasStats: "heeft statistieken",
     statsYesMerge: "Ja, samenvoegen",
     statsNothing: "Niets te verplaatsen: {name} heeft al gegevens voor alle uren. De achtergebleven statistieken kunnen worden verwijderd.",
+    statsOverlap: "Beide hebben dezelfde uren geteld en kunnen niet worden samengevoegd zonder verlies. Er is niets gewijzigd.",
+    statsNotAlike: "De twee meten niet hetzelfde (eenheid of soort). Er is niets gewijzigd.",
     statsDelete: "Achtergebleven statistieken verwijderen",
     statsDeleted: "De achtergebleven statistieken zijn verwijderd.",
     refsWhy: {"chosen": "Door jou gekozen", "replaced": "Vervangen met Replace Device", "renamed": "Hernoemd – zeker bekend", "same_name": "Zelfde naam en soort in de geschiedenis", "guess": "Misschien – op basis van de namen"},
@@ -3038,6 +3048,8 @@ class ReplaceDevicePanel extends HTMLElement {
         return this.ws("orphan_stats").then((x) => (this.orphans = x.orphans));
       }).catch((e) => {
         if (e.code === "nothing_to_add") this.statsNothing = data.id;  // the new one already has every hour
+        else if (e.code === "overlap") this.error = this.t("statsOverlap");
+        else if (e.code === "not_alike") this.error = this.t("statsNotAlike");
         else this.error = this.t("error", { e: e.message || e.code || e });
       }).finally(() => { this.view = "refs"; this.render(); });
       return;

@@ -13,6 +13,7 @@ from dataclasses import asdict, dataclass, field
 import json
 import logging
 import os
+import re
 import time
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -22,6 +23,7 @@ from homeassistant import loader
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import CALLBACK_TYPE, Event, EventStateChangedData, HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import (
     area_registry as ar,
     device_registry as dr,
@@ -120,6 +122,9 @@ class Replacer:
         # Replace Device's own renames must not look like entity IDs that changed by themselves (watch.py).
         self._busy = 0
         self._quiet_until = 0.0
+        # One change at a time (two taps, two tabs): the second waits, then finds the work done.
+        self._lock = asyncio.Lock()
+        self._owner: asyncio.Task | None = None
         # Devices the user said are only switched off, not gone.
         self.hidden: list[str] = []
         # Dead references the user said to leave alone.
@@ -136,6 +141,10 @@ class Replacer:
         cutoff = time.time() - _KEEP_DAYS * 86400
         data = await self.store.async_load() or {}
         self.history = [h for h in data.get("history", []) if h["at"] >= cutoff]
+        for h in self.history:
+            if h.pop("running", None):  # Home Assistant stopped in the middle of it: shown, and can be undone
+                h["interrupted"] = True
+                _LOGGER.warning("The replacement of %s was interrupted by a restart; check it under Replace Device", h["old_device"].get("name"))
         self.hidden = data.get("hidden", [])
         self.ignored_refs = data.get("ignored_refs", [])
         # Energy jumps waiting for their hour to be written (see _async_energy_tick).
@@ -176,7 +185,7 @@ class Replacer:
                 "labels": sorted(plan.new.labels),
             },
             "entities": [
-                {"entity_id": _target_id(o, n), "was": n.entity_id, "uuid": n.id, **_settings(n), "old": _settings(o)}
+                {"entity_id": _target_id(o, n), "was": n.entity_id, "uuid": n.id, "old_uuid": o.id, **_settings(n), "old": _settings(o)}
                 | ({"replaces": o.entity_id} if o.domain != n.domain else {})
                 for o, n in pairs
             ],
@@ -199,6 +208,18 @@ class Replacer:
             pairs = [(o, n) for o, n in pairs if o.entity_id not in skipped]
             record["entities"] = [e for e in record["entities"] if e.get("replaces", e["entity_id"]) not in skipped]
             record["ids"] = {plan.old.id: plan.new.id} | {o.id: n.id for o, n in pairs}
+        # A plan that went out of date since the test run (a picked entity or every picked old one is gone): nothing
+        # is removed. (One that can't take over because the name is taken is shown in the test, and skipped.)
+        wanted = [v for v in plan.mapping.values() if v]
+        have = {e.entity_id for e in plan.new_entities}
+        # ... or changed while it waited for another change to finish: each entity still the one the plan saw.
+        moved_on = any(
+            (now_new := entities.async_get(n.id)) is None or now_new.entity_id != n.entity_id
+            or ((now_old := entities.async_get(o.entity_id)) is not None and now_old.id != o.id)
+            for o, n in plan.pairs
+        )
+        if moved_on or any(v not in have for v in wanted) or (wanted and not plan.pairs):
+            raise HomeAssistantError("The new device changed since the test - open it again and check the matches")
         old_ids = [o.entity_id for o, _ in pairs]
         temp_ids = [n.entity_id for _, n in pairs]
         # Meters (kWh …): what the new one reads against what the old one last read - the difference would show as
@@ -210,6 +231,15 @@ class Replacer:
         # The device's own settings, and Zigbee2MQTT's bindings and calibration: read while the old one is still known.
         settings = await _safely("reading the old device's settings", _settings_plan(hass, plan, pairs), [])
         z2m_todo = await _safely("reading Zigbee2MQTT", _z2m_plan(hass, plan), None)
+
+        # Written down before anything changes: a restart in the middle still leaves a record to undo from.
+        record["running"] = True
+        self.history.append(record)
+        await self.store.async_save(self._data())
+        saved = await self.store.async_load() or {}
+        if not any(h.get("id") == record["id"] for h in saved.get("history", [])):  # the disk refused: change nothing
+            self.history.remove(record)
+            raise HomeAssistantError("Replace Device could not save its record, so nothing was changed")
 
         # 1. The old ones make room. Removing the device from its integration removes all its entities.
         removed = await _remove_device(hass, plan.old) if remove_old else False
@@ -247,7 +277,7 @@ class Replacer:
             record["ids"] = {plan.old.id: plan.new.id} | {o.id: n.id for o, n in pairs}
         record["failed"] = skipped + failed
         # From here on the replacement can be undone, whatever happens in the steps below.
-        self.history.append(record)
+        record.pop("running", None)
         self._save()
 
         # 3. The new device gets the old one's name and area.
@@ -290,7 +320,7 @@ class Replacer:
 
         # 4. Automations and scripts that point at the old device or its entities by id, and device triggers that
         #    have other names in the new integration (a ZHA button press is an "action" in Zigbee2MQTT).
-        rewritten: dict[str, list[str]] = {}
+        rewritten: dict[str, list[Any]] = {}
         changed = await _safely(
             "updating automations and scripts", self._rewrite(record["ids"], reload=False, lines=rewritten), []
         )
@@ -495,7 +525,7 @@ class Replacer:
             entities.async_update_entity_options(
                 old.entity_id, domain, dict(new.options.get(domain, {})) | dict(options)
             )
-        rewritten: dict[str, list[str]] = {}
+        rewritten: dict[str, list[Any]] = {}
         record["files"] = await self._rewrite(record["ids"], reload, lines=rewritten)
         record["rewritten"] = rewritten
         self.history.append(record)
@@ -640,7 +670,10 @@ class Replacer:
         current = {slot: getattr(entities.async_get(slot), "id", None) for slot in items}
         wanted = current | {slot: uuid for slot, uuid in mapping.items() if slot in items}
         picked = [uuid for uuid in wanted.values() if uuid]
-        if len(picked) != len(set(picked)) or any(entities.async_get(uuid) is None for uuid in picked):
+        device_id = record["new_device"]["id"]
+        if len(picked) != len(set(picked)) or any(
+            (e := entities.async_get(uuid)) is None or e.device_id != device_id for uuid in picked
+        ):
             return False
         changes = {slot: uuid for slot, uuid in wanted.items() if uuid != current[slot]}
         if not changes:
@@ -671,6 +704,7 @@ class Replacer:
             _rename(entities, entry.entity_id, target, _restore(own[uuid]))
 
         # 2. The chosen entities take the names, with everything the name carried.
+        moved: dict[str, str] = {}
         for slot, uuid in changes.items():
             item = items[slot]
             if uuid is None:
@@ -683,6 +717,24 @@ class Replacer:
             for domain, options in settings["options"].items():
                 entities.async_update_entity_options(slot, domain, dict(entry.options.get(domain, {})) | dict(options))
             item.update(own[uuid], uuid=uuid, old=settings)
+            moved[current[slot] or item.get("old_uuid") or ""] = uuid
+
+        # 3. What the replacement pointed at the entity that had the name (device triggers store the entity's own
+        #    id) goes to the one that has it now - only the lines the replacement changed.
+        if moved := {k: v for k, v in moved.items() if k and k != v}:
+            ids = record["ids"]
+            for k, v in list(ids.items()):
+                if v in moved:
+                    ids[k] = moved[v]
+            for item in record["entities"]:
+                if item.get("old_uuid") in moved and item["old_uuid"] not in ids:
+                    ids[item["old_uuid"]] = moved[item["old_uuid"]]
+            if record.get("rewritten"):
+                await _safely("updating automations and scripts", self._rewrite(moved, only=record["rewritten"]), [])
+                record["rewritten"] = {
+                    f: [[x[0], _swap(x[1], moved)] if isinstance(x, list) else _swap(x, moved) for x in lines]
+                    for f, lines in record["rewritten"].items()
+                }
         self._save()
         return True
 
@@ -716,6 +768,17 @@ class Replacer:
             )
         hass = self.hass
         devices, entities = dr.async_get(hass), er.async_get(hass)
+        # An old id that something else holds now (the old device came back): stopped before anything changes, or
+        # automations would move over to an entity that doesn't have the name.
+        if gone := [item["entity_id"] for item in record["entities"] if entities.async_get(item["uuid"]) is None]:
+            raise HomeAssistantError(f"The new device's entity is gone: {', '.join(gone)}")
+        taken = [
+            item["entity_id"] for item in record["entities"]
+            if (entry := entities.async_get(item["uuid"])) is not None
+            and (holder := entities.async_get(item["entity_id"])) is not None and holder.id != entry.id
+        ]
+        if taken:
+            raise HomeAssistantError(f"Already in use again: {', '.join(taken)} - remove or rename it first")
         for item in record["entities"]:
             entry = entities.async_get(item["uuid"])
             if entry is None or entities.async_get(item["entity_id"]):
@@ -736,7 +799,9 @@ class Replacer:
                 area_id=old_device.get("area_id") or current.area_id,
                 labels=set(old_device.get("labels", [])) | set(current.labels),
             )
-        rewritten: dict[str, list[str]] = {}
+        if cross := record.get("cross"):  # a switch that is a light again: its entity id where the old one is written
+            await _safely("updating the new kind's entity ids", self._async_places(cross, apply=True), {})
+        rewritten: dict[str, list[Any]] = {}
         changed = set(await _safely("updating automations and scripts", self._rewrite(record["ids"], False, lines=rewritten), []))
         record["rewritten"] = rewritten
         if record.get("moved"):
@@ -770,10 +835,14 @@ class Replacer:
 
     async def async_redo_batch(self, batch: str) -> int:
         records = [r for r in self.history if r.get("batch") == batch and r["undone"]]
+        done = 0
         for record in records:
-            await self.async_redo(record["id"], reload=False)
+            try:
+                done += bool(await self.async_redo(record["id"], reload=False))
+            except HomeAssistantError as err:  # one in use again: the others still go
+                _LOGGER.warning("Not done again: %s", err)
         await self.async_reload({"automation", "script", "scene"} | _yaml_domains(records))
-        return len(records)
+        return done
 
     async def async_undo_batch(self, batch: str) -> int:
         """Undo every replacement of one "move many", newest first; reload once."""
@@ -873,10 +942,11 @@ class Replacer:
         if changed:
             self._save()
 
+    def _data(self) -> dict[str, Any]:
+        return {"history": self.history, "hidden": self.hidden, "ignored_refs": self.ignored_refs}
+
     def _save(self) -> None:
-        self.store.async_delay_save(
-            lambda: {"history": self.history, "hidden": self.hidden, "ignored_refs": self.ignored_refs}, 1
-        )
+        self.store.async_delay_save(self._data, 1)
 
     def set_ignored_ref(self, entity_id: str, ignored: bool) -> None:
         self.ignored_refs = [e for e in self.ignored_refs if e != entity_id] + ([entity_id] if ignored else [])
@@ -1238,8 +1308,8 @@ class Replacer:
         ids: dict[str, str],
         reload: bool = True,
         exact: bool = False,
-        lines: dict[str, list[str]] | None = None,
-        only: dict[str, list[str]] | None = None,
+        lines: dict[str, list[Any]] | None = None,
+        only: dict[str, list[Any]] | None = None,
     ) -> list[str]:
         """Replace device and entity registry ids in the automation, script, scene and package files, then reload.
 
@@ -1253,29 +1323,50 @@ class Replacer:
                 continue
             name = os.path.basename(path)
             if only is not None:
-                mine = set(only.get(name) or [])
+                # [block, line] since 1.14: only in the automation/script it was changed in. A plain line: anywhere.
+                mine = {tuple(x) if isinstance(x, list) else x for x in only.get(name) or []}
                 parts = text.splitlines(keepends=True)
+                blocks = _blocks(parts)
                 for i, line in enumerate(parts):
-                    if line.rstrip("\r\n") in mine:
-                        for old_id, new_id in ids.items():
-                            line = line.replace(old_id, new_id)
-                        parts[i] = line
+                    bare = line.rstrip("\r\n")
+                    if (blocks[i], bare) in mine or bare in mine:
+                        parts[i] = _swap(line, ids)
                 new = "".join(parts)
             else:
-                new = tidy.replace_ids(text, ids) if exact else text
-                if not exact:
-                    for old_id, new_id in ids.items():
-                        new = new.replace(old_id, new_id)
+                new = tidy.replace_ids(text, ids) if exact else _swap(text, ids)
             if new == text:
                 continue
             if lines is not None:
-                before = set(text.splitlines())
-                lines[name] = [ln for ln in new.splitlines() if ln not in before]
+                was = text.splitlines()
+                before = set(zip(_blocks(was), was, strict=True))
+                after = new.splitlines()
+                lines[name] = [[b, ln] for b, ln in zip(_blocks(after), after, strict=True) if (b, ln) not in before]
             await self.hass.async_add_executor_job(write_utf8_file_atomic, path, new)
             changed.update(domains)
         if reload:
             await self.async_reload(changed)
         return sorted(changed)
+
+
+def _swap(text: str, ids: dict[str, str]) -> str:
+    """Every id replaced in one go - so a swap (a -> b and b -> a) doesn't turn both into the same."""
+    ids = {k: v for k, v in ids.items() if k and k != v}
+    if not ids:
+        return text
+    pattern = re.compile("|".join(re.escape(k) for k in sorted(ids, key=len, reverse=True)))
+    return pattern.sub(lambda m: ids[m.group(0)], text)
+
+
+def _blocks(lines: list[str]) -> list[str]:
+    """For each line, the top-level line it belongs under ("- id: '1761…'" in automations.yaml, "my_script:" in
+    scripts.yaml) - so undo can tell an automation it changed from one made since with the same line."""
+    out, block = [], ""
+    for line in lines:
+        bare = line.rstrip("\r\n")
+        if bare and not bare[0].isspace() and not bare.startswith("#"):
+            block = bare
+        out.append(block)
+    return out
 
 
 def _moved(hass: HomeAssistant, plan: Plan, rename_z2m: bool) -> triggers.Moved:
@@ -1346,12 +1437,18 @@ def _busy_while[**P, R](method: Callable[P, Awaitable[R]]) -> Callable[P, Awaita
     """While Replace Device works (and a moment after), entity ID changes are its own, not changes by themselves."""
 
     async def wrapper(self: Replacer, *args: Any, **kwargs: Any) -> Any:
-        self._busy += 1
-        try:
+        task = asyncio.current_task()
+        if self._owner is not None and self._owner is task:  # called from inside another change: already held
             return await method(self, *args, **kwargs)
-        finally:
-            self._busy -= 1
-            self._quiet_until = time.monotonic() + 5
+        async with self._lock:
+            self._owner = task
+            self._busy += 1
+            try:
+                return await method(self, *args, **kwargs)
+            finally:
+                self._busy -= 1
+                self._owner = None
+                self._quiet_until = time.monotonic() + 5
 
     wrapper.__name__ = method.__name__
     wrapper.__doc__ = method.__doc__
@@ -1360,7 +1457,7 @@ def _busy_while[**P, R](method: Callable[P, Awaitable[R]]) -> Callable[P, Awaita
 
 for _name in (
     "async_replace", "async_replace_entity", "async_undo", "async_redo", "async_edit",
-    "async_rename", "_async_tidy", "async_tidy_record",
+    "async_rename", "_async_tidy", "async_tidy_record", "async_undo_batch", "async_redo_batch", "async_follow",
 ):
     setattr(Replacer, _name, _busy_while(getattr(Replacer, _name)))
 

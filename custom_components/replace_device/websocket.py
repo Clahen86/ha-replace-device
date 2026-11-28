@@ -9,6 +9,7 @@ import voluptuous as vol
 
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import area_registry as ar, config_validation as cv, device_registry as dr, entity_registry as er
 
 from .const import DOMAIN
@@ -621,6 +622,10 @@ async def ws_migrate(hass: HomeAssistant, connection: websocket_api.ActiveConnec
     if replacer is None:
         connection.send_error(msg["id"], "not_loaded", "Replace Device is not set up")
         return
+    targets = [p["new"] for p in msg["pairs"]] + [g["new"] for g in msg["groups"]]
+    if len(targets) != len(set(targets)):
+        connection.send_error(msg["id"], "invalid", "One new device can only take over one old device")
+        return
     batch = str(int(time.time() * 1000))
     done, failed, moved, reload, unresolved, translated = [], [], 0, set(), [], 0
     integrations: list[str] = []
@@ -640,9 +645,13 @@ async def ws_migrate(hass: HomeAssistant, connection: websocket_api.ActiveConnec
                 failed.append(pair["old"])
                 continue
             await replacer.async_fill_with_ai(plan)
-            result = await replacer.async_replace(
-                plan, msg["remove_old"], msg["rename_z2m"], reload=False, batch=batch, picked=msg["fix"]
-            )
+            try:
+                result = await replacer.async_replace(
+                    plan, msg["remove_old"], msg["rename_z2m"], reload=False, batch=batch, picked=msg["fix"]
+                )
+            except HomeAssistantError:  # out of date since the test run: left as it is, the others go on
+                failed.append(pair["old"])
+                continue
             done.append(result["id"])
             moved += result["moved"]
             reload.update(result["changed"])

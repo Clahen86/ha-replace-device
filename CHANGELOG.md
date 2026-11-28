@@ -2,6 +2,16 @@
 
 Newest first. Each version lists what changed since the one before.
 
+## 1.14.0 – 2026-11-28
+
+- One change at a time: a double tap on Undo or Redo, or a second browser tab, waits instead of doing it twice
+- A replacement whose new device changed since the test run stops before anything is removed; one new device can't take over two old ones in "move many"
+- Undo changes back only the automations and scripts the replacement changed, not new ones with the same line
+- Redo stops when the old name is in use again, and points automations at the light again after a switch became a light
+- "Change" (mixed-up temperature and humidity) also moves the device triggers along to the right sensor
+- Joining statistics never deletes hours it couldn't copy, and refuses two that don't measure the same
+- The replacement is written down before anything changes, so a restart in the middle still leaves it to undo
+
 ## 1.13.2 – 2026-11-24
 
 - A replacement never removes an old entity that the new one can't take over: an id held by another state is checked first, and Home Assistant 2026.10's "no area without a name" rule no longer stops the takeover (#53)

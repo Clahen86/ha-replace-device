@@ -89,3 +89,31 @@ async def test_nothing_to_add_then_delete(ready, hass: HomeAssistant) -> None:
     await async_wait_recording_done(hass)  # the deletion is committed before it is read (was flaky)
     assert await _sums(hass, "sensor.old_plug_energy") == []
     assert len(await _sums(hass, "sensor.new_plug_energy")) == 10
+
+
+async def test_overlapping_meters_are_not_joined(ready, hass: HomeAssistant) -> None:
+    """The old meter counted on after the new one started: those hours can't go in, so the old is kept."""
+    async_import_statistics(hass, meta("sensor.old_plug_energy"), rows(8, T0))
+    async_import_statistics(hass, meta("sensor.new_plug_energy"), rows(5, T0 + timedelta(hours=5)))
+    hass.states.async_set("sensor.new_plug_energy", "5", {"state_class": "total_increasing", "unit_of_measurement": "kWh"})
+    await async_wait_recording_done(hass)
+    with pytest.raises(ValueError, match="overlap"):
+        await stats.async_migrate(hass, "sensor.old_plug_energy", "sensor.new_plug_energy")
+    assert len(await _sums(hass, "sensor.old_plug_energy")) == 8
+
+
+async def test_not_alike_is_refused(ready, hass: HomeAssistant) -> None:
+    async_import_statistics(hass, meta("sensor.old_plug_energy"), rows(3, T0))
+    hass.states.async_set("sensor.new_plug_power", "5", {"state_class": "measurement", "unit_of_measurement": "W"})
+    await async_wait_recording_done(hass)
+    with pytest.raises(ValueError, match="not_alike"):
+        await stats.async_migrate(hass, "sensor.old_plug_energy", "sensor.new_plug_power")
+    assert len(await _sums(hass, "sensor.old_plug_energy")) == 3
+
+
+async def test_meter_history_not_given_to_a_measurement(ready, hass: HomeAssistant) -> None:
+    async_import_statistics(hass, meta("sensor.old_plug_energy"), rows(3, T0))
+    hass.states.async_set("sensor.new_plug_energy", "5", {"state_class": "measurement", "unit_of_measurement": "kWh"})
+    await async_wait_recording_done(hass)
+    with pytest.raises(ValueError, match="not_alike"):
+        await stats.async_migrate(hass, "sensor.old_plug_energy", "sensor.new_plug_energy")
